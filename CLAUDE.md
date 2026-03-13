@@ -21,14 +21,159 @@ and collaborate with team members — all with a live balance summary.
 
 ---
 
+## Brand Identity
+
+### Logo Files
+All logo assets live in `brand/` in the project root:
+
+```
+brand/
+  cashflow_logo.png              # 512×512 square icon — favicon, app icon, social media
+  cashflow_logo_horizontal.png   # 1200×400 wordmark — navbar, email headers
+  cashflow_brand_guidelines.png  # Full brand reference (colours, type, spacing, usage)
+```
+
+Copy `cashflow_logo.png` to `public/favicon.png` for the browser tab icon.
+
+**Logo usage rules:**
+- Approved backgrounds: navy `#0a0f1e`, white `#f8fafc`, primary blue `#1a56db` only
+- Never place the logo on photographic or patterned backgrounds
+- Never stretch, rotate, skew, recolour, or add shadows/glows
+- Maintain clear space equal to the icon height on all sides
+
+### Colour Palette
+
+| Token        | Hex       | Tailwind Custom Key | Usage                                        |
+|--------------|-----------|---------------------|----------------------------------------------|
+| Navy         | `#0a0f1e` | `navy`              | Page background, primary dark surface        |
+| Dark         | `#111827` | `dark`              | Cards, sidebars, elevated surfaces           |
+| Primary Blue | `#1a56db` | `primary`           | Buttons, links, active states, icon bg       |
+| Accent Blue  | `#3b82f6` | `accent`            | Hover states, highlights, progress bars      |
+| Light Blue   | `#93c5fd` | `blue-light`        | Subtext on dark, muted icons, trend lines    |
+| X-Light Blue | `#dbeafe` | `blue-xlight`       | Subtle backgrounds, info banners             |
+| Success      | `#22c55e` | —                   | Cash In entries, positive balances           |
+| Danger       | `#ef4444` | —                   | Cash Out entries, negative balances, deletes |
+| White        | `#f8fafc` | —                   | Body text on dark, light-mode surfaces       |
+| Gray Dim     | `#64748b` | —                   | Muted labels, placeholders, captions         |
+
+Register custom tokens in `tailwind.config.js`:
+```js
+theme: {
+  extend: {
+    colors: {
+      navy:           '#0a0f1e',
+      dark:           '#111827',
+      primary:        '#1a56db',
+      accent:         '#3b82f6',
+      'blue-light':   '#93c5fd',
+      'blue-xlight':  '#dbeafe',
+    }
+  }
+}
+```
+
+### Typography
+
+| Role             | Font                 | Weight | Usage                              |
+|------------------|----------------------|--------|------------------------------------|
+| Display/Headings | Bricolage Grotesque  | 800    | Hero text, page titles, wordmark   |
+| Subheadings      | Plus Jakarta Sans    | 700    | Section headings, card titles      |
+| Body / UI        | Outfit               | 400    | Body copy, labels, form fields     |
+| Monospace        | Geist Mono           | 400    | Currency amounts, tokens, codes    |
+
+Load all four in the guest and app layouts:
+```html
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono&display=swap" rel="stylesheet">
+```
+
+Set font families in `tailwind.config.js`:
+```js
+fontFamily: {
+  display: ['Bricolage Grotesque', 'sans-serif'],
+  heading: ['Plus Jakarta Sans', 'sans-serif'],
+  body:    ['Outfit', 'sans-serif'],
+  mono:    ['Geist Mono', 'monospace'],
+}
+```
+
+### Spacing Scale
+Use only Tailwind spacing utilities. Standard scale: `4 · 8 · 12 · 16 · 24 · 32 · 48 · 64px`
+
+### Border Radius
+| Usage                    | Value  | Tailwind class  |
+|--------------------------|--------|-----------------|
+| Badges, tags             | 4px    | `rounded`       |
+| Inputs, buttons          | 8px    | `rounded-lg`    |
+| Cards, panels            | 12px   | `rounded-xl`    |
+| Modals, large containers | 16px   | `rounded-2xl`   |
+| Pills, avatars           | 9999px | `rounded-full`  |
+
+### Voice & Tone
+- **Confident** — short, direct sentences; no filler words
+- **Accessible** — no accounting jargon; define any term you must use
+- **Honest** — show real numbers; don't oversell
+- **Local** — use PKR as default currency display in Pakistan-facing copy
+
+---
+
+## Frontend Design Principles
+
+Every screen built in this app must be **production-grade and visually distinctive** — not generic AI-generated UI. Before writing any Blade or Livewire code for a new screen, answer these four questions:
+
+1. **Purpose** — What problem does this screen solve? Who is using it and what do they need to feel?
+2. **Tone** — CashFlow targets Pakistani small business owners. The aesthetic is: *finance-professional, confident, dark-luxe*. Think dashboard-grade clarity with depth — not a startup landing page, not a plain admin panel.
+3. **Differentiation** — What is the one thing a user will remember about this screen? Every screen should have one deliberate "wow" detail: a micro-interaction, a beautifully typeset number, an unexpected layout flourish.
+4. **Constraints** — Blade + Livewire + Tailwind only. No Vue, no React. CSS transitions/animations via Tailwind or `<style>` blocks in Blade.
+
+### Aesthetic Direction
+
+CashFlow uses a **refined dark-luxe** aesthetic:
+- Deep navy backgrounds with layered card surfaces (`#0a0f1e` → `#111827` → `#1e293b`)
+- Electric blue as the sole accent — never competing colours
+- Currency amounts rendered large, bold, monospace — they are the hero of every screen
+- Subtle grid or dot patterns as background texture (CSS only, very low opacity)
+- Generous negative space — never cluttered
+- Smooth transitions on state changes (entry added, balance updated, modal opened)
+
+### Typography Hierarchy in UI
+
+Apply the font stack consistently across every screen:
+
+| Context                          | Font                 | Weight | Size approx  |
+|----------------------------------|----------------------|--------|--------------|
+| Page title / hero number         | Bricolage Grotesque  | 800    | 2xl – 4xl    |
+| Section headings / card titles   | Plus Jakarta Sans    | 700    | lg – xl      |
+| Labels, nav items, button text   | Outfit               | 500    | sm – base    |
+| Body copy, descriptions          | Outfit               | 400    | sm – base    |
+| All currency amounts             | Geist Mono           | 400    | base – 3xl   |
+
+### Motion & Micro-interactions
+
+- Balance summary numbers: animate count-up when a new entry is saved (Alpine.js)
+- Slide-over panels (Add Entry, Edit Entry): slide in from the right with `transition-transform duration-300`
+- Upgrade modal: fade in with subtle scale up (`scale-95 → scale-100`)
+- Button hover states: slight brightness lift + shadow increase, not colour change
+- Row hover in entry list: left border accent appears (`border-l-2 border-primary`)
+- One staggered reveal on page load for dashboard cards (Alpine.js `x-init` + delay)
+
+### What to NEVER do
+
+- Never use Inter, Roboto, Arial, or system-ui as the primary font
+- Never use purple gradients, rainbow gradients, or neon glow effects
+- Never make a screen that looks like a generic SaaS template
+- Never render currency amounts in a regular body font — always Geist Mono
+- Never show a negative balance without visual emphasis (red colour + icon)
+- Never use flat white backgrounds — all authenticated screens use the navy dark theme
+
+---
+
 ## Design System
 
-- **Fonts:** "Plus Jakarta Sans" (headings) + "DM Sans" (body) — loaded via Google Fonts
-- **Theme:** Dark navy background (#0a0f1e), electric blue accent (#3b82f6), white text
-- **UI style:** Clean, modern, finance-professional. Confident, not flashy.
+- **Theme:** Dark navy background (`#0a0f1e`), primary blue (`#1a56db`), white text
+- **UI style:** Clean, finance-professional. Confident, not flashy.
 - **Components:** All UI is Blade + Livewire. No Vue, no React, no Inertia.
-- **Spacing:** Generous padding, card-based layouts, subtle borders
-- **Buttons:** Solid blue primary, outlined secondary, destructive red for deletes
+- **Spacing:** Generous padding, card-based layouts, subtle `#1e293b` borders
+- **Buttons:** Solid `primary` blue, outlined secondary, `danger` red for destructive actions
 
 ---
 
