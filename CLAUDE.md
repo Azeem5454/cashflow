@@ -306,7 +306,7 @@ database/
 ## Livewire Conventions
 
 - One Livewire component per major UI interaction (e.g. `CreateBook`, `AddEntry`, `InviteMember`)
-- Use `#[Rule]` attributes for validation (Livewire 3 syntax)
+- Use a `protected rules(): array` method for validation (Livewire 4 — `#[Rule]`/`#[Validate]` attributes are unreliable in v4)
 - Emit events to update parent components after mutations (e.g. after adding an entry, refresh balance summary)
 - Balance summary must update in real time — use Livewire `$refresh` or reactive properties
 - Use slide-over panels (not full page navigations) for Add Entry and Edit Entry
@@ -356,20 +356,46 @@ database/
 
 - [x] Project setup (Laravel 11, PostgreSQL, Breeze, Livewire, Tailwind)
 - [x] Database migrations and models
-- [ ] Landing page (/)
-- [ ] Login screen (/login)
-- [ ] Register screen (/register)
-- [ ] Email verification screen
-- [ ] Forgot/reset password screens
-- [ ] Main dashboard (/dashboard)
-- [ ] Create business
-- [ ] Business dashboard
-- [ ] Business settings + team management
-- [ ] Create book
-- [ ] Book detail (ledger) + balance summary
-- [ ] Add / edit / delete entry
-- [ ] Invite team member flow
-- [ ] Profile settings
-- [ ] Billing & plans (Stripe)
-- [ ] Upgrade prompt modal
+- [x] Landing page (/)
+- [x] Login screen (/login)
+- [x] Register screen (/register)
+- [x] Email verification screen
+- [x] Forgot/reset password screens
+- [x] Main dashboard (/dashboard)
+- [x] Create business
+- [x] Business dashboard (/businesses/{business}) — books list, search, sort, Cash In/Out/Balance columns
+- [x] Business settings + team management (/businesses/{business}/settings) — General tab (name/description/delete), Team tab (invite, members list with role change + remove, pending invitations), upgrade modal
+- [x] Invite team member flow — TeamInvitation mailable, email template, invitation accept page (/invitations/{token}/accept) with guest/auth states
+- [ ] **NEXT: Create book** (/businesses/{business}/books/create) — Livewire component `app/Livewire/Book/Create.php`, form: name (required), description (optional), period_starts_at / period_ends_at (optional date range). On success redirect to the new book's detail page.
+- [ ] Book detail (ledger) + balance summary (/businesses/{business}/books/{book})
+- [ ] Add / edit / delete entry (slide-over panel inside book detail)
+- [ ] Profile settings (/settings/profile)
+- [ ] Billing & plans (Stripe) (/settings/billing)
+- [ ] Upgrade prompt modal (reusable component)
 - [ ] PDF + CSV export (Pro only)
+
+---
+
+## Session Notes (last updated 2026-03-14)
+
+### Completed this session
+- `app/Livewire/Business/Show.php` + `resources/views/livewire/business/show.blade.php`
+  - Books list with search (PostgreSQL ilike), Alpine custom sort dropdown, Cash In/Out/Balance columns
+  - Balance via `bcsub` with `withSum` aggregation
+- `app/Livewire/Business/Settings.php` + `resources/views/livewire/business/settings.blade.php`
+  - Two-tab layout (General / Team) with Alpine tab switcher in sticky header
+  - General tab: name + description form, saved toast via `@general-saved.window` event, danger zone with confirm input
+  - Team tab: invite form with Alpine role picker dropdown (`$wire.entangle`), members list with inline role select + confirm remove, pending invitations with cancel
+  - Upgrade modal (amber) shown when free plan limit hit (`$showUpgradeModal`)
+- `app/Mail/TeamInvitation.php` + `resources/views/emails/team-invitation.blade.php`
+- `app/Livewire/Invitation/Accept.php` + `resources/views/livewire/invitation/accept.blade.php`
+  - Guest layout, four states: pending / expired / accepted / already_member
+- Route: `GET /invitations/{invitation:token}/accept` → `invitations.accept`
+
+### Key design patterns established
+- Sticky header: `dark:bg-[#080d1a]` + `dark:border-b dark:border-slate-800`
+- Cards: `dark:bg-[#1e293b] dark:border-slate-700/60`
+- Form inputs: `dark:bg-navy bg-gray-50 dark:border-slate-700 focus:ring-primary/50`
+- Alpine custom dropdowns instead of native `<select>` (avoids double-chevron artifact)
+- Role change on members: `@change="$wire.updateMemberRole('id', $event.target.value)"`
+- Livewire events dispatched from component, caught in Blade with `@event-name.window`
