@@ -17,6 +17,8 @@
 
     {{-- Prevent dark mode flash: runs synchronously before first paint --}}
     <script>if ((localStorage.getItem('cashflow_theme') ?? 'dark') === 'dark') { document.documentElement.classList.add('dark'); }</script>
+    {{-- Re-apply dark class after wire:navigate page swaps --}}
+    <script>document.addEventListener('livewire:navigated', function() { document.documentElement.classList.toggle('dark', (localStorage.getItem('cashflow_theme') ?? 'dark') === 'dark'); });</script>
 
     <title>{{ config('app.name', 'CashFlow') }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
