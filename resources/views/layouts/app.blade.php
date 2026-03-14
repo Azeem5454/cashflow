@@ -54,7 +54,7 @@
 
         {{-- Logo --}}
         <div class="flex items-center h-16 px-5 flex-shrink-0 dark:border-slate-800 border-b border-gray-200">
-            <a href="{{ route('dashboard') }}">
+            <a href="{{ route('dashboard') }}" wire:navigate>
                 <x-app-logo />
             </a>
         </div>
@@ -63,7 +63,7 @@
         <nav class="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
             <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-600 text-gray-400 px-3 pb-2">Main</p>
 
-            <a href="{{ route('dashboard') }}"
+            <a href="{{ route('dashboard') }}" wire:navigate
                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                       {{ request()->routeIs('dashboard')
                           ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-light'
@@ -74,7 +74,7 @@
                 Dashboard
             </a>
 
-            <a href="{{ route('dashboard') }}"
+            <a href="{{ route('dashboard') }}" wire:navigate
                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                       {{ request()->routeIs('businesses.*')
                           ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-light'
@@ -88,7 +88,7 @@
             <div class="pt-4">
                 <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-600 text-gray-400 px-3 pb-2">Account</p>
 
-                <a href="{{ route('profile.edit') }}"
+                <a href="{{ route('profile.edit') }}" wire:navigate
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                           {{ request()->routeIs('profile.*')
                               ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-light'
@@ -100,7 +100,7 @@
                     Settings
                 </a>
 
-                <a href="{{ route('billing') }}"
+                <a href="{{ route('billing') }}" wire:navigate
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                           {{ request()->routeIs('billing') ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-light' : 'dark:text-slate-400 text-gray-600 dark:hover:bg-slate-800/80 hover:bg-gray-100 dark:hover:text-white hover:text-gray-900' }}">
                     <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
@@ -161,7 +161,7 @@
                      x-transition:leave-end="opacity-0 -translate-y-2"
                      class="absolute bottom-full left-0 right-0 mb-1 dark:bg-[#1e293b] bg-white dark:border-slate-700 border border-gray-200 rounded-xl shadow-2xl overflow-hidden z-50"
                      style="display:none;">
-                    <a href="{{ route('profile.edit') }}"
+                    <a href="{{ route('profile.edit') }}" wire:navigate
                        class="flex items-center gap-2.5 px-4 py-3 text-sm dark:text-slate-300 text-gray-700 dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors">
                         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>

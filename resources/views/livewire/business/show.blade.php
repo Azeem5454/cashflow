@@ -8,7 +8,7 @@
         <div class="max-w-6xl mx-auto flex items-center justify-between gap-4">
 
             <div class="flex items-center gap-3 min-w-0">
-                <a href="{{ route('dashboard') }}"
+                <a href="{{ route('dashboard') }}" wire:navigate
                    class="p-2 rounded-xl dark:text-slate-500 text-gray-400
                           dark:hover:bg-slate-800 hover:bg-gray-100
                           dark:hover:text-white hover:text-gray-900
@@ -37,7 +37,7 @@
 
             <div class="flex items-center gap-2 flex-shrink-0">
                 @if($userRole === 'owner')
-                    <a href="{{ route('businesses.settings', $business) }}"
+                    <a href="{{ route('businesses.settings', $business) }}" wire:navigate
                        title="Business settings"
                        class="p-2 rounded-xl dark:text-slate-500 text-gray-400
                               dark:hover:bg-slate-800 hover:bg-gray-100
@@ -204,7 +204,7 @@
                              @mouseleave="hovered = false; confirming = false">
 
                             {{-- Book icon — clickable, navigates to book --}}
-                            <a href="{{ route('businesses.books.show', [$business, $book]) }}"
+                            <a href="{{ route('businesses.books.show', [$business, $book]) }}" wire:navigate
                                class="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/15
                                       flex items-center justify-center flex-shrink-0
                                       hover:bg-primary/20 transition-colors duration-150">
@@ -216,7 +216,7 @@
                             {{-- Name + timestamp — takes remaining space --}}
                             <div class="flex-1 min-w-0">
                                 {{-- Display mode --}}
-                                <a href="{{ route('businesses.books.show', [$business, $book]) }}"
+                                <a href="{{ route('businesses.books.show', [$business, $book]) }}" wire:navigate
                                    x-show="!editing"
                                    class="block">
                                     <p class="text-base font-semibold dark:text-white text-gray-900 truncate

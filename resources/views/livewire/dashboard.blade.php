@@ -30,7 +30,7 @@
                             Pro Plan
                         </span>
                     @else
-                        <a href="{{ route('billing') }}"
+                        <a href="{{ route('billing') }}" wire:navigate
                            class="inline-flex items-center gap-1 text-xs font-semibold dark:text-slate-500 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors">
                             Free Plan
                             <span class="text-primary">· Upgrade →</span>
@@ -39,7 +39,7 @@
                 </div>
             </div>
 
-            <a href="{{ route('businesses.create') }}"
+            <a href="{{ route('businesses.create') }}" wire:navigate
                class="inline-flex items-center gap-2 px-4 py-2.5
                       bg-primary hover:bg-accent
                       text-white text-sm font-semibold rounded-xl
@@ -122,7 +122,7 @@
                     </div>
                     <div>
                         <p class="font-mono font-bold text-2xl dark:text-white text-gray-900 leading-none">Free</p>
-                        <a href="{{ route('billing') }}"
+                        <a href="{{ route('billing') }}" wire:navigate
                            class="text-sm text-primary hover:text-accent transition-colors mt-0.5 inline-block">
                             Upgrade to Pro →
                         </a>
@@ -138,7 +138,7 @@
                     <h2 class="font-heading font-bold text-lg dark:text-white text-gray-900">My Businesses</h2>
                     <p class="text-xs dark:text-slate-500 text-gray-400 mt-0.5">Businesses you own and manage</p>
                 </div>
-                <a href="{{ route('businesses.create') }}"
+                <a href="{{ route('businesses.create') }}" wire:navigate
                    class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-accent transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
@@ -163,7 +163,7 @@
                         <p class="text-sm dark:text-slate-400 text-gray-500 mb-6 max-w-sm mx-auto leading-relaxed">
                             Create your first business to start tracking cash flow and collaborating with your team.
                         </p>
-                        <a href="{{ route('businesses.create') }}"
+                        <a href="{{ route('businesses.create') }}" wire:navigate
                            class="inline-flex items-center gap-2 px-5 py-2.5
                                   bg-primary hover:bg-accent text-white
                                   text-sm font-semibold rounded-xl
@@ -200,7 +200,7 @@
                                         <p class="text-sm font-semibold text-white">Pro plan required</p>
                                         <p class="text-xs text-slate-400 mt-0.5">Resubscribe to unlock this business</p>
                                     </div>
-                                    <a href="{{ route('billing') }}"
+                                    <a href="{{ route('billing') }}" wire:navigate
                                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold
                                               bg-primary hover:bg-accent text-white rounded-xl
                                               transition-all duration-200 shadow-lg shadow-primary/30">
@@ -261,7 +261,7 @@
                                     </div>
                                 </div>
                                 <div class="px-5 py-4 flex items-center gap-2.5">
-                                    <a href="{{ route('businesses.show', $business) }}"
+                                    <a href="{{ route('businesses.show', $business) }}" wire:navigate
                                        class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5
                                               dark:bg-primary/10 bg-primary/5 hover:bg-primary
                                               dark:text-blue-light text-primary hover:text-white
@@ -271,7 +271,7 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
                                         </svg>
                                     </a>
-                                    <a href="{{ route('businesses.settings', $business) }}"
+                                    <a href="{{ route('businesses.settings', $business) }}" wire:navigate
                                        class="p-2.5 rounded-xl transition-all duration-150
                                               dark:text-slate-500 text-gray-400
                                               dark:hover:text-white hover:text-gray-700
@@ -387,7 +387,7 @@
                             </div>
 
                             <div class="px-5 py-4">
-                                <a href="{{ route('businesses.show', $business) }}"
+                                <a href="{{ route('businesses.show', $business) }}" wire:navigate
                                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5
                                           dark:bg-slate-700 bg-gray-100
                                           hover:bg-primary
@@ -422,7 +422,7 @@
                     <p class="text-sm font-semibold dark:text-white text-gray-900">Unlock unlimited businesses & PDF exports</p>
                     <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">Upgrade to Pro for just $3/month.</p>
                 </div>
-                <a href="{{ route('billing') }}"
+                <a href="{{ route('billing') }}" wire:navigate
                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold
                           dark:bg-amber-400/10 bg-amber-50 text-amber-500 dark:text-amber-400
                           hover:bg-amber-400 hover:text-white

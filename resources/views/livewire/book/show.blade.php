@@ -6,7 +6,7 @@
                 dark:border-b dark:border-slate-800 border-b border-gray-200/80">
         <div class="max-w-5xl mx-auto flex items-center gap-4">
 
-            <a href="{{ route('businesses.show', $business) }}"
+            <a href="{{ route('businesses.show', $business) }}" wire:navigate
                class="p-2 rounded-xl dark:text-slate-500 text-gray-400
                       dark:hover:bg-slate-800 hover:bg-gray-100
                       dark:hover:text-white hover:text-gray-700
