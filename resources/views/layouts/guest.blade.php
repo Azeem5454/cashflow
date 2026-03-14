@@ -55,19 +55,20 @@
 <div class="min-h-screen flex">
 
     {{-- ===== LEFT BRAND PANEL ===== --}}
-    <div class="hidden lg:flex lg:w-[52%] xl:w-[55%] relative flex-col justify-between p-12 dot-grid overflow-hidden">
+    <div class="hidden lg:flex lg:w-[52%] xl:w-[55%] relative flex-col p-12 dot-grid overflow-hidden">
 
         {{-- Glow orbs --}}
         <div class="glow-orb absolute -top-32 -left-32 w-[600px] h-[600px] pointer-events-none opacity-60"></div>
         <div class="glow-orb absolute bottom-0 right-0 w-[400px] h-[400px] pointer-events-none opacity-30"></div>
 
         {{-- Logo --}}
-        <a href="/" class="relative z-10 flex-shrink-0">
-            <img src="/brand/cashflow_logo_horizontal.png" alt="CashFlow" class="h-10">
+        <a href="/" class="relative z-10 flex-shrink-0 flex items-center gap-3">
+            <img src="/brand/cashflow_logo.png" alt="CashFlow" class="h-9 w-9 rounded-xl">
+            <span class="font-display font-extrabold text-2xl text-white tracking-tight">CashFlow</span>
         </a>
 
         {{-- Middle content --}}
-        <div class="relative z-10 max-w-lg">
+        <div class="relative z-10 max-w-lg mt-16">
             <div class="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-8">
                 <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
                 <span class="font-body text-xs text-blue-light font-medium tracking-widest uppercase">Real-Time Cash Tracking</span>
@@ -79,7 +80,7 @@
             </h2>
 
             <p class="font-body text-base text-slate-400 leading-relaxed mb-10">
-                Track income, expenses, and live balance across all your books — built for Pakistani small business owners who need clarity, not complexity.
+                Track income, expenses, and live balance across all your books — built for small business owners who need clarity, not complexity.
             </p>
 
             {{-- Feature bullets --}}
@@ -102,16 +103,16 @@
         </div>
 
         {{-- Bottom testimonial --}}
-        <div class="relative z-10 bg-white/[0.04] border border-white/8 rounded-xl p-5 backdrop-blur-sm">
+        <div class="relative z-10 mt-auto bg-white/[0.04] border border-white/8 rounded-xl p-5 backdrop-blur-sm">
             <div class="flex items-start gap-3">
                 <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex-shrink-0 flex items-center justify-center">
-                    <span class="font-heading font-bold text-sm text-white">R</span>
+                    <span class="font-heading font-bold text-sm text-white">MW</span>
                 </div>
                 <div>
                     <p class="font-body text-sm text-slate-300 leading-relaxed mb-1.5">
-                        "Finally a cash tracker that doesn't need a CA to operate. Cleared my backlog of 3 months of entries in one afternoon."
+                        "Finally a cash tracker that doesn't need an accountant to operate. Cleared my backlog of 3 months of entries in one afternoon."
                     </p>
-                    <span class="font-body text-xs text-blue-light">Raza Hussain · Lahore, Pakistan</span>
+                    <span class="font-body text-xs text-blue-light">Marcus Webb · Toronto, Canada</span>
                 </div>
             </div>
         </div>
@@ -122,8 +123,9 @@
 
         {{-- Mobile logo --}}
         <div class="lg:hidden mb-8 self-start">
-            <a href="/">
-                <img src="/brand/cashflow_logo_horizontal.png" alt="CashFlow" class="h-8">
+            <a href="/" class="flex items-center gap-2.5">
+                <img src="/brand/cashflow_logo.png" alt="CashFlow" class="h-8 w-8 rounded-lg">
+                <span class="font-display font-extrabold text-xl text-white tracking-tight">CashFlow</span>
             </a>
         </div>
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CashFlow — Real-Time Cash Flow Tracking for Your Business</title>
-    <meta name="description" content="Track income, expenses, and live balance across all your businesses. Built for Pakistani small business owners. Free to start.">
+    <meta name="description" content="Track income, expenses, and live balance across all your businesses. Built for small business owners worldwide. Free to start.">
 
     <link rel="icon" type="image/png" href="/favicon.png">
 
@@ -43,10 +43,12 @@
 <body class="bg-navy text-white font-body antialiased overflow-x-hidden">
 
 {{-- ===================== NAVBAR ===================== --}}
-<nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5 backdrop-blur-xl bg-navy/80">
+<nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5 backdrop-blur-xl bg-navy/80"
+     x-data="{ mobileMenu: false }">
     <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <a href="/" class="flex-shrink-0">
-            <img src="/brand/cashflow_logo_horizontal.png" alt="CashFlow" class="h-9">
+        <a href="/" class="flex-shrink-0 flex items-center gap-3">
+            <img src="/brand/cashflow_logo.png" alt="CashFlow" class="h-9 w-9 rounded-xl">
+            <span class="font-display font-extrabold text-xl text-white tracking-tight">CashFlow</span>
         </a>
 
         <div class="hidden md:flex items-center gap-8">
@@ -55,15 +57,47 @@
             <a href="#reviews"  class="font-body text-sm text-blue-light hover:text-white transition-colors duration-200">Reviews</a>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3">
             <a href="{{ route('login') }}"
                class="font-body text-sm text-blue-light hover:text-white transition-colors duration-200 px-4 py-2 hidden sm:block">
                 Login
             </a>
             <a href="{{ route('register') }}"
-               class="font-body text-sm font-medium bg-primary hover:bg-accent text-white px-5 py-2.5 rounded-lg transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-accent/30">
-                Get Started Free
+               class="font-body text-sm font-medium bg-primary hover:bg-accent text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-accent/30">
+                Get Started
             </a>
+            {{-- Mobile menu toggle --}}
+            <button @click="mobileMenu = !mobileMenu"
+                    class="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+                <svg x-show="!mobileMenu" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+                </svg>
+                <svg x-show="mobileMenu" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:none;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    {{-- Mobile menu dropdown --}}
+    <div x-show="mobileMenu"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 -translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 -translate-y-2"
+         class="md:hidden border-t border-white/5 bg-navy/95 backdrop-blur-xl px-6 py-4 space-y-1"
+         style="display:none;">
+        <a href="#features" @click="mobileMenu = false"
+           class="block font-body text-sm text-blue-light hover:text-white py-2.5 transition-colors">Features</a>
+        <a href="#pricing" @click="mobileMenu = false"
+           class="block font-body text-sm text-blue-light hover:text-white py-2.5 transition-colors">Pricing</a>
+        <a href="#reviews" @click="mobileMenu = false"
+           class="block font-body text-sm text-blue-light hover:text-white py-2.5 transition-colors">Reviews</a>
+        <div class="pt-2 border-t border-white/5">
+            <a href="{{ route('login') }}"
+               class="block font-body text-sm text-blue-light hover:text-white py-2.5 transition-colors">Login</a>
         </div>
     </div>
 </nav>
@@ -73,58 +107,58 @@
     {{-- Glow orb --}}
     <div class="glow-orb absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] pointer-events-none"></div>
 
-    <div class="relative max-w-7xl mx-auto px-6 py-24 grid lg:grid-cols-2 gap-16 items-center">
+    <div class="relative max-w-7xl mx-auto px-6 py-16 sm:py-24 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
         {{-- Left: Copy --}}
         <div>
             <div class="anim-fade-up inline-flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-4 py-1.5 mb-8">
                 <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                <span class="font-body text-xs text-blue-light font-medium tracking-widest uppercase">Built for Pakistani Small Businesses</span>
+                <span class="font-body text-xs text-blue-light font-medium tracking-widest uppercase">Built for Small Businesses Worldwide</span>
             </div>
 
-            <h1 class="anim-fade-up-d1 font-display font-extrabold text-5xl lg:text-[3.75rem] leading-[1.05] text-white mb-6">
+            <h1 class="anim-fade-up-d1 font-display font-extrabold text-4xl sm:text-5xl lg:text-[3.75rem] leading-[1.05] text-white mb-6">
                 Know Exactly<br>
                 Where Your<br>
                 <span class="text-accent">Cash Flows.</span>
             </h1>
 
-            <p class="anim-fade-up-d2 font-body text-lg text-slate-400 leading-relaxed mb-10 max-w-lg">
+            <p class="anim-fade-up-d2 font-body text-base sm:text-lg text-slate-400 leading-relaxed mb-8 sm:mb-10 max-w-lg">
                 Real-time ledger for every business you run.
                 Track income, expenses, and balance — across multiple books
                 and teams — without needing an accountant.
             </p>
 
-            <div class="anim-fade-up-d3 flex flex-wrap gap-4">
+            <div class="anim-fade-up-d3 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
                 <a href="{{ route('register') }}"
-                   class="font-body font-medium bg-primary hover:bg-accent text-white px-8 py-3.5 rounded-lg transition-all duration-200 shadow-xl shadow-primary/30 hover:shadow-accent/30 hover:-translate-y-px">
+                   class="font-body font-medium bg-primary hover:bg-accent text-white px-6 py-3 sm:px-8 sm:py-3.5 rounded-lg transition-all duration-200 shadow-xl shadow-primary/30 hover:shadow-accent/30 hover:-translate-y-px text-center">
                     Start for Free — No Card Needed
                 </a>
                 <a href="#features"
-                   class="font-body font-medium border border-white/10 hover:border-primary/40 text-blue-light hover:text-white px-8 py-3.5 rounded-lg transition-all duration-200">
+                   class="font-body font-medium border border-white/10 hover:border-primary/40 text-blue-light hover:text-white px-6 py-3 sm:px-8 sm:py-3.5 rounded-lg transition-all duration-200 text-center">
                     See How It Works →
                 </a>
             </div>
 
             {{-- Stats --}}
-            <div class="anim-fade-up-d4 flex flex-wrap gap-8 mt-14 pt-8 border-t border-white/5">
+            <div class="anim-fade-up-d4 grid grid-cols-2 sm:flex sm:flex-wrap gap-6 sm:gap-8 mt-10 sm:mt-14 pt-8 border-t border-white/5">
                 <div>
                     <div class="font-mono text-2xl font-bold text-white">$0</div>
                     <div class="font-body text-xs text-slate-500 mt-1">to get started</div>
                 </div>
-                <div class="w-px bg-white/5 self-stretch"></div>
+                <div class="hidden sm:block w-px bg-white/5 self-stretch"></div>
                 <div>
                     <div class="font-mono text-2xl font-bold text-white">∞</div>
                     <div class="font-body text-xs text-slate-500 mt-1">books & entries</div>
                 </div>
-                <div class="w-px bg-white/5 self-stretch"></div>
+                <div class="hidden sm:block w-px bg-white/5 self-stretch"></div>
                 <div>
                     <div class="font-mono text-2xl font-bold text-white">3</div>
                     <div class="font-body text-xs text-slate-500 mt-1">team roles</div>
                 </div>
-                <div class="w-px bg-white/5 self-stretch"></div>
+                <div class="hidden sm:block w-px bg-white/5 self-stretch"></div>
                 <div>
-                    <div class="font-mono text-2xl font-bold text-white">PKR</div>
-                    <div class="font-body text-xs text-slate-500 mt-1">native currency</div>
+                    <div class="font-mono text-2xl font-bold text-white">150+</div>
+                    <div class="font-body text-xs text-slate-500 mt-1">countries</div>
                 </div>
             </div>
         </div>
@@ -147,7 +181,7 @@
                 {{-- Balance --}}
                 <div class="mb-6 pb-6 border-b border-white/5">
                     <div class="font-body text-xs text-slate-500 uppercase tracking-widest mb-2">Net Balance</div>
-                    <div class="font-mono text-4xl font-bold text-white balance-positive">PKR 4,85,000</div>
+                    <div class="font-mono text-4xl font-bold text-white balance-positive">$12,450.00</div>
                 </div>
 
                 {{-- In/Out --}}
@@ -157,14 +191,14 @@
                             <div class="w-1.5 h-1.5 rounded-full bg-green-400"></div>
                             <div class="font-body text-xs text-slate-500">Cash In</div>
                         </div>
-                        <div class="font-mono text-xl text-green-400 font-medium">+7,20,000</div>
+                        <div class="font-mono text-xl text-green-400 font-medium">+$18,200</div>
                     </div>
                     <div class="bg-navy rounded-xl p-4 border border-white/5">
                         <div class="flex items-center gap-1.5 mb-2">
                             <div class="w-1.5 h-1.5 rounded-full bg-red-400"></div>
                             <div class="font-body text-xs text-slate-500">Cash Out</div>
                         </div>
-                        <div class="font-mono text-xl text-red-400 font-medium">-2,35,000</div>
+                        <div class="font-mono text-xl text-red-400 font-medium">-$5,750</div>
                     </div>
                 </div>
 
@@ -172,9 +206,9 @@
                 <div class="space-y-1">
                     <div class="font-body text-xs text-slate-500 uppercase tracking-widest mb-3">Recent Entries</div>
                     @foreach([
-                        ['Client Invoice #104', '95,000', 'in',  'Mar 12'],
-                        ['Office Rent — March', '45,000', 'out', 'Mar 10'],
-                        ['Freelance Project',  '1,20,000', 'in', 'Mar 8'],
+                        ['Client Invoice #104', '$3,200', 'in',  'Mar 12'],
+                        ['Office Rent — March', '$1,800', 'out', 'Mar 10'],
+                        ['Consulting Project',  '$4,800', 'in',  'Mar 8'],
                     ] as $entry)
                     <div class="flex items-center justify-between py-2.5 pl-3 rounded-lg
                                 border-l-2 {{ $entry[2] === 'in' ? 'border-green-500/60 hover:bg-green-500/5' : 'border-red-500/60 hover:bg-red-500/5' }}
@@ -251,14 +285,14 @@
                 <svg class="w-4 h-4 text-blue-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
                 </svg>
-                <span class="font-body text-sm text-slate-400">PKR-native for Pakistan</span>
+                <span class="font-body text-sm text-slate-400">Works in any currency</span>
             </div>
         </div>
     </div>
 </div>
 
 {{-- ===================== FEATURES ===================== --}}
-<section id="features" class="py-32 relative">
+<section id="features" class="py-20 md:py-32 relative">
     <div class="max-w-7xl mx-auto px-6">
 
         {{-- Section header --}}
@@ -282,14 +316,14 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                     </svg>
                 </div>
-                <h3 class="font-heading font-bold text-white text-xl mb-3">Track Every Rupee</h3>
+                <h3 class="font-heading font-bold text-white text-xl mb-3">Track Every Transaction</h3>
                 <p class="font-body text-slate-400 text-sm leading-relaxed mb-6">
                     Log cash-in and cash-out entries with description, date, and reference. Your running balance updates the moment you save.
                 </p>
                 <div class="bg-navy rounded-xl p-4 border border-white/5">
                     <div class="flex justify-between items-center">
                         <span class="font-body text-xs text-slate-500">Live Balance</span>
-                        <span class="font-mono text-sm text-green-400 font-medium">+PKR 4,85,000</span>
+                        <span class="font-mono text-sm text-green-400 font-medium">+$12,450.00</span>
                     </div>
                 </div>
             </div>
@@ -306,8 +340,8 @@
                     Run a shop and a side hustle? Manage them all under one account. Each business is completely isolated — no data mixing.
                 </p>
                 <div class="flex gap-2 flex-wrap">
-                    <span class="bg-navy border border-white/8 rounded-lg px-3 py-1.5 font-body text-xs text-blue-light">Eveso IT</span>
-                    <span class="bg-navy border border-white/8 rounded-lg px-3 py-1.5 font-body text-xs text-blue-light">Karachi Dukaan</span>
+                    <span class="bg-navy border border-white/8 rounded-lg px-3 py-1.5 font-body text-xs text-blue-light">Design Studio</span>
+                    <span class="bg-navy border border-white/8 rounded-lg px-3 py-1.5 font-body text-xs text-blue-light">Retail Store</span>
                     <span class="bg-primary/10 border border-primary/25 rounded-lg px-3 py-1.5 font-body text-xs text-accent">+ Add Business</span>
                 </div>
             </div>
@@ -347,14 +381,14 @@
                             <span class="w-2 h-2 rounded-full bg-accent"></span>
                             March 2026
                         </div>
-                        <span class="font-mono text-xs text-green-400">+4,85,000</span>
+                        <span class="font-mono text-xs text-green-400">+$12,450</span>
                     </div>
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2.5 font-body text-sm text-slate-500">
                             <span class="w-2 h-2 rounded-full bg-slate-600"></span>
                             February 2026
                         </div>
-                        <span class="font-mono text-xs text-slate-500">+2,10,000</span>
+                        <span class="font-mono text-xs text-slate-500">+$8,320</span>
                     </div>
                 </div>
             </div>
@@ -398,7 +432,7 @@
 </section>
 
 {{-- ===================== HOW IT WORKS ===================== --}}
-<section class="py-32 bg-dark/40 border-y border-white/5">
+<section class="py-20 md:py-32 bg-dark/40 border-y border-white/5">
     <div class="max-w-5xl mx-auto px-6">
 
         <div class="text-center mb-16">
@@ -429,7 +463,7 @@
 </section>
 
 {{-- ===================== PRICING ===================== --}}
-<section id="pricing" class="py-32 relative dot-grid">
+<section id="pricing" class="py-20 md:py-32 relative dot-grid">
     <div class="glow-orb absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] pointer-events-none opacity-60"></div>
     <div class="relative max-w-7xl mx-auto px-6">
 
@@ -515,38 +549,38 @@
 </section>
 
 {{-- ===================== TESTIMONIALS ===================== --}}
-<section id="reviews" class="py-32">
+<section id="reviews" class="py-20 md:py-32">
     <div class="max-w-7xl mx-auto px-6">
 
         <div class="text-center mb-16">
             <div class="font-body text-sm text-accent font-medium uppercase tracking-widest mb-4">Testimonials</div>
             <h2 class="font-display font-extrabold text-4xl lg:text-5xl text-white">
-                Trusted by business owners<br>across Pakistan
+                Trusted by business owners<br>around the world
             </h2>
         </div>
 
         <div class="grid md:grid-cols-3 gap-6">
             @foreach([
                 [
-                    'Ahmad Raza',
-                    'IT Services, Lahore',
-                    'We track 3 businesses in CashFlow. The books feature alone saved me hours every month that I used to spend sorting through one messy spreadsheet.',
+                    'James Okafor',
+                    'E-commerce Store, Lagos',
+                    'We track 4 businesses in CashFlow. The books feature alone saved me hours every month that I used to spend sorting through one messy spreadsheet.',
                     5,
-                    'AR',
+                    'JO',
                 ],
                 [
-                    'Fatima Malik',
-                    'Freelance Designer, Karachi',
+                    'Sophie Müller',
+                    'Freelance Consultant, Berlin',
                     "I never knew exactly how much was coming in and going out. CashFlow gave me clarity within the first week. I check the balance every morning now.",
                     5,
-                    'FM',
+                    'SM',
                 ],
                 [
-                    'Bilal Khan',
-                    'Wholesale Trader, Rawalpindi',
+                    'Carlos Reyes',
+                    'Wholesale Distributor, Mexico City',
                     'My accountant is an editor on my account. He adds entries, I see the live balance. The role system is exactly what a small business needs.',
                     5,
-                    'BK',
+                    'CR',
                 ],
             ] as $t)
             <div class="bg-dark rounded-2xl border border-white/8 p-7 flex flex-col">
@@ -581,12 +615,12 @@
 </section>
 
 {{-- ===================== CTA BANNER ===================== --}}
-<section class="py-24 relative overflow-hidden">
+<section class="py-16 sm:py-24 relative overflow-hidden">
     <div class="absolute inset-0 dot-grid opacity-60"></div>
     <div class="glow-orb absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[400px] pointer-events-none"></div>
 
     <div class="relative max-w-3xl mx-auto px-6 text-center">
-        <div class="bg-dark border border-primary/25 rounded-2xl p-12 shadow-2xl shadow-primary/10 ring-1 ring-primary/10">
+        <div class="bg-dark border border-primary/25 rounded-2xl p-6 sm:p-12 shadow-2xl shadow-primary/10 ring-1 ring-primary/10">
             <div class="inline-flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-4 py-1.5 mb-8">
                 <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
                 <span class="font-body text-xs text-blue-light font-medium">Free to start — always</span>
@@ -601,7 +635,7 @@
                class="inline-block font-body font-medium bg-primary hover:bg-accent text-white px-10 py-4 rounded-xl transition-all duration-200 shadow-xl shadow-primary/30 hover:shadow-accent/30 hover:-translate-y-px text-base">
                 Create Your Free Account →
             </a>
-            <div class="mt-8 flex items-center justify-center gap-6">
+            <div class="mt-6 sm:mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-6">
                 <div class="flex items-center gap-2">
                     <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -630,9 +664,12 @@
     <div class="max-w-7xl mx-auto px-6">
         <div class="grid md:grid-cols-4 gap-10 mb-12">
             <div class="md:col-span-2">
-                <img src="/brand/cashflow_logo_horizontal.png" alt="CashFlow" class="h-8 mb-4">
+                <div class="flex items-center gap-2.5 mb-4">
+                    <img src="/brand/cashflow_logo.png" alt="CashFlow" class="h-8 w-8 rounded-lg">
+                    <span class="font-display font-extrabold text-xl text-white tracking-tight">CashFlow</span>
+                </div>
                 <p class="font-body text-sm text-slate-500 leading-relaxed max-w-xs">
-                    Real-time cash flow tracking for Pakistani small businesses, freelancers, and their teams.
+                    Real-time cash flow tracking for small businesses, freelancers, and their teams — worldwide.
                 </p>
             </div>
             <div>
@@ -653,7 +690,7 @@
         </div>
         <div class="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="font-body text-xs text-slate-600">
-                © {{ date('Y') }} CashFlow. Built for Pakistani business owners.
+                © {{ date('Y') }} CashFlow. Built for business owners everywhere.
             </div>
             <div class="font-body text-xs text-slate-600">
                 Payments secured by Stripe.

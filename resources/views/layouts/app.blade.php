@@ -44,21 +44,28 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          @click="sidebarOpen = false"
-         class="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm lg:hidden"
+         class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
          style="display:none;"></div>
 
     {{-- ===== SIDEBAR ===== --}}
     <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-           class="fixed inset-y-0 left-0 z-30 w-64 flex flex-col transition-transform duration-300 ease-in-out
+           class="fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 ease-in-out
                   lg:static lg:translate-x-0
                   dark:bg-dark bg-white
                   dark:border-slate-800 border-r border-gray-200">
 
         {{-- Logo --}}
-        <div class="flex items-center h-16 px-5 flex-shrink-0 dark:border-slate-800 border-b border-gray-200">
+        <div class="flex items-center justify-between h-16 px-5 flex-shrink-0 dark:border-slate-800 border-b border-gray-200">
             <a href="{{ route('dashboard') }}" wire:navigate>
                 <x-app-logo />
             </a>
+            <button @click="sidebarOpen = false"
+                    class="lg:hidden p-1.5 rounded-lg dark:text-slate-500 text-gray-400
+                           dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
 
         {{-- Navigation --}}

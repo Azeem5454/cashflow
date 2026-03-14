@@ -271,43 +271,43 @@
                         dark:border dark:border-slate-700 border border-gray-200 overflow-hidden">
                 <div class="flex divide-x dark:divide-slate-700 divide-gray-200">
 
-                    <div class="flex-1 px-5 py-4 flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
+                        <div class="hidden sm:flex w-9 h-9 rounded-full bg-emerald-500/10 items-center justify-center flex-shrink-0">
                             <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                             </svg>
                         </div>
                         <div class="min-w-0">
-                            <p class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash In</p>
-                            <p class="font-mono font-bold text-xl text-emerald-400 leading-tight mt-0.5 truncate">
+                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash In</p>
+                            <p class="font-mono font-bold text-base sm:text-xl text-emerald-400 leading-tight mt-0.5 truncate">
                                 {{ number_format((float)$totalIn, 0) }}
                             </p>
                         </div>
                     </div>
 
-                    <div class="flex-1 px-5 py-4 flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
+                        <div class="hidden sm:flex w-9 h-9 rounded-full bg-red-500/10 items-center justify-center flex-shrink-0">
                             <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
                             </svg>
                         </div>
                         <div class="min-w-0">
-                            <p class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash Out</p>
-                            <p class="font-mono font-bold text-xl text-red-400 leading-tight mt-0.5 truncate">
+                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash Out</p>
+                            <p class="font-mono font-bold text-base sm:text-xl text-red-400 leading-tight mt-0.5 truncate">
                                 {{ number_format((float)$totalOut, 0) }}
                             </p>
                         </div>
                     </div>
 
-                    <div class="flex-1 px-5 py-4 flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-full {{ $isPositive ? 'bg-primary/10' : 'bg-red-500/10' }} flex items-center justify-center flex-shrink-0">
+                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
+                        <div class="hidden sm:flex w-9 h-9 rounded-full {{ $isPositive ? 'bg-primary/10' : 'bg-red-500/10' }} items-center justify-center flex-shrink-0">
                             <svg class="w-4 h-4 {{ $isPositive ? 'text-blue-light' : 'text-red-400' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.499 8.248h15m-15 7.501h15"/>
                             </svg>
                         </div>
                         <div class="min-w-0">
-                            <p class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Net Balance</p>
-                            <p class="font-mono font-bold text-xl leading-tight mt-0.5 truncate
+                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Net Balance</p>
+                            <p class="font-mono font-bold text-base sm:text-xl leading-tight mt-0.5 truncate
                                       {{ $isPositive ? 'dark:text-blue-light text-primary' : 'text-red-400' }}">
                                 @if(!$isPositive)−@endif{{ number_format(abs((float)$balance), 0) }}
                             </p>
