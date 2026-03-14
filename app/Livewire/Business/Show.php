@@ -12,10 +12,70 @@ class Show extends Component
     public string $search = '';
     public string $sortBy = 'updated_at';
 
+    // Create book modal
+    public bool    $showCreateBook  = false;
+    public string  $bookName        = '';
+    public ?string $bookDescription = null;
+
     public function mount(Business $business): void
     {
         $this->business = $business;
         $this->userRole = $business->userRole(auth()->user()) ?? 'viewer';
+    }
+
+    public function openCreateBook(): void
+    {
+        $this->bookName        = '';
+        $this->bookDescription = null;
+        $this->resetErrorBag();
+        $this->showCreateBook  = true;
+    }
+
+    public function createBook(): void
+    {
+        if ($this->userRole === 'viewer') {
+            return;
+        }
+
+        $this->validate([
+            'bookName'        => 'required|string|max:100',
+            'bookDescription' => 'nullable|string|max:500',
+        ]);
+
+        $book = $this->business->books()->create([
+            'name'        => $this->bookName,
+            'description' => $this->bookDescription ?: null,
+        ]);
+
+        $this->redirect(route('businesses.books.show', [$this->business, $book]));
+    }
+
+    public function renameBook(string $bookId, string $name): void
+    {
+        if ($this->userRole === 'viewer') {
+            return;
+        }
+
+        $name = trim($name);
+        if ($name === '') {
+            return;
+        }
+
+        $this->business->books()->where('id', $bookId)->update(['name' => $name]);
+    }
+
+    public function duplicateBook(string $bookId): void
+    {
+        if ($this->userRole === 'viewer') {
+            return;
+        }
+
+        $book = $this->business->books()->findOrFail($bookId);
+
+        $this->business->books()->create([
+            'name'        => $book->name . ' (Copy)',
+            'description' => $book->description,
+        ]);
     }
 
     public function render()

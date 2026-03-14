@@ -227,8 +227,8 @@
         <div x-show="tab === 'team'" x-cloak class="space-y-5">
 
             {{-- Invite Member Card --}}
-            <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-200 rounded-2xl overflow-hidden">
-                <div class="px-6 py-4 dark:border-b dark:border-slate-700/40 border-b border-gray-100">
+            <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-200 rounded-2xl">
+                <div class="px-6 py-4 dark:border-b dark:border-slate-700/40 border-b border-gray-100 rounded-t-2xl">
                     <h2 class="font-heading font-bold text-base dark:text-white text-gray-900">Invite a Team Member</h2>
                     <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">They'll receive an email with a link to join. Invitation expires in 72 hours.</p>
                 </div>

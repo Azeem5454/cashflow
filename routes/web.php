@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use App\Models\Book;
 use App\Models\Business;
 use Illuminate\Support\Facades\Route;
@@ -19,10 +18,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('businesses.create');
 
     Route::get('/businesses/{business}', function (Business $business) {
+        $user = auth()->user();
+
         abort_unless(
-            auth()->user()->businesses()->where('businesses.id', $business->id)->exists(),
+            $user->businesses()->where('businesses.id', $business->id)->exists(),
             403
         );
+
+        // Free plan: block access to extra owned businesses
+        if (! $user->isPro()) {
+            $role = $user->businesses()->where('businesses.id', $business->id)->first()?->pivot?->role;
+            if ($role === 'owner') {
+                $firstOwnedId = $user->ownedBusinesses()->oldest()->value('id');
+                if ($business->id !== $firstOwnedId) {
+                    return redirect()->route('billing');
+                }
+            }
+        }
 
         return view('business.show', compact('business'));
     })->name('businesses.show');
@@ -57,13 +69,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile', \App\Livewire\Settings\Profile::class)->name('profile.edit');
 
-    Route::get('/settings/billing', function () {
-        return view('settings.billing');
-    })->name('billing');
+    Route::get('/settings/billing', \App\Livewire\Settings\Billing::class)->name('billing');
 });
 
 // Invitation acceptance — accessible to guests (shows login prompt if not authenticated)

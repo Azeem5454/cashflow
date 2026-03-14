@@ -25,7 +25,7 @@ class Create extends Component
     {
         $user = auth()->user();
 
-        if (! $user->isPro() && $user->businesses()->count() >= 1) {
+        if (! $user->isPro() && $user->ownedBusinesses()->count() >= 1) {
             $this->showUpgradeModal = true;
         }
     }
@@ -34,7 +34,7 @@ class Create extends Component
     {
         $user = auth()->user();
 
-        if (! $user->isPro() && $user->businesses()->count() >= 1) {
+        if (! $user->isPro() && $user->ownedBusinesses()->count() >= 1) {
             $this->showUpgradeModal = true;
 
             return;

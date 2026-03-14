@@ -18,6 +18,8 @@ class Entry extends Model
         'description',
         'date',
         'reference',
+        'category',
+        'payment_mode',
     ];
 
     protected function casts(): array

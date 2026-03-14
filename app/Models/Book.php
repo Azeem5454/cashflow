@@ -38,6 +38,16 @@ class Book extends Model
         return $this->hasMany(Entry::class);
     }
 
+    public function categories(): HasMany
+    {
+        return $this->hasMany(BookCategory::class)->orderBy('name');
+    }
+
+    public function paymentModes(): HasMany
+    {
+        return $this->hasMany(BookPaymentMode::class)->orderBy('name');
+    }
+
     public function totalIn(): string
     {
         return $this->entries()->where('type', 'in')->sum('amount');

@@ -366,36 +366,124 @@ database/
 - [x] Business dashboard (/businesses/{business}) — books list, search, sort, Cash In/Out/Balance columns
 - [x] Business settings + team management (/businesses/{business}/settings) — General tab (name/description/delete), Team tab (invite, members list with role change + remove, pending invitations), upgrade modal
 - [x] Invite team member flow — TeamInvitation mailable, email template, invitation accept page (/invitations/{token}/accept) with guest/auth states
-- [ ] **NEXT: Create book** (/businesses/{business}/books/create) — Livewire component `app/Livewire/Book/Create.php`, form: name (required), description (optional), period_starts_at / period_ends_at (optional date range). On success redirect to the new book's detail page.
-- [ ] Book detail (ledger) + balance summary (/businesses/{business}/books/{book})
-- [ ] Add / edit / delete entry (slide-over panel inside book detail)
-- [ ] Profile settings (/settings/profile)
-- [ ] Billing & plans (Stripe) (/settings/billing)
-- [ ] Upgrade prompt modal (reusable component)
-- [ ] PDF + CSV export (Pro only)
+- [x] Create book — inline modal on Business dashboard (`Business\Show` component), redirects to book detail on create
+- [x] Book detail (ledger) + balance summary (/businesses/{business}/books/{book}) — `Book\Show` component with sticky header, balance summary strip (Cash In / Cash Out / Net Balance), entries table with running balance, filter bar (type + sort), search, empty state
+- [x] Add / edit / delete entry (slide-over panel inside book detail) — right-side slide-over with Alpine transitions, type toggle (Cash In/Out), amount + description + date + category + payment mode + reference fields, custom category & payment mode management (add new inline), save & add-new, edit mode, inline delete confirm on hover
+- [x] Profile settings (/settings/profile)
+- [x] Billing & plans (Stripe) (/settings/billing) — Free/Pro plan cards, Stripe Checkout, Billing Portal, grace period banner with Resume Plan, webhook sync via AppServiceProvider
+- [x] Post-cancellation downgrade flow — locked business overlay on dashboard (blur + Resubscribe CTA), route-level gate redirecting locked businesses to billing, grace period expiry date display
+- [x] Dashboard — split into "My Businesses" (owned) and "Shared with Me" (invited) sections with left accent border differentiator, owner attribution on shared cards
+- [ ] **NEXT: PDF + CSV export (Pro only)**
+- [ ] Upgrade prompt modal (reusable component) — inline modal for gated actions instead of redirect to billing
+- [ ] Admin panel (/admin/*) — see Admin Panel section below
 
 ---
 
 ## Session Notes (last updated 2026-03-14)
 
 ### Completed this session
-- `app/Livewire/Business/Show.php` + `resources/views/livewire/business/show.blade.php`
-  - Books list with search (PostgreSQL ilike), Alpine custom sort dropdown, Cash In/Out/Balance columns
-  - Balance via `bcsub` with `withSum` aggregation
-- `app/Livewire/Business/Settings.php` + `resources/views/livewire/business/settings.blade.php`
-  - Two-tab layout (General / Team) with Alpine tab switcher in sticky header
-  - General tab: name + description form, saved toast via `@general-saved.window` event, danger zone with confirm input
-  - Team tab: invite form with Alpine role picker dropdown (`$wire.entangle`), members list with inline role select + confirm remove, pending invitations with cancel
-  - Upgrade modal (amber) shown when free plan limit hit (`$showUpgradeModal`)
-- `app/Mail/TeamInvitation.php` + `resources/views/emails/team-invitation.blade.php`
-- `app/Livewire/Invitation/Accept.php` + `resources/views/livewire/invitation/accept.blade.php`
-  - Guest layout, four states: pending / expired / accepted / already_member
-- Route: `GET /invitations/{invitation:token}/accept` → `invitations.accept`
+- `app/Livewire/Settings/Profile.php` + `resources/views/livewire/settings/profile.blade.php`
+  - Two tabs (Profile / Password) + always-visible Danger Zone
+  - Profile tab is default-visible — no `x-cloak` on it (avoids layout collapse before Alpine init)
+- `app/Livewire/Settings/Billing.php` + `resources/views/livewire/settings/billing.blade.php`
+  - Stripe Checkout via `newSubscription()->checkout()`, Billing Portal via `billingPortalUrl()`
+  - Race condition fix: trust `?checkout=success` URL directly, don't check `subscribed()` immediately
+  - Grace period banner with `$subscription->ends_at` expiry date + Resume Plan button
+  - `resume()` method: `$subscription->resume()` during grace period, falls back to fresh checkout if ended
+- `app/Providers/AppServiceProvider.php` — WebhookReceived listener syncs `user.plan` on subscription events
+- `app/Livewire/Dashboard.php` + `resources/views/livewire/dashboard.blade.php`
+  - Split into "My Businesses" (owner) and "Shared with Me" (editor/viewer) sections
+  - Locked business overlay (blur + Resubscribe CTA) for extra owned businesses on Free plan
+  - `->with('owner')` eager load for "Owned by [name]" attribution on shared cards
+- `routes/web.php` — free plan gate on `/businesses/{business}` redirects locked businesses to billing
+- Stripe CLI installed to `~/bin/stripe`, webhook secret configured in `.env`
 
 ### Key design patterns established
-- Sticky header: `dark:bg-[#080d1a]` + `dark:border-b dark:border-slate-800`
-- Cards: `dark:bg-[#1e293b] dark:border-slate-700/60`
-- Form inputs: `dark:bg-navy bg-gray-50 dark:border-slate-700 focus:ring-primary/50`
+- Sticky header: `dark:bg-navy/95 bg-white/95 backdrop-blur-md` + `dark:border-b dark:border-slate-800`
+- Cards/panels: `dark:bg-dark bg-white dark:border dark:border-slate-700`
+- Form inputs: `dark:bg-slate-800 bg-white dark:border dark:border-slate-700 border border-gray-300 dark:text-white text-gray-900 rounded-xl`
+- Slide-over panel: `fixed inset-y-0 right-0 w-full max-w-lg` with Alpine `$wire.entangle().live` + CSS transitions
 - Alpine custom dropdowns instead of native `<select>` (avoids double-chevron artifact)
+- Balance summary: `flex` with `flex-1` children + `divide-x` (not grid — more reliable with Tailwind JIT)
+- Category/payment mode: custom dropdown with search + "Add New" inline form
+- Tailwind safelist in `tailwind.config.js` for dark mode classes that may not appear in scanned templates
 - Role change on members: `@change="$wire.updateMemberRole('id', $event.target.value)"`
 - Livewire events dispatched from component, caught in Blade with `@event-name.window`
+- **Tailwind JIT gotchas:** arbitrary hex with opacity (`dark:bg-[#hex]/95`) and opacity variants (`/30`, `/50`, `/60`) on new classes don't compile — use named tokens (`navy`, `dark`) or safelist explicitly
+- **Stripe race condition:** after `?checkout=success`, `subscribed()` returns false (webhook not yet fired) — update `user.plan` directly from the success URL, use webhook as async backup
+- **Dashboard sections:** `$businesses->where('pivot.role', 'owner')` and `->whereIn('pivot.role', [...])` to split owned vs shared after a single query
+
+---
+
+## Admin Panel
+
+Internal tool for the CashFlow operator (you). Accessed at `/admin/*`, gated behind `is_admin = true` on the `users` table. Never exposed to regular users.
+
+### Access Control
+- Add `is_admin` boolean column to `users` table (default `false`)
+- `App\Http\Middleware\AdminMiddleware` — aborts 403 if `!auth()->user()->is_admin`
+- All `/admin` routes wrapped in `middleware(['auth', 'admin'])` group
+- No role/permission package needed — simple boolean check is sufficient
+
+### Route Structure
+```
+/admin                          → admin dashboard (overview)
+/admin/users                    → users list
+/admin/users/{user}             → user detail
+/admin/businesses               → all businesses
+/admin/subscriptions            → all subscriptions / revenue
+/admin/invitations              → pending & expired invitations
+```
+
+### Pages & Features
+
+#### 1. Overview (`/admin`) — `Admin\Dashboard`
+- **KPI strip:** Total Users · Pro Users · MRR · Active Subscriptions · Churned (30d)
+- **Signups chart:** new users per day for last 30 days (simple bar chart, pure Blade/Alpine — no JS chart library)
+- **Recent signups table:** last 10 users with name, email, plan, joined date
+- **Top businesses:** most active by entry count
+
+#### 2. Users (`/admin/users`) — `Admin\Users`
+- Paginated table: name, email, plan badge, businesses count, joined date, last login
+- Search by name/email
+- Filter by plan (free / pro)
+- Per-row actions: **View**, **Force Pro** (set plan=pro without Stripe), **Force Free**, **Delete**
+- Clicking a row → user detail page
+
+#### 3. User Detail (`/admin/users/{user}`) — `Admin\UserDetail`
+- Full profile: name, email, plan, created_at, Stripe customer ID
+- Subscription info: status, current period, next billing date, `ends_at` if on grace period
+- Businesses list: name, role (owner/editor/viewer), books count
+- Invitations sent: email, role, status, expires_at
+- Danger zone: **Impersonate** (login-as), **Delete Account**
+
+#### 4. Businesses (`/admin/businesses`) — `Admin\Businesses`
+- Paginated table: name, owner name/email, members count, books count, entries count, created_at
+- Search by business name or owner email
+- Click row → shows business detail inline (books list, members)
+
+#### 5. Subscriptions (`/admin/subscriptions`) — `Admin\Subscriptions`
+- Table of all Cashier subscriptions: user, status, Stripe subscription ID, current period end, `ends_at`
+- Filter by status: active / canceled / on_grace_period / ended
+- MRR calculation: count of `active` subscriptions × $3
+- Month-over-month growth indicator
+
+#### 6. Invitations (`/admin/invitations`) — `Admin\Invitations`
+- All invitations: email, business name, role, status (pending/accepted/expired), expires_at
+- Filter: pending / accepted / expired
+- Action: **Resend** (re-creates invitation with new token + 72h expiry), **Cancel**
+
+### Admin Layout
+- Separate Blade layout: `resources/views/layouts/admin.blade.php`
+- Left sidebar (fixed, narrower than app layout) with nav links to each section
+- Dark navy theme (same as app) — admins are power users, dark mode always on
+- No dark mode toggle — admin is always dark
+- Breadcrumb trail on every page
+
+### Implementation Notes
+- All admin Livewire components in `app/Livewire/Admin/`
+- All admin views in `resources/views/livewire/admin/`
+- Use `Livewire\WithPagination` on list components
+- Impersonate: set `session(['impersonating' => $user->id])`, re-auth as that user, store original admin ID to return
+- No soft deletes — hard delete with cascading (already handled by DB constraints)
+- Never expose raw Stripe secret keys or webhook secrets in admin UI

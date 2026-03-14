@@ -74,9 +74,9 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="font-mono font-bold text-2xl dark:text-white text-gray-900 leading-none">{{ $businesses->count() }}</p>
+                    <p class="font-mono font-bold text-2xl dark:text-white text-gray-900 leading-none">{{ $ownedBusinesses->count() + $sharedBusinesses->count() }}</p>
                     <p class="text-sm dark:text-slate-400 text-gray-500 mt-0.5">
-                        {{ Str::plural('Business', $businesses->count()) }}
+                        {{ Str::plural('Business', $ownedBusinesses->count() + $sharedBusinesses->count()) }}
                     </p>
                 </div>
             </div>
@@ -131,47 +131,43 @@
             </div>
         </div>
 
-        {{-- ===== BUSINESSES SECTION ===== --}}
+        {{-- ===== MY BUSINESSES ===== --}}
         <div>
             <div class="flex items-center justify-between mb-5">
-                <h2 class="font-heading font-bold text-lg dark:text-white text-gray-900">Your Businesses</h2>
-                @if($businesses->isNotEmpty())
-                    <a href="{{ route('businesses.create') }}"
-                       class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-accent transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                        </svg>
-                        Add Business
-                    </a>
-                @endif
+                <div>
+                    <h2 class="font-heading font-bold text-lg dark:text-white text-gray-900">My Businesses</h2>
+                    <p class="text-xs dark:text-slate-500 text-gray-400 mt-0.5">Businesses you own and manage</p>
+                </div>
+                <a href="{{ route('businesses.create') }}"
+                   class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-accent transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    Add Business
+                </a>
             </div>
 
-            @if($businesses->isEmpty())
-                {{-- ===== EMPTY STATE ===== --}}
+            @if($ownedBusinesses->isEmpty())
                 <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border-2 border-dashed border-gray-200
-                            rounded-2xl px-8 py-16 text-center
-                            relative overflow-hidden">
-                    {{-- Subtle glow --}}
+                            rounded-2xl px-8 py-14 text-center relative overflow-hidden">
                     <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div class="w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
                     </div>
-
                     <div class="relative">
-                        <div class="w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-primary/10">
-                            <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <div class="w-14 h-14 rounded-2xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/10">
+                            <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/>
                             </svg>
                         </div>
-                        <h3 class="font-heading font-bold text-xl dark:text-white text-gray-900 mb-2">No businesses yet</h3>
-                        <p class="text-sm dark:text-slate-400 text-gray-500 mb-7 max-w-sm mx-auto leading-relaxed">
-                            Create your first business to start tracking cash flow, organising books, and collaborating with your team.
+                        <h3 class="font-heading font-bold text-lg dark:text-white text-gray-900 mb-2">No businesses yet</h3>
+                        <p class="text-sm dark:text-slate-400 text-gray-500 mb-6 max-w-sm mx-auto leading-relaxed">
+                            Create your first business to start tracking cash flow and collaborating with your team.
                         </p>
                         <a href="{{ route('businesses.create') }}"
-                           class="inline-flex items-center gap-2 px-6 py-3
+                           class="inline-flex items-center gap-2 px-5 py-2.5
                                   bg-primary hover:bg-accent text-white
                                   text-sm font-semibold rounded-xl
-                                  transition-all duration-200
-                                  shadow-xl shadow-primary/30 hover:shadow-accent/30">
+                                  transition-all duration-200 shadow-xl shadow-primary/30 hover:shadow-accent/30">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                             </svg>
@@ -179,27 +175,49 @@
                         </a>
                     </div>
                 </div>
-
             @else
-                {{-- ===== BUSINESS GRID ===== --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    @foreach($businesses as $business)
-                        @php $role = $business->pivot->role ?? 'member'; @endphp
+                    @foreach($ownedBusinesses as $business)
+                        @php
+                            $isLocked = ! auth()->user()->isPro()
+                                        && $business->id !== $firstOwnedId;
+                        @endphp
 
                         <div x-data="{ shown: false }"
                              x-init="setTimeout(() => shown = true, {{ $loop->index * 80 }})"
                              :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
-                             class="transition-all duration-500 ease-out">
+                             class="transition-all duration-500 ease-out relative">
+
+                            @if($isLocked)
+                                <div class="absolute inset-0 rounded-2xl dark:bg-navy/85 bg-gray-900/70 backdrop-blur-sm z-10
+                                            flex flex-col items-center justify-center gap-3 p-6">
+                                    <div class="w-10 h-10 rounded-full dark:bg-slate-800 bg-slate-700 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-sm font-semibold text-white">Pro plan required</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">Resubscribe to unlock this business</p>
+                                    </div>
+                                    <a href="{{ route('billing') }}"
+                                       class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold
+                                              bg-primary hover:bg-accent text-white rounded-xl
+                                              transition-all duration-200 shadow-lg shadow-primary/30">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7Z"/>
+                                        </svg>
+                                        Resubscribe to Pro
+                                    </a>
+                                </div>
+                            @endif
 
                             <div class="dark:bg-[#1e293b] bg-white
                                         dark:border-slate-700/60 border border-gray-200
                                         rounded-2xl overflow-hidden
                                         hover:dark:border-primary/40 hover:border-primary/30
                                         hover:shadow-xl hover:shadow-primary/5
-                                        transition-all duration-200 group
-                                        flex flex-col h-full">
-
-                                {{-- Card body --}}
+                                        transition-all duration-200 group flex flex-col h-full">
                                 <div class="p-5 flex-1">
                                     <div class="flex items-start justify-between mb-4">
                                         <div class="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center flex-shrink-0">
@@ -207,35 +225,19 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/>
                                             </svg>
                                         </div>
-
-                                        {{-- Role badge --}}
-                                        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full
-                                            @if($role === 'owner')
-                                                dark:bg-primary/20 bg-primary/10 text-primary
-                                            @elseif($role === 'editor')
-                                                dark:bg-green-500/20 bg-green-50 text-green-600 dark:text-green-400
-                                            @else
-                                                dark:bg-slate-700 bg-gray-100 dark:text-slate-400 text-gray-500
-                                            @endif">
-                                            {{ ucfirst($role) }}
+                                        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full dark:bg-primary/20 bg-primary/10 text-primary">
+                                            Owner
                                         </span>
                                     </div>
-
-                                    <h3 class="font-heading font-bold text-base dark:text-white text-gray-900 mb-1.5 leading-snug
-                                               group-hover:text-primary transition-colors duration-150">
+                                    <h3 class="font-heading font-bold text-base dark:text-white text-gray-900 mb-1.5 leading-snug group-hover:text-primary transition-colors duration-150">
                                         {{ $business->name }}
                                     </h3>
-
                                     @if($business->description)
-                                        <p class="text-sm dark:text-slate-400 text-gray-500 line-clamp-2 leading-relaxed">
-                                            {{ $business->description }}
-                                        </p>
+                                        <p class="text-sm dark:text-slate-400 text-gray-500 line-clamp-2 leading-relaxed">{{ $business->description }}</p>
                                     @else
                                         <p class="text-sm dark:text-slate-600 text-gray-300 italic">No description added</p>
                                     @endif
                                 </div>
-
-                                {{-- Stats bar --}}
                                 <div class="px-5 py-3 dark:bg-slate-800/40 bg-gray-50
                                             dark:border-y dark:border-slate-700/40 border-y border-gray-100
                                             flex items-center gap-4 text-xs">
@@ -258,36 +260,28 @@
                                         {{ $business->currency ?? 'PKR' }}
                                     </div>
                                 </div>
-
-                                {{-- Actions --}}
                                 <div class="px-5 py-4 flex items-center gap-2.5">
                                     <a href="{{ route('businesses.show', $business) }}"
                                        class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5
-                                              dark:bg-primary/10 bg-primary/5
-                                              hover:bg-primary
-                                              dark:text-blue-light text-primary
-                                              hover:text-white
-                                              text-sm font-semibold rounded-xl
-                                              transition-all duration-200 group/btn">
+                                              dark:bg-primary/10 bg-primary/5 hover:bg-primary
+                                              dark:text-blue-light text-primary hover:text-white
+                                              text-sm font-semibold rounded-xl transition-all duration-200 group/btn">
                                         Open Business
                                         <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
                                         </svg>
                                     </a>
-
-                                    @if($role === 'owner')
-                                        <a href="{{ route('businesses.settings', $business) }}"
-                                           class="p-2.5 rounded-xl transition-all duration-150
-                                                  dark:text-slate-500 text-gray-400
-                                                  dark:hover:text-white hover:text-gray-700
-                                                  dark:hover:bg-slate-700 hover:bg-gray-100"
-                                           title="Business settings">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-                                            </svg>
-                                        </a>
-                                    @endif
+                                    <a href="{{ route('businesses.settings', $business) }}"
+                                       class="p-2.5 rounded-xl transition-all duration-150
+                                              dark:text-slate-500 text-gray-400
+                                              dark:hover:text-white hover:text-gray-700
+                                              dark:hover:bg-slate-700 hover:bg-gray-100"
+                                       title="Business settings">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                                        </svg>
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -296,8 +290,125 @@
             @endif
         </div>
 
+        {{-- ===== SHARED WITH ME ===== --}}
+        @if($sharedBusinesses->isNotEmpty())
+        <div>
+            <div class="flex items-center gap-3 mb-5">
+                <div>
+                    <h2 class="font-heading font-bold text-lg dark:text-white text-gray-900">Shared with Me</h2>
+                    <p class="text-xs dark:text-slate-500 text-gray-400 mt-0.5">Businesses you've been invited to collaborate on</p>
+                </div>
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold
+                             dark:bg-slate-700 bg-gray-200 dark:text-slate-400 text-gray-500 flex-shrink-0">
+                    {{ $sharedBusinesses->count() }}
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                @foreach($sharedBusinesses as $business)
+                    @php $role = $business->pivot->role ?? 'viewer'; @endphp
+
+                    <div x-data="{ shown: false }"
+                         x-init="setTimeout(() => shown = true, {{ $loop->index * 80 }})"
+                         :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
+                         class="transition-all duration-500 ease-out">
+
+                        {{-- Slightly muted card with left accent border --}}
+                        <div class="dark:bg-dark bg-white
+                                    dark:border-slate-700/40 border border-gray-200
+                                    border-l-4
+                                    @if($role === 'editor') border-l-green-500 @else border-l-slate-500 @endif
+                                    rounded-2xl overflow-hidden
+                                    hover:dark:border-slate-600 hover:border-gray-300
+                                    hover:shadow-lg
+                                    transition-all duration-200 group flex flex-col h-full">
+
+                            <div class="p-5 flex-1">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-9 h-9 rounded-xl dark:bg-slate-700 bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-4.5 h-4.5 dark:text-slate-400 text-gray-500" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" style="width:1.125rem;height:1.125rem">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    {{-- Role badge --}}
+                                    <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full
+                                        @if($role === 'editor')
+                                            dark:bg-green-900 bg-green-50 text-green-600 dark:text-green-400
+                                        @else
+                                            dark:bg-slate-700 bg-gray-100 dark:text-slate-400 text-gray-500
+                                        @endif">
+                                        {{ ucfirst($role) }}
+                                    </span>
+                                </div>
+
+                                <h3 class="font-heading font-bold text-base dark:text-white text-gray-900 mb-1 leading-snug group-hover:text-primary transition-colors duration-150">
+                                    {{ $business->name }}
+                                </h3>
+
+                                @if($business->description)
+                                    <p class="text-sm dark:text-slate-400 text-gray-500 line-clamp-1 leading-relaxed mb-2">{{ $business->description }}</p>
+                                @endif
+
+                                {{-- Owner attribution --}}
+                                <div class="flex items-center gap-1.5 mt-2">
+                                    <div class="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                                        <span class="text-[8px] font-bold text-primary">{{ strtoupper(substr($business->owner->name ?? '?', 0, 1)) }}</span>
+                                    </div>
+                                    <span class="text-xs dark:text-slate-500 text-gray-400">
+                                        Owned by <span class="dark:text-slate-400 text-gray-600 font-medium">{{ $business->owner->name ?? 'Unknown' }}</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="px-5 py-3 dark:bg-slate-800/40 bg-gray-50
+                                        dark:border-y dark:border-slate-700/40 border-y border-gray-100
+                                        flex items-center gap-4 text-xs">
+                                <div class="flex items-center gap-1.5 dark:text-slate-400 text-gray-500">
+                                    <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/>
+                                    </svg>
+                                    <span class="font-mono font-semibold dark:text-slate-300 text-gray-700">{{ $business->books_count }}</span>
+                                    {{ Str::plural('book', $business->books_count) }}
+                                </div>
+                                <span class="dark:text-slate-700 text-gray-300">·</span>
+                                <div class="flex items-center gap-1.5 dark:text-slate-400 text-gray-500">
+                                    <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>
+                                    </svg>
+                                    <span class="font-mono font-semibold dark:text-slate-300 text-gray-700">{{ $business->members_count }}</span>
+                                    {{ Str::plural('member', $business->members_count) }}
+                                </div>
+                                <div class="ml-auto font-mono font-bold text-[11px] uppercase tracking-wider dark:text-slate-500 text-gray-400">
+                                    {{ $business->currency ?? 'PKR' }}
+                                </div>
+                            </div>
+
+                            <div class="px-5 py-4">
+                                <a href="{{ route('businesses.show', $business) }}"
+                                   class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5
+                                          dark:bg-slate-700 bg-gray-100
+                                          hover:bg-primary
+                                          dark:text-slate-300 text-gray-600
+                                          hover:text-white
+                                          text-sm font-semibold rounded-xl transition-all duration-200 group/btn">
+                                    Open Business
+                                    <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         {{-- Free plan nudge (only if Free + has businesses) --}}
-        @if(!auth()->user()->isPro() && $businesses->isNotEmpty())
+        @if(!auth()->user()->isPro() && $ownedBusinesses->isNotEmpty())
             <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-200
                         rounded-2xl p-5 flex items-center gap-4
                         relative overflow-hidden">
