@@ -11,8 +11,20 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                navy:           '#0a0f1e',
+                dark:           '#111827',
+                primary:        '#1a56db',
+                accent:         '#3b82f6',
+                'blue-light':   '#93c5fd',
+                'blue-xlight':  '#dbeafe',
+            },
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans:    ['Outfit', ...defaultTheme.fontFamily.sans],
+                display: ['Bricolage Grotesque', 'sans-serif'],
+                heading: ['Plus Jakarta Sans', 'sans-serif'],
+                body:    ['Outfit', 'sans-serif'],
+                mono:    ['Geist Mono', 'monospace'],
             },
         },
     },
