@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CashFlow — Real-Time Cash Flow Tracking for Your Business</title>
+    <title>{{ config('app.name', 'CashFlow') }} — {{ \App\Helpers\Setting::get('app.tagline', 'Real-Time Cash Flow Tracking for Your Business') }}</title>
     <meta name="description" content="Track income, expenses, and live balance across all your businesses. Built for small business owners worldwide. Free to start.">
 
     <link rel="icon" type="image/png" href="/favicon.png">
@@ -11,9 +11,12 @@
     <!-- Brand Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap') }}" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if(file_exists(public_path('brand/theme.css')))
+        <link rel="stylesheet" href="{{ asset('brand/theme.css') }}?v={{ filemtime(public_path('brand/theme.css')) }}">
+    @endif
 
     <style>
         .dot-grid {
@@ -47,8 +50,12 @@
      x-data="{ mobileMenu: false }">
     <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <a href="/" class="flex-shrink-0 flex items-center gap-3">
-            <img src="/brand/cashflow_logo.png" alt="CashFlow" class="h-9 w-9 rounded-xl">
-            <span class="font-display font-extrabold text-xl text-white tracking-tight">CashFlow</span>
+            @if(file_exists(public_path('brand/logo-dark.png')))
+                <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto">
+            @else
+                <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-9 rounded-xl">
+                <span class="font-display font-extrabold text-xl text-white tracking-tight">{{ config('app.name', 'CashFlow') }}</span>
+            @endif
         </a>
 
         <div class="hidden md:flex items-center gap-8">
@@ -116,22 +123,28 @@
                 <span class="font-body text-xs text-blue-light font-medium tracking-widest uppercase">Built for Small Businesses Worldwide</span>
             </div>
 
+            @php
+                $heroHeadline = \App\Helpers\Setting::get('landing.hero_headline');
+            @endphp
+
             <h1 class="anim-fade-up-d1 font-display font-extrabold text-4xl sm:text-5xl lg:text-[3.75rem] leading-[1.05] text-white mb-6">
-                Know Exactly<br>
-                Where Your<br>
-                <span class="text-accent">Cash Flows.</span>
+                @if($heroHeadline)
+                    {!! nl2br(e($heroHeadline)) !!}
+                @else
+                    Know Exactly<br>
+                    Where Your<br>
+                    <span class="text-accent">Cash Flows.</span>
+                @endif
             </h1>
 
             <p class="anim-fade-up-d2 font-body text-base sm:text-lg text-slate-400 leading-relaxed mb-8 sm:mb-10 max-w-lg">
-                Real-time ledger for every business you run.
-                Track income, expenses, and balance — across multiple books
-                and teams — without needing an accountant.
+                {{ \App\Helpers\Setting::get('landing.hero_subheadline') ?: 'Real-time ledger for every business you run. Track income, expenses, and balance — across multiple books and teams — without needing an accountant.' }}
             </p>
 
             <div class="anim-fade-up-d3 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
                 <a href="{{ route('register') }}"
                    class="font-body font-medium bg-primary hover:bg-accent text-white px-6 py-3 sm:px-8 sm:py-3.5 rounded-lg transition-all duration-200 shadow-xl shadow-primary/30 hover:shadow-accent/30 hover:-translate-y-px text-center">
-                    Start for Free — No Card Needed
+                    {{ \App\Helpers\Setting::get('landing.cta_text') ?: 'Start for Free — No Card Needed' }}
                 </a>
                 <a href="#features"
                    class="font-body font-medium border border-white/10 hover:border-primary/40 text-blue-light hover:text-white px-6 py-3 sm:px-8 sm:py-3.5 rounded-lg transition-all duration-200 text-center">
@@ -665,11 +678,15 @@
         <div class="grid md:grid-cols-4 gap-10 mb-12">
             <div class="md:col-span-2">
                 <div class="flex items-center gap-2.5 mb-4">
-                    <img src="/brand/cashflow_logo.png" alt="CashFlow" class="h-8 w-8 rounded-lg">
-                    <span class="font-display font-extrabold text-xl text-white tracking-tight">CashFlow</span>
+                    @if(file_exists(public_path('brand/logo-dark.png')))
+                        <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
+                    @else
+                        <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-8 rounded-lg">
+                        <span class="font-display font-extrabold text-xl text-white tracking-tight">{{ config('app.name', 'CashFlow') }}</span>
+                    @endif
                 </div>
                 <p class="font-body text-sm text-slate-500 leading-relaxed max-w-xs">
-                    Real-time cash flow tracking for small businesses, freelancers, and their teams — worldwide.
+                    {{ \App\Helpers\Setting::get('landing.footer_tagline', 'Real-time cash flow tracking for small businesses, freelancers, and their teams — worldwide.') }}
                 </p>
             </div>
             <div>
@@ -690,7 +707,7 @@
         </div>
         <div class="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="font-body text-xs text-slate-600">
-                © {{ date('Y') }} CashFlow. Built for business owners everywhere.
+                © {{ date('Y') }} {{ config('app.name', 'CashFlow') }}. Built for business owners everywhere.
             </div>
             <div class="font-body text-xs text-slate-600">
                 Payments secured by Stripe.

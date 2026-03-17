@@ -498,49 +498,6 @@
     </div>
 
     {{-- ===== UPGRADE MODAL ===== --}}
-    @if($showUpgradeModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-             x-data="{ show: false }"
-             x-init="requestAnimationFrame(() => show = true)">
-            <div :class="show ? 'opacity-100 scale-100' : 'opacity-0 scale-95'"
-                 class="w-full max-w-sm dark:bg-dark bg-white
-                        dark:border-slate-700/60 border border-gray-200
-                        rounded-2xl overflow-hidden shadow-2xl shadow-black/30
-                        transition-all duration-200">
-                <div class="h-1 w-full bg-gradient-to-r from-amber-400 to-amber-500"></div>
-                <div class="p-6">
-                    <div class="w-12 h-12 rounded-2xl bg-amber-400/10 flex items-center justify-center mb-4">
-                        <svg class="w-6 h-6 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/>
-                        </svg>
-                    </div>
-                    <h3 class="font-display font-extrabold text-xl dark:text-white text-gray-900 mb-2">Upgrade to Pro</h3>
-                    <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-5">
-                        You've reached the <strong class="dark:text-white text-gray-900">2 member limit</strong> on the free plan.
-                        Upgrade to Pro for just $3/month to invite unlimited team members.
-                    </p>
-                    <div class="flex gap-3">
-                        <a href="{{ route('billing') }}"
-                           class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5
-                                  text-sm font-semibold bg-amber-400 hover:bg-amber-500 text-black
-                                  rounded-xl transition-all duration-200 shadow-md shadow-amber-400/25">
-                            View Plans
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
-                            </svg>
-                        </a>
-                        <button wire:click="$set('showUpgradeModal', false)"
-                                class="px-4 py-2.5 text-sm font-medium rounded-xl
-                                       dark:text-slate-400 text-gray-500
-                                       dark:hover:text-white hover:text-gray-900
-                                       dark:hover:bg-slate-800 hover:bg-gray-100
-                                       transition-all duration-150">
-                            Not Now
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
+    <x-upgrade-modal :show="$showUpgradeModal" feature="team" />
 
 </div>

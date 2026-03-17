@@ -26,10 +26,14 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..60,400;12..60,700;12..60,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..60,400;12..60,700;12..60,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400&display=swap') }}" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if(file_exists(public_path('brand/theme.css')))
+        <link rel="stylesheet" href="{{ asset('brand/theme.css') }}?v={{ filemtime(public_path('brand/theme.css')) }}">
+    @endif
     @livewireStyles
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="font-body antialiased dark:bg-navy bg-slate-50 dark:text-white text-gray-900 transition-colors duration-300">
 
@@ -67,6 +71,102 @@
                 </svg>
             </button>
         </div>
+
+        {{-- Business Switcher --}}
+        @auth
+            @php
+                $userBusinesses = auth()->user()->businesses()->orderBy('name')->get();
+                $currentBusiness = request()->route('business');
+                if ($currentBusiness && !$currentBusiness instanceof \App\Models\Business) {
+                    $currentBusiness = \App\Models\Business::find($currentBusiness);
+                }
+            @endphp
+            @if($userBusinesses->count() > 0)
+                <div class="px-3 pt-4 pb-2" x-data="{ switcher: false }">
+                    <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-600 text-gray-400 px-3 pb-2">Business</p>
+                    <div class="relative">
+                        <button @click="switcher = !switcher" @click.outside="switcher = false"
+                                class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                                       dark:bg-slate-800/60 bg-gray-50 dark:hover:bg-slate-800 hover:bg-gray-100
+                                       dark:border-slate-700/60 border-gray-200 border">
+                            <div class="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/>
+                                </svg>
+                            </div>
+                            <span class="flex-1 text-left truncate dark:text-white text-gray-900">
+                                {{ $currentBusiness ? $currentBusiness->name : 'Select Business' }}
+                            </span>
+                            <svg class="w-4 h-4 dark:text-slate-500 text-gray-400 flex-shrink-0 transition-transform duration-150"
+                                 :class="switcher ? 'rotate-180' : ''"
+                                 fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                            </svg>
+                        </button>
+
+                        <div x-show="switcher"
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 -translate-y-1"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             x-transition:leave="transition ease-in duration-100"
+                             x-transition:leave-start="opacity-100 translate-y-0"
+                             x-transition:leave-end="opacity-0 -translate-y-1"
+                             class="absolute left-0 right-0 mt-1.5 z-30
+                                    dark:bg-[#1e293b] bg-white
+                                    dark:border-slate-700 border border-gray-200
+                                    rounded-xl shadow-2xl shadow-black/20 overflow-hidden"
+                             style="display: none;">
+
+                            @if($userBusinesses->count() > 4)
+                                <div class="px-3 pt-3 pb-1">
+                                    <input type="text" placeholder="Search business…"
+                                           x-ref="businessSearch"
+                                           x-on:input="
+                                               let val = $el.value.toLowerCase();
+                                               $el.closest('[x-show]').querySelectorAll('[data-business]').forEach(el => {
+                                                   el.style.display = el.dataset.business.toLowerCase().includes(val) ? '' : 'none';
+                                               });
+                                           "
+                                           class="w-full px-3 py-2 text-xs font-body rounded-lg
+                                                  dark:bg-slate-800 bg-gray-50
+                                                  dark:border-slate-600 border-gray-200 border
+                                                  dark:text-white text-gray-900
+                                                  dark:placeholder-slate-500 placeholder-gray-400
+                                                  focus:outline-none focus:ring-2 focus:ring-primary/40">
+                                </div>
+                            @endif
+
+                            <div class="max-h-48 overflow-y-auto py-1.5">
+                                @foreach($userBusinesses as $biz)
+                                    <a href="{{ route('businesses.show', $biz) }}" wire:navigate
+                                       @click="switcher = false"
+                                       data-business="{{ $biz->name }}"
+                                       class="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-100
+                                              {{ $currentBusiness && $currentBusiness->id === $biz->id
+                                                  ? 'dark:bg-primary/10 bg-primary/5 dark:text-blue-light text-primary font-semibold'
+                                                  : 'dark:text-slate-300 text-gray-700 dark:hover:bg-slate-700/50 hover:bg-gray-50' }}">
+                                        <div class="w-2 h-2 rounded-full flex-shrink-0
+                                                    {{ $currentBusiness && $currentBusiness->id === $biz->id ? 'bg-primary' : 'dark:bg-slate-600 bg-gray-300' }}"></div>
+                                        <span class="truncate">{{ $biz->name }}</span>
+                                    </a>
+                                @endforeach
+                            </div>
+
+                            <div class="dark:border-slate-700 border-t border-gray-100">
+                                <a href="{{ route('businesses.create') }}" wire:navigate @click="switcher = false"
+                                   class="flex items-center gap-2.5 px-4 py-2.5 text-sm dark:text-primary text-primary
+                                          dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors font-medium">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                                    </svg>
+                                    Add New Business
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        @endauth
 
         {{-- Navigation --}}
         <nav class="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
@@ -208,6 +308,25 @@
             <x-app-logo size="sm" />
             <div class="w-9"></div>
         </header>
+
+        {{-- Impersonation banner --}}
+        @if(session('impersonating_admin_id'))
+            <div class="flex items-center justify-between px-4 py-2 bg-amber-500 text-navy">
+                <div class="flex items-center gap-2 text-sm font-semibold font-body">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>
+                    </svg>
+                    Impersonating <span class="font-bold">{{ auth()->user()->name }}</span>
+                </div>
+                <form method="POST" action="{{ route('admin.stop-impersonating') }}">
+                    @csrf
+                    <button type="submit"
+                            class="px-3 py-1 text-xs font-bold bg-navy text-white rounded-lg hover:bg-dark transition-colors">
+                        Stop Impersonating
+                    </button>
+                </form>
+            </div>
+        @endif
 
         {{-- Page content --}}
         <main class="flex-1 overflow-y-auto dark:bg-navy bg-slate-50">

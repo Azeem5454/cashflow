@@ -245,11 +245,20 @@
                             </div>
 
                             {{-- Balance --}}
-                            <div class="flex-shrink-0 text-right min-w-[5rem]">
+                            <div class="flex-shrink-0 text-right min-w-[7rem]">
                                 <p class="font-mono font-bold text-base
                                           {{ $balance >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400' }}">
-                                    @if($balance < 0)−@endif{{ number_format(abs($balance), 0) }}
+                                    {{ $business->currencySymbol() }}@if($balance < 0)−@endif{{ number_format(abs($balance), 0) }}
                                 </p>
+                                <div class="flex items-center justify-end gap-2 mt-0.5">
+                                    <span class="text-[10px] font-mono text-emerald-400" title="Cash In">
+                                        ↑{{ number_format((float)($book->total_in ?? 0), 0) }}
+                                    </span>
+                                    <span class="dark:text-slate-700 text-gray-300 text-[10px]">·</span>
+                                    <span class="text-[10px] font-mono text-red-400" title="Cash Out">
+                                        ↓{{ number_format((float)($book->total_out ?? 0), 0) }}
+                                    </span>
+                                </div>
                             </div>
 
                             {{-- Actions (shown on hover) --}}
@@ -395,6 +404,33 @@
                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
                                              transition-all duration-150"></textarea>
                             @error('bookDescription')
+                                <p class="mt-1.5 text-xs text-red-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Opening Balance --}}
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-400 text-gray-500 mb-2">
+                                Opening Balance <span class="font-normal normal-case dark:text-slate-500 text-gray-400">(optional — carry-forward from previous period)</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-sm font-mono dark:text-slate-500 text-gray-400 pointer-events-none select-none">
+                                    {{ $business->currencySymbol() }}
+                                </span>
+                                <input wire:model="bookOpeningBalance"
+                                       type="number"
+                                       min="0"
+                                       step="0.01"
+                                       placeholder="0.00"
+                                       class="w-full pl-10 pr-4 py-2.5 text-sm font-mono rounded-xl
+                                              dark:bg-navy bg-gray-50
+                                              dark:border-slate-700 border-gray-200 border
+                                              dark:text-white text-gray-900
+                                              dark:placeholder-slate-600 placeholder-gray-400
+                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
+                                              transition-all duration-150">
+                            </div>
+                            @error('bookOpeningBalance')
                                 <p class="mt-1.5 text-xs text-red-500">{{ $message }}</p>
                             @enderror
                         </div>

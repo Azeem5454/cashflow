@@ -13,9 +13,10 @@ class Show extends Component
     public string $sortBy = 'updated_at';
 
     // Create book modal
-    public bool    $showCreateBook  = false;
-    public string  $bookName        = '';
-    public ?string $bookDescription = null;
+    public bool    $showCreateBook       = false;
+    public string  $bookName             = '';
+    public ?string $bookDescription      = null;
+    public string  $bookOpeningBalance   = '';
 
     public function mount(Business $business): void
     {
@@ -25,10 +26,11 @@ class Show extends Component
 
     public function openCreateBook(): void
     {
-        $this->bookName        = '';
-        $this->bookDescription = null;
+        $this->bookName             = '';
+        $this->bookDescription      = null;
+        $this->bookOpeningBalance   = '';
         $this->resetErrorBag();
-        $this->showCreateBook  = true;
+        $this->showCreateBook       = true;
     }
 
     public function createBook(): void
@@ -38,13 +40,15 @@ class Show extends Component
         }
 
         $this->validate([
-            'bookName'        => 'required|string|max:100',
-            'bookDescription' => 'nullable|string|max:500',
+            'bookName'           => 'required|string|max:100',
+            'bookDescription'    => 'nullable|string|max:500',
+            'bookOpeningBalance' => 'nullable|numeric|min:0|max:999999999.99',
         ]);
 
         $book = $this->business->books()->create([
-            'name'        => $this->bookName,
-            'description' => $this->bookDescription ?: null,
+            'name'            => $this->bookName,
+            'description'     => $this->bookDescription ?: null,
+            'opening_balance' => $this->bookOpeningBalance ?: 0,
         ]);
 
         $this->redirect(route('businesses.books.show', [$this->business, $book]));
@@ -94,9 +98,10 @@ class Show extends Component
             ->orderBy($sortColumn[0], $sortColumn[1])
             ->get()
             ->map(function ($book) {
-                $in  = (string) ($book->total_in  ?? '0');
-                $out = (string) ($book->total_out ?? '0');
-                $book->balance_calculated = bcsub($in, $out, 2);
+                $opening = (string) ($book->opening_balance ?? '0');
+                $in      = (string) ($book->total_in  ?? '0');
+                $out     = (string) ($book->total_out ?? '0');
+                $book->balance_calculated = bcsub(bcadd($opening, $in, 2), $out, 2);
                 return $book;
             });
 

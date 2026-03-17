@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    :root {
+        /* RGB channels — used by Tailwind for opacity modifiers (bg-navy/80, etc.) */
+        --color-navy: 10 15 30;
+        --color-dark: 17 24 39;
+        --color-primary: 26 86 219;
+        --color-accent: 59 130 246;
+        --color-blue-light: 147 197 253;
+        --color-blue-xlight: 219 234 254;
+
+        --font-display: 'Bricolage Grotesque';
+        --font-heading: 'Plus Jakarta Sans';
+        --font-body: 'Outfit';
+        --font-mono: 'Geist Mono';
+    }
+}

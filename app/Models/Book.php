@@ -16,6 +16,7 @@ class Book extends Model
         'business_id',
         'name',
         'description',
+        'opening_balance',
         'period_starts_at',
         'period_ends_at',
     ];
@@ -23,8 +24,9 @@ class Book extends Model
     protected function casts(): array
     {
         return [
+            'opening_balance'  => 'decimal:2',
             'period_starts_at' => 'date',
-            'period_ends_at' => 'date',
+            'period_ends_at'   => 'date',
         ];
     }
 
@@ -36,6 +38,11 @@ class Book extends Model
     public function entries(): HasMany
     {
         return $this->hasMany(Entry::class);
+    }
+
+    public function recurringEntries(): HasMany
+    {
+        return $this->hasMany(RecurringEntry::class);
     }
 
     public function categories(): HasMany
@@ -60,6 +67,10 @@ class Book extends Model
 
     public function balance(): string
     {
-        return bcsub((string) $this->totalIn(), (string) $this->totalOut(), 2);
+        return bcsub(
+            bcadd((string) $this->opening_balance, (string) $this->totalIn(), 2),
+            (string) $this->totalOut(),
+            2
+        );
     }
 }

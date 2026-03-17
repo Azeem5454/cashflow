@@ -12,7 +12,7 @@ class Entry extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'book_id',
+        // book_id intentionally excluded — always set via $book->entries()->create()
         'type',
         'amount',
         'description',
@@ -20,6 +20,8 @@ class Entry extends Model
         'reference',
         'category',
         'payment_mode',
+        'recurring_entry_id', // set explicitly by code, never from user input
+        'attachment_path',
     ];
 
     protected function casts(): array
@@ -33,5 +35,10 @@ class Entry extends Model
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);
+    }
+
+    public function recurringEntry(): BelongsTo
+    {
+        return $this->belongsTo(RecurringEntry::class);
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Business extends Model
 {
@@ -37,9 +38,44 @@ class Business extends Model
         return $this->hasMany(Book::class);
     }
 
+    public function entries(): HasManyThrough
+    {
+        return $this->hasManyThrough(Entry::class, Book::class);
+    }
+
     public function invitations(): HasMany
     {
         return $this->hasMany(Invitation::class);
+    }
+
+    /**
+     * Short currency symbol for display (e.g. "Rs ", "$", "€").
+     */
+    public function currencySymbol(): string
+    {
+        return match($this->currency) {
+            'PKR'  => 'Rs ',
+            'USD'  => '$',
+            'EUR'  => '€',
+            'GBP'  => '£',
+            'AED'  => 'AED ',
+            'SAR'  => 'SR ',
+            'INR'  => '₹',
+            'BDT'  => '৳',
+            'CAD'  => 'CA$',
+            'AUD'  => 'A$',
+            default => $this->currency . ' ',
+        };
+    }
+
+    /**
+     * Whether this business has Pro features unlocked.
+     * Determined by the owner's plan — not the logged-in user's.
+     * Editors/viewers on a Pro owner's business can use Pro features.
+     */
+    public function isPro(): bool
+    {
+        return $this->owner->isPro();
     }
 
     public function userRole(User $user): ?string

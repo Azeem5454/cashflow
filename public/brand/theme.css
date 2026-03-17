@@ -1,0 +1,12 @@
+:root {
+  --color-navy: 10 15 30;
+  --color-dark: 17 24 39;
+  --color-primary: 26 86 219;
+  --color-accent: 59 130 246;
+  --color-blue-light: 147 197 253;
+  --color-blue-xlight: 219 234 254;
+  --font-display: 'Figtree';
+  --font-heading: 'Plus Jakarta Sans';
+  --font-body: 'Inter';
+  --font-mono: 'Albert Sans';
+}

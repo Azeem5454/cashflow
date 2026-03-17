@@ -12,9 +12,12 @@
     <!-- Brand Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap') }}" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if(file_exists(public_path('brand/theme.css')))
+        <link rel="stylesheet" href="{{ asset('brand/theme.css') }}?v={{ filemtime(public_path('brand/theme.css')) }}">
+    @endif
 
     <style>
         .dot-grid {
@@ -63,8 +66,12 @@
 
         {{-- Logo --}}
         <a href="/" class="relative z-10 flex-shrink-0 flex items-center gap-3">
-            <img src="/brand/cashflow_logo.png" alt="CashFlow" class="h-9 w-9 rounded-xl">
-            <span class="font-display font-extrabold text-2xl text-white tracking-tight">CashFlow</span>
+            @if(file_exists(public_path('brand/logo-dark.png')))
+                <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto">
+            @else
+                <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-9 rounded-xl">
+                <span class="font-display font-extrabold text-2xl text-white tracking-tight">{{ config('app.name', 'CashFlow') }}</span>
+            @endif
         </a>
 
         {{-- Middle content --}}
@@ -124,8 +131,12 @@
         {{-- Mobile logo --}}
         <div class="lg:hidden mb-8 self-start">
             <a href="/" class="flex items-center gap-2.5">
-                <img src="/brand/cashflow_logo.png" alt="CashFlow" class="h-8 w-8 rounded-lg">
-                <span class="font-display font-extrabold text-xl text-white tracking-tight">CashFlow</span>
+                @if(file_exists(public_path('brand/logo-dark.png')))
+                    <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
+                @else
+                    <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-8 rounded-lg">
+                    <span class="font-display font-extrabold text-xl text-white tracking-tight">{{ config('app.name', 'CashFlow') }}</span>
+                @endif
             </a>
         </div>
 

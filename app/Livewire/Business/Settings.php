@@ -53,6 +53,13 @@ class Settings extends Component
     {
         $this->inviteSent = false;
 
+        // Rate limit: max 5 invitations per hour per user
+        $key = 'invite:' . auth()->id();
+        if (!\Illuminate\Support\Facades\RateLimiter::attempt($key, 5, fn () => true, 3600)) {
+            $this->addError('inviteEmail', 'Too many invitations sent. Please wait before sending more.');
+            return;
+        }
+
         $this->validate([
             'inviteEmail' => 'required|email|max:255',
             'inviteRole'  => 'required|in:editor,viewer',
