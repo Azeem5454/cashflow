@@ -31,22 +31,28 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Override app name and mail config from settings table
-        if (Schema::hasTable('settings')) {
-            $appName = Setting::get('app.name');
-            if ($appName) {
-                Config::set('app.name', $appName);
-            }
+        // Override app name and mail config from settings table.
+        // Wrapped in try-catch: during Railway build, the DB isn't reachable yet
+        // (postgres.railway.internal only resolves at runtime, not build time).
+        try {
+            if (Schema::hasTable('settings')) {
+                $appName = Setting::get('app.name');
+                if ($appName) {
+                    Config::set('app.name', $appName);
+                }
 
-            $mailName = Setting::get('mail.from_name');
-            if ($mailName) {
-                Config::set('mail.from.name', $mailName);
-            }
+                $mailName = Setting::get('mail.from_name');
+                if ($mailName) {
+                    Config::set('mail.from.name', $mailName);
+                }
 
-            $mailAddress = Setting::get('mail.from_address');
-            if ($mailAddress) {
-                Config::set('mail.from.address', $mailAddress);
+                $mailAddress = Setting::get('mail.from_address');
+                if ($mailAddress) {
+                    Config::set('mail.from.address', $mailAddress);
+                }
             }
+        } catch (\Exception $e) {
+            // DB unavailable during build — skip silently, defaults apply
         }
 
         // Sync user.plan when Stripe subscription status changes
