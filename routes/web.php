@@ -7,8 +7,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('landing');
+    return view('landing-v2');
 })->name('home');
+
+Route::get('/home', function () {
+    return view('landing');
+})->name('landing-v2');
 
 Route::get('/dashboard', function () {
     return view('dashboard');

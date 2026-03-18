@@ -10,7 +10,7 @@ class Create extends Component
     public string $name = '';
     public ?string $description = null;
     public string $currency = 'PKR';
-    public bool $showUpgradeModal = false;
+    public string $upgradeModalFeature = '';
 
     protected function rules(): array
     {
@@ -26,7 +26,7 @@ class Create extends Component
         $user = auth()->user();
 
         if (! $user->isPro() && $user->ownedBusinesses()->count() >= 1) {
-            $this->showUpgradeModal = true;
+            $this->upgradeModalFeature = 'business';
         }
     }
 
@@ -35,7 +35,7 @@ class Create extends Component
         $user = auth()->user();
 
         if (! $user->isPro() && $user->ownedBusinesses()->count() >= 1) {
-            $this->showUpgradeModal = true;
+            $this->upgradeModalFeature = 'business';
 
             return;
         }

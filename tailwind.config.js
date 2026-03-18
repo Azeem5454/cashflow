@@ -38,8 +38,17 @@ export default {
         { pattern: /^border-(blue|amber|emerald)-700$/, variants: ['dark'] },
         { pattern: /^text-(blue|amber|emerald)-200$/, variants: ['dark'] },
         // bg colours used directly (no variant)
-        'bg-emerald-500', 'bg-red-500',
+        'bg-emerald-500', 'bg-red-500', 'bg-green-500', 'bg-blue-500',
         'hover:bg-emerald-500', 'hover:bg-red-500',
+        // AI insights loading dots (dark:bg-blue-light used with animate-bounce)
+        { pattern: /^bg-blue-light$/, variants: ['dark'] },
+        // Period preset tile active states (in Alpine :class strings — must be safelisted)
+        'bg-primary/10', 'dark:bg-primary/15', 'border-primary/40', 'text-primary',
+        'ring-2', 'ring-primary/20', 'font-semibold',
+        // Dark mode toggle pill (CSS dark: classes replacing Alpine bindings)
+        'dark:bg-primary', 'dark:translate-x-4',
+        // Notification bell dropdown positioning
+        'top-full', 'mt-2', 'right-0', 'origin-top-right', 'bottom-full', 'mb-2', 'origin-bottom-left',
     ],
 
     theme: {

@@ -260,9 +260,9 @@
                             @endif
 
                             <div class="dark:bg-[#1e293b] bg-white
-                                        dark:border-slate-700/60 border border-gray-200
+                                        dark:border-slate-700 border border-gray-200
                                         rounded-2xl overflow-hidden
-                                        hover:dark:border-primary/40 hover:border-primary/30
+                                        dark:hover:border-primary/40 hover:border-primary/30
                                         hover:shadow-xl hover:shadow-primary/5
                                         transition-all duration-200 group flex flex-col h-full">
                                 <div class="p-5 flex-1">
@@ -295,8 +295,8 @@
                                         <p class="text-sm dark:text-slate-600 text-gray-300 italic">No description added</p>
                                     @endif
                                 </div>
-                                <div class="px-5 py-3 dark:bg-slate-800/40 bg-gray-50
-                                            dark:border-y dark:border-slate-700/40 border-y border-gray-100
+                                <div class="px-5 py-3 dark:bg-slate-800 bg-gray-50
+                                            dark:border-y dark:border-slate-700 border-y border-gray-100
                                             flex items-center gap-4 text-xs">
                                     <div class="flex items-center gap-1.5 dark:text-slate-400 text-gray-500">
                                         <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -372,11 +372,11 @@
 
                         {{-- Slightly muted card with left accent border --}}
                         <div class="dark:bg-dark bg-white
-                                    dark:border-slate-700/40 border border-gray-200
+                                    dark:border-slate-700 border border-gray-200
                                     border-l-4
                                     @if($role === 'editor') border-l-green-500 @else border-l-slate-500 @endif
                                     rounded-2xl overflow-hidden
-                                    hover:dark:border-slate-600 hover:border-gray-300
+                                    dark:hover:border-slate-600 hover:border-gray-300
                                     hover:shadow-lg
                                     transition-all duration-200 group flex flex-col h-full">
 
@@ -431,8 +431,8 @@
                                 </div>
                             </div>
 
-                            <div class="px-5 py-3 dark:bg-slate-800/40 bg-gray-50
-                                        dark:border-y dark:border-slate-700/40 border-y border-gray-100
+                            <div class="px-5 py-3 dark:bg-slate-800 bg-gray-50
+                                        dark:border-y dark:border-slate-700 border-y border-gray-100
                                         flex items-center gap-4 text-xs">
                                 <div class="flex items-center gap-1.5 dark:text-slate-400 text-gray-500">
                                     <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

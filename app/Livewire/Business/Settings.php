@@ -20,7 +20,7 @@ class Settings extends Component
     public string $inviteEmail = '';
     public string $inviteRole  = 'editor';
     public bool   $inviteSent  = false;
-    public bool   $showUpgradeModal = false;
+    public string $upgradeModalFeature = '';
 
     // Danger zone
     public bool   $showDeleteConfirm  = false;
@@ -67,7 +67,7 @@ class Settings extends Component
 
         // Free plan: max 2 members
         if (! auth()->user()->isPro() && $this->business->members()->count() >= 2) {
-            $this->showUpgradeModal = true;
+            $this->upgradeModalFeature = 'team';
             return;
         }
 

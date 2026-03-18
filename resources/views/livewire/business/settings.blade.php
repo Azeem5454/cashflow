@@ -498,6 +498,6 @@
     </div>
 
     {{-- ===== UPGRADE MODAL ===== --}}
-    <x-upgrade-modal :show="$showUpgradeModal" feature="team" />
+    <x-upgrade-modal :show="$upgradeModalFeature !== ''" :feature="$upgradeModalFeature" />
 
 </div>

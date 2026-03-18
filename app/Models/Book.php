@@ -19,14 +19,17 @@ class Book extends Model
         'opening_balance',
         'period_starts_at',
         'period_ends_at',
+        'ai_insights_cache',
+        'ai_insights_generated_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'opening_balance'  => 'decimal:2',
-            'period_starts_at' => 'date',
-            'period_ends_at'   => 'date',
+            'opening_balance'          => 'decimal:2',
+            'period_starts_at'         => 'date',
+            'period_ends_at'           => 'date',
+            'ai_insights_generated_at' => 'datetime',
         ];
     }
 

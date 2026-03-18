@@ -34,14 +34,16 @@ class Users extends Component
         $user = User::findOrFail($userId);
         $user->update(['plan' => 'free']);
 
-        // Pause all recurring entries for this user's businesses
-        $bookIds = $user->ownedBusinesses()->with('books')->get()
-            ->pluck('books')->flatten()->pluck('id');
+        // Pause all recurring entries in books owned by this user
+        $businessIds = $user->ownedBusinesses()->pluck('id');
 
-        if ($bookIds->isNotEmpty()) {
-            RecurringEntry::whereIn('book_id', $bookIds)
-                ->where('is_active', true)
-                ->update(['is_active' => false]);
+        if ($businessIds->isNotEmpty()) {
+            $bookIds = \App\Models\Book::whereIn('business_id', $businessIds)->pluck('id');
+            if ($bookIds->isNotEmpty()) {
+                RecurringEntry::whereIn('book_id', $bookIds)
+                    ->where('status', 'active')
+                    ->update(['status' => 'paused']);
+            }
         }
     }
 

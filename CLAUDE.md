@@ -540,21 +540,26 @@ database/
 - [x] Entry attachments (Free) — file upload in slide-over (PNG/JPG/PDF, max 2MB), amber paperclip icon on entry rows (desktop + mobile) clickable to preview, preview modal with inline image or PDF open button, auth-protected serving via `ExportController@attachment`, private storage under `attachments/{business_id}/{book_id}/`, old files cleaned up on replace/delete, `x-cloak` fix for slide-over flash on page refresh
 - [x] AI receipt OCR (Pro) — "Scan Receipt" button in slide-over; `app/Services/AiService.php` wrapper around Claude claude-haiku-4-5 vision API; shimmer scanning animation; typewriter field-fill effect; green "AI filled" / amber "Review" badges per field; auto-currency detection + live exchange rate conversion (Frankfurter API, cached 1h); scanned file auto-attached to entry; 200 scans/month limit + 5/minute burst rate limit via `RateLimiter`; usage logged to `ai_usage_logs`; `database/migrations/2026_03_17_000001_create_ai_usage_logs_table.php`
 - [x] Enterprise security hardening — `guardEditor()` re-fetches role from DB on every write (prevents stale Livewire state); `validateBulkIds()` verifies all bulk IDs belong to current book; `SecurityHeaders` middleware (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, HSTS in production); MIME whitelist in `ExportController@attachment`; double file validation (`mimes` + `mimetypes`); OCR + invitation rate limiting; AI JSON field whitelist (`array_intersect_key`); currency code regex whitelist; sanitized error logging; removed `book_id` from `Entry::$fillable`
+- [x] AI auto-categorization (Pro) — `wire:blur` on description field → `suggestCategory()` in `Book\Show` → `AiService::suggestCategory()` Claude Haiku text API call → "AI suggests: [Category]" violet chip fades in below field → one-click accept (`applyAiCategory()`) or dismiss; silent fail on error; logs to `ai_usage_logs` with type 'categorize'; chip hidden for free users and when category already set; chip reset on `openAddEntry()`
+- [x] UX polish — global action toast: `wire:ignore` div always in DOM, shown via Livewire `dispatch('entry-saved', message: '...')` + Alpine `x-on:entry-saved.window`; covers all actions: add entry, edit entry, save & add new, delete entry, all 6 bulk operations; replaced old inline `bulkSuccessMessage` banner; delete entry replaced from inline "Yes/No" row confirm to full modal (warning banner + entry details card + Yes Delete / Cancel buttons) matching reference design; Pro badges hidden for Pro users on Reports tab, Recurring tab, Export menu, recurring toggle
+- [x] AI cash flow insights (Pro) — auto-triggers on Reports tab open; `AiService::generateInsights()` with aggregated data only; sentiment badge (Healthy/Watch/Concern) + 3 bullets + tip; 24h cache; cross-book comparison with previous period; 1/min burst + 10/day cap; all UI states dark/light mode; `database/migrations/2026_03_18_000001_add_ai_insights_to_books_table.php`
+- [x] Book audit log (Free) — `book_activity_log` table; "Activity" tab on book detail; chronological feed with avatar, action dot, description, relative timestamp; lazy-loaded (limit 100); 8 log points across all entry + bulk actions
+- [x] Book modal redesign — Create Book popup with Flatpickr period picker + 4 preset tiles (This Month / Last Month / This Quarter / This Year), opening balance field, collapsible description; Edit Book popup (pre-filled); Duplicate Book popup (keep categories / payment methods / entries toggles + period for new book); edit/duplicate icons revealed on book row hover; `bookPeriodPicker()` Alpine factory (no `$wire` calls during interaction, dates passed as args on submit); period presets use Alpine object-syntax `:class` for reliable highlighting
+- [x] Entry creator attribution — `created_by` UUID FK on `entries` (nullable, `nullOnDelete`); migration `2026_03_20_100001_add_created_by_to_entries_table.php`; `doSaveEntry()` stamps `auth()->id()` on new entries; `Book\Show::render()` eager-loads `creator`; "by You" / "by [Name]" shown in muted text under description on both desktop and mobile entry rows
+- [x] Dark mode flash fix + theme polish — `theme-transition` CSS class temporarily enables `transition: background-color/color/border-color 200ms` on ALL elements during toggle (class added before + removed after via `setTimeout(300)`); dark mode toggle button icons use CSS `dark:hidden`/`dark:block` instead of Alpine `x-show` (eliminates Alpine-driven DOM mutation); toggle pill uses `dark:bg-primary`/`dark:translate-x-4` CSS instead of Alpine `:class`
+- [x] UX polish II — comment icon hover behavior (always visible with count when comments exist, hover-reveal when none); upgrade modal migrated to string-property pattern with feature-specific gold copy for all 6 features; tab reorder (Entries | Activity | Reports | Recurring); activity log extended with comment/attachment/recurring events; delete comment confirmation modal; flash messages on all actions; notification bell full-width sidebar row (`sidebar` prop); entry ordering stability (three-level sort: date → created_at → id); book detail "Rename Book" + "Duplicate Book" upgraded to full period-picker modals matching All Books page
 
 ### Pending App Features (Priority Order)
 
-#### Free Tier
-- [ ] **Book audit log** — `book_activity_log` table (book_id, user_id, action, entry_id nullable, meta JSON); actions: entry_created/updated/deleted, bulk_delete/move/copy, category_changed, payment_mode_changed; "Activity" tab on book detail page with chronological feed, user name, action description, timestamp
-
 #### Pro Tier
 - [ ] **Email reports** — `report_schedules` table (book_id, frequency: weekly/monthly, recipients JSON, is_active, last_sent_at); per-book toggle in book settings; queued Laravel Mail job; branded HTML email with period summary, top categories, recent entries
-- [ ] **Date range filtering & comparison** — custom start/end date picker in filter bar (Pro only); "Compare with previous period" toggle showing side-by-side summary card; free users see upgrade modal on date range inputs
+- [x] **Date range filtering & comparison** — Flatpickr date pickers in custom date modal (Pro gate); two comparison modes (Previous Period / Same Period Last Year); 3-row comparison card between filter bar and balance strip with ↑↓% change badges; `buildComparisonData()` in `Book\Show`; `upgradeModalFeature = 'daterange'` gate
 - [ ] **Entry notes/comments** — `entry_comments` table (entry_id, user_id, body, created_at); comment icon on entry rows showing count; thread opens in slide-over; free users see upgrade modal
 
 #### AI Features (Pro — ship with $5/month price update)
 - [x] **AI receipt OCR** — built and live. Claude claude-haiku-4-5 vision API, currency auto-detection + conversion, 200/month + 5/min rate limits, `ai_usage_logs` table, `AiService.php`
-- [ ] **AI auto-categorization** — `wire:blur` on description → Claude text API → "AI suggests: [Category]" chip → one-click accept; logs to `ai_usage_logs`
-- [ ] **AI cash flow insights** — "Generate Insights" button on Reports tab; 3-bullet plain-English card with sentiment badge; cached in `books.ai_insights_cache` (24h); data sent = aggregates only, never raw descriptions
+- [x] **AI auto-categorization** — built and live. `wire:blur` on description → `AiService::suggestCategory()` → violet "AI suggests" chip → one-click accept; silent fail; logs to `ai_usage_logs`
+- [x] **AI cash flow insights** — auto-triggers on Reports tab open; `AiService::generateInsights()` sends aggregated data only; 3-bullet card with sentiment badge (Healthy/Watch/Concern) + tip; 24h cache in `books.ai_insights_cache`; cross-book comparison with previous period; 1/min burst + 10/day cap per user; all UI states (shimmer, loaded, failed, not_enough_data, limit); dark/light mode; regenerate button; stale cache shown when limit hit
 
 #### AI Features — Phase 2
 - [ ] **Natural language entry** — free-text field in slide-over: "Paid 5000 for rent yesterday" → AI parses into full entry form
@@ -662,7 +667,96 @@ Core screens mirror the web app:
 
 ---
 
-## Session Notes (last updated 2026-03-17)
+## Session Notes (last updated 2026-03-23)
+
+### Completed this session (2026-03-23)
+
+- **Date range filtering & comparison (Pro)** — custom date modal upgraded from native `<input type="date">` to Flatpickr (`appendTo: document.body`, `disableMobile: true`) to fix browser calendar overlapping modal; two comparison modes added: "Previous Period" (same duration immediately before) and "Same Period Last Year" (exact dates minus 1 year via Carbon `subYear()`); period comparison card inserted between filter bar and balance strip showing 3-row table (Cash In / Cash Out / Net) with ↑↓% change badges; `$compareEnabled` + `$compareMode` properties; `toggleComparison()` (Pro-gated); `buildComparisonData()` private method; `clearFilters()` resets comparison state; `upgradeModalFeature = 'daterange'` on free-user click; `upgrade-modal.blade.php` extended with `daterange` feature type; `app.css` gets `.flatpickr-wrapper { display: block !important; width: 100%; }` to fix icon positioning
+
+- **Mobile responsiveness audit & fixes** — comprehensive audit of all screens, fixes applied:
+  - `book/show.blade.php`: 4-tab row (`Entries | Activity | Reports | Recurring`) wrapped in `overflow-x-auto` + `w-max` container so it scrolls horizontally on narrow screens instead of overflowing; toast `fixed bottom-4 sm:bottom-6 left-4 right-4 sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2 sm:whitespace-nowrap` (mobile: full-width toast, desktop: centered); slide-over close button `p-1.5` → `p-2`; comments panel close button `p-1.5` → `p-2`; preset grids `grid-cols-4` → `grid-cols-2 sm:grid-cols-4` (Edit Book + Duplicate Book modals); added "Flip Type" (Copy Opposite) button to mobile bottom bulk toolbar
+  - `business/show.blade.php`: preset grids `grid-cols-4` → `grid-cols-2 sm:grid-cols-4` (Create + Edit + Duplicate Book modals)
+  - `layouts/app.blade.php`: sidebar close button `p-1.5` → `p-2` for better touch target
+  - `settings/billing.blade.php`: plan status card and billing management card changed `p-6` → `p-5 sm:p-6` + `flex-wrap` on both flex rows so button wraps gracefully on narrow screens
+
+- **Key mobile patterns established**:
+  - Tab rows with 3+ tabs: wrap in `overflow-x-auto` > `w-max` container
+  - Toasts: `left-4 right-4 sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2 sm:whitespace-nowrap`
+  - Modal preset grids: always `grid-cols-2 sm:grid-cols-4` (never raw `grid-cols-4` which is too tight on 360px)
+  - Touch targets: all icon-only close/action buttons must use at least `p-2` (32px total with 16px icon)
+
+### Completed this session (2026-03-22)
+
+- **Landing page v2 live at `/`** — `landing-v2.blade.php` promoted to the main route; old landing moved to `/home`; landing page **always opens in light mode** (init script no longer reads from localStorage — toggle still saves to `cashflow_theme` for the app); dark mode toggle moved to end of navbar: `Sign in | Start free | [toggle]`
+
+- **Unified theme key** — landing page was using a separate `cf-theme` localStorage key; changed to `cashflow_theme` so theme choice is shared with the app; app layout default changed from `dark` to `light` (`?? 'dark'` → `?? 'light'` in all three script locations in `app.blade.php`)
+
+- **Guest layout full redesign** — `resources/views/layouts/guest.blade.php` rewritten from hardcoded-dark to fully theme-aware; reads `cashflow_theme` via blocking script before paint; light mode: soft blue-to-indigo gradient background with dot grid; dark mode: navy with glow orbs; right form panel: `bg-white dark:bg-dark`; all mock card dark-mode backgrounds implemented via CSS classes in `<style>` block (`.mock-card-shell`, `.mock-card-header`, `.mock-balance-strip`, `.mock-entry-row` + `html.dark` overrides) rather than Tailwind arbitrary values which require Vite rebuild
+
+- **Login and signup left panels are now distinct** — detected via `request()->routeIs('login')` in the layout:
+  - **Login**: "Your books are waiting for you." + 3 stats grid (500+ businesses / ₨1T+ / 4.9★) + 3 trust bullets (encrypted / free plan / device sync)
+  - **Signup**: "See exactly where your money goes." + mini live dashboard card (cash book header, balance strip, 3 entry rows)
+  - Both share the same testimonial footer
+
+- **Auth form fonts fixed** — guest layout hard-codes Google Fonts URL (identical to landing page: `Bricolage+Grotesque:opsz,wght@12..96,...`); explicit CSS classes `.guest-display` / `.guest-body` / `.guest-mono` with direct `font-family` declarations bypass the Tailwind CSS variable fallback (`var(--font-display, Bricolage Grotesque)` without quotes fails when `theme.css` absent); all `font-body` / `font-display` classes in `login.blade.php`, `register.blade.php`, `forgot-password.blade.php`, `reset-password.blade.php` replaced with `guest-body` / `guest-display`
+
+- **Auth form colors — light mode** — all four auth views updated from hardcoded-dark to light-first with `dark:` variants: headings `text-slate-900 dark:text-white`, labels `text-slate-700 dark:text-slate-300`, icons `text-slate-400 dark:text-slate-500`, links `text-primary dark:text-blue-light`, dividers `bg-gray-200 dark:bg-white/8`, secondary action buttons `border-gray-200 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5`; `.auth-input` CSS has explicit `html.dark` override block; eyebrow text uses `.guest-eyebrow` CSS class with `html.dark` override (avoids opacity modifier compilation issues)
+
+- **Stats `\n` bug fixed** — PHP single-quoted strings don't process escape sequences; changed from `'Businesses\ntracking cash'` to two separate array elements `['Businesses', 'tracking cash']` rendered as `{{ $stat[1] }}<br>{{ $stat[2] }}`
+
+### Completed this session (2026-03-21)
+
+- **Book settings modals upgraded** — "Rename Book" and "Duplicate Book" in the book detail settings dropdown now use the same full-featured modals as the All Books page; `Book\Show.php` replaces `$showRenameBook`/`$renameBookName`/`openRenameBook()`/`renameBook()` with full edit properties + `openEditBook()`/`saveEditBook()`; `duplicateBook()` replaced with `openDuplicateBook()`/`executeDuplicate()`; Edit Book modal has name, period presets (This Month/Last Month/This Quarter/This Year), Flatpickr date pickers, opening balance, description; Duplicate modal has same period picker + Carry Over checkboxes (Categories / Payment Methods / Entries); `bookPeriodPicker()` Alpine factory embedded via `<script>` block in book/show.blade.php; `saveEditBook()` dispatches "Book updated successfully." toast; `executeDuplicate()` redirects to new book
+
+- **Comment icon hover behavior** — comment icon on entry rows: always visible with count (violet) when `comments_count > 0`; revealed on row hover when zero comments (uses existing `hovered` Alpine state per row); placed inline after description (not in hover-actions column, which caused balance overlap); mobile: shown below amount/balance in right column always
+
+- **Upgrade modal — feature-specific copy + gold color** — migrated from `public bool $showUpgradeModal` to `public string $upgradeModalFeature` in `Book\Show`, `Business\Create`, `Business\Settings`; each Pro gate sets correct feature string: `'ai'`, `'export'`, `'comments'`, `'recurring'`, `'business'`, `'team'`; `x-upgrade-modal` component rewrote to support 6 feature types with feature-specific headings; all 6 features now use consistent gold/amber scheme (`from-amber-400 to-amber-500` gradient, `bg-amber-400/10` icon bg, `bg-amber-400 hover:bg-amber-300 text-gray-900` CTA); price updated to $5/mo; dismiss uses `$set('upgradeModalFeature', '')`
+
+- **Tab reorder** — book detail tabs reordered to: Entries | Activity (both free) | Reports Pro | Recurring Pro; Activity tab moved from 4th to 2nd position so free features are grouped first
+
+- **Activity log extended** — `BookActivityLog::describe()` + `iconType()` extended with 8 new action types: `comment_added`, `comment_deleted`, `attachment_added`, `attachment_removed`, `recurring_created`, `recurring_paused`, `recurring_resumed`, `recurring_deleted`; `logActivity()` calls added in `Book\Show` for: `addComment()`, `deleteComment()`, `toggleRecurringStatus()` (paused/resumed), `deleteRecurring()`; icon colors: comments/attachment_added/recurring_created → green (created); recurring_paused/resumed → blue (updated); comment_deleted/attachment_removed/recurring_deleted → red (deleted)
+
+- **Delete comment confirmation modal** — replaced browser `wire:confirm` on delete comment button with proper in-app modal; `Book\Show` adds `$showDeleteCommentModal`, `$pendingDeleteCommentId`, `$pendingDeleteCommentExcerpt`; `confirmDeleteComment(string $id)` loads excerpt + sets modal; `deleteComment()` now takes no args (uses pending property); modal matches delete entry modal style (red warning banner + comment excerpt preview + Yes Delete / Cancel)
+
+- **Flash messages** — `dispatch('entry-saved', message: '...')` toasts added to: `addComment()` ("Comment added."), `deleteComment()` ("Comment deleted."), `toggleRecurringStatus()` ("Recurring rule paused." / "Recurring rule resumed."), `markAllRead()` in NotificationBell ("All notifications marked as read."), `deleteNotification()` ("Notification dismissed.")
+
+- **Notification bell sidebar row** — `NotificationBell` Livewire component gains `public bool $sidebar = false` prop; when `$sidebar = true` renders as full-width row (`w-full px-3 py-2.5 gap-3 rounded-xl`) matching Dark Mode toggle style exactly (same font, same padding, icon at same 18px size, label inline); `app.blade.php` sidebar uses `<livewire:notification-bell :sidebar="true" />`; mobile top bar continues using compact `w-9 h-9` icon button
+
+- **Entry ordering stability** — fixed non-deterministic PostgreSQL ordering when multiple entries share the same `date`; three-level sort added: `->orderBy('date', 'asc')->orderBy('created_at', 'asc')->orderBy('id', 'asc')`; UUID `id` as final tiebreaker ensures the same row sequence is returned consistently across re-fetches after delete/edit
+
+### Completed this session (2026-03-20)
+
+- **Book modal redesign** — `bookPeriodPicker(initStart, initEnd)` Alpine factory function (no `$wire` calls — stores dates in Alpine state only, passes as method args on submit); all three modals (Create / Edit / Duplicate) share the same factory; `x-init="$nextTick(() => { show = true; initFlatpickr($refs.x, $refs.y); })"` on each modal; preset tiles use Alpine object-syntax `:class` (reliable with `/` and `:` class names); `Business\Show.php` + `render()` provides `$presets`, `$editPresets`, `$dupPresets` and all edit/dup properties; `saveEditBook()` + `executeDuplicate()` dispatch `book-saved` toast; `executeDuplicate()` copies categories/paymentModes/entries based on checkbox booleans; book row hover reveals edit (pencil) + duplicate (copy) icons via Tailwind `group`/`group-hover`
+
+- **Entry creator attribution** — `database/migrations/2026_03_20_100001_add_created_by_to_entries_table.php` adds nullable UUID `created_by` FK → users with `nullOnDelete`; `Entry::$fillable` includes `created_by`; `Entry::creator()` BelongsTo; `doSaveEntry()` stamps `auth()->id()` on new entries only; `Book\Show::render()` adds `->with('creator')`; desktop rows show `<p class="text-[11px] ... dark:text-slate-600">by You / by [Name]</p>` under description; mobile rows show `· by You / by [Name]` inline
+
+- **Dark mode flash fix** — `theme-transition` CSS in `resources/css/app.css` applies `!important` transitions to all elements/pseudo-elements during toggle; `toggleTheme()` in `app.blade.php` adds the class → toggles `dark` → removes after 300ms; eliminates the stark flash when switching between navy-dark and slate-light themes
+
+- **Preset tile highlighting fix** — switched all three book modals from Alpine string-ternary `:class` to object-syntax `:class`; string ternary is unreliable with class names containing `/` (opacity modifiers) and `:` (variant prefixes); object syntax guarantees correct add/remove per Alpine's class diffing algorithm
+
+- **Dark mode toggle polish** — sun/moon icons changed from `x-show="darkMode"` / `x-show="!darkMode"` to `dark:block hidden` / `dark:hidden`; label from `x-text` ternary to two static spans with `dark:hidden`/`hidden dark:inline`; pill/knob from Alpine `:class` to `bg-gray-300 dark:bg-primary` / `translate-x-0.5 dark:translate-x-4` — all dark-mode logic now handled by CSS, zero Alpine reactive bindings on the toggle button
+
+### Completed this session (2026-03-19)
+
+- **Book audit log (Free)** — `book_activity_log` table (UUID PK, book_id FK cascadeOnDelete, user_id FK cascadeOnDelete, action string, entry_id nullable UUID no-FK, meta JSON, timestamps; composite index on `book_id + created_at`); `BookActivityLog` model with `describe()` (human-readable action string) and `iconType()` (created/updated/deleted/bulk); `private logActivity()` helper in `Book\Show` wrapped in try/catch so it never breaks user actions; 8 log points: `entry_created`, `entry_updated`, `entry_deleted`, `bulk_delete`, `bulk_move`, `bulk_copy`, `bulk_copy_opposite`, `bulk_change_category`, `bulk_change_payment_mode`; lazy-loaded in `render()` only when `$activeTab === 'activity'` (limit 100, newest first, with user eager-load); "Activity" tab button added as 4th tab (no Pro gate); feed shows avatar (initials circle, primary for self/slate for others), colored action dot (green/blue/red/amber), bold "You"/"Name" + `describe()` text, monospace amount in green/red, sub-detail description, relative timestamp; empty state with clock icon; "100 most recent" footer note when limit hit
+
+
+
+- **Invitation accept screen redesign** — removed own full-page layout wrapper (`min-h-screen dark:bg-navy bg-gray-50`) that was covering the guest layout's always-dark right panel with a white/gray background in light mode; rewrote all states (expired, accepted, already_member, pending) to render directly in the `$slot` of `layouts.guest`, styled for the dark panel (no `dark:` prefixes needed, white text, slate borders); added "Team Invitation" pill badge matching landing page style; improved viewer permissions list (added "No edit access" with X indicator); pending state uses `anim-fade-up` like login/register; button loading state scoped with `wire:target="accept"`
+
+- **Dashboard card dark mode fix** — removed opacity modifiers (`/40`, `/60`) from `dark:border-slate-*` and `dark:bg-slate-*` classes on both "My Businesses" and "Shared with Me" cards and their stats strips; root cause: JIT does not reliably compile `dark:border-slate-700/40` — only the plain `dark:border-slate-700` form compiles reliably; also fixed `hover:dark:border-*` → `dark:hover:border-*` (correct Tailwind variant stacking order); result: cards now have visible dark mode outer borders and stats strip background/separator lines in both card types
+
+### Completed this session (2026-03-18)
+
+- **AI auto-categorization (Pro)** — `wire:blur` on description input → `Book\Show::suggestCategory()` → `AiService::suggestCategory()` (Claude Haiku text API, ~120 input + ~15 output tokens, ~$0.00016/call) → `$aiCategorySuggestion` + `$showCategoryChip` properties → violet "AI suggests: [Category]" chip fades in below field with accept + dismiss buttons; `applyAiCategory()` copies suggestion to `$entryCategory`; chip skipped if category already set or description < 3 chars; silent catch on API failure; free users: chip never shown; logs to `ai_usage_logs` with type 'categorize'
+
+- **Global action toast** — replaced all per-action success feedback with a single `wire:ignore` toast div (always in DOM, `display:none` initially), triggered via `$this->dispatch('entry-saved', message: '...')` from PHP and caught by Alpine `x-on:entry-saved.window`; `wire:ignore` prevents Livewire morphdom from resetting Alpine's display state; covers: add entry ("Entry added successfully."), edit entry ("Entry edited successfully."), save & add new ("Saved. Continue adding more entries."), delete entry ("Entry deleted."), bulk delete, bulk move, bulk copy, bulk copy opposite, change category, change payment mode; replaced old inline `bulkSuccessMessage` banner system entirely
+
+- **Delete entry modal** — replaced inline row "Delete? Yes/No" Alpine confirm with a proper modal: `confirmDeleteEntry(string $id)` loads entry details into `$pendingDelete*` properties + sets `$showDeleteEntryModal = true`; modal shows red warning banner + entry details card (type, amount, date, description); `deleteEntry()` now takes no args (uses `$pendingDeleteEntryId`); "Yes, Delete" button (red outlined) + "Cancel" button (blue solid); dispatches toast on confirm
+
+- **Pro badge cleanup** — Pro badges (`bg-amber-100 dark:bg-amber-500/15`) now wrapped in `@if(!$business->isPro())` on: Reports tab, Recurring tab, Export Book dropdown header, recurring toggle in slide-over; Pro users see clean UI with no upsell noise
+
+- **AI cash flow insights (Pro)** — auto-generates on Reports tab open (two-request pattern: `updatedActiveTab()` sets `$aiInsightsLoading = true` → shimmer renders → `wire:init="generateInsights"` fires API call); `AiService::generateInsights()` sends aggregated totals/categories only (never raw descriptions); cross-book comparison via previous book lookup (`period_ends_at < current.period_starts_at`); 24h cache in `books.ai_insights_cache` + `books.ai_insights_generated_at`; rate limits: 1/min burst (`RateLimiter`) + 10/day cap (`AiUsageLog` count); UI states: loading shimmer, not_enough_data (<3 entries), failed (API error + Retry), limit reached (stale cache shown if available), loaded (sentiment badge + reason + 3 bullets + tip + regenerate button + timestamp); regenerate button hidden when daily limit hit; inline limit warning on loaded card; `sanitiseInsights()` strict whitelist; dark/light mode fully verified; `database/migrations/2026_03_18_000001_add_ai_insights_to_books_table.php`
 
 ### Completed this session (2026-03-17)
 
@@ -816,6 +910,9 @@ Core screens mirror the web app:
 - **Mobile stats grid:** `grid grid-cols-2 sm:flex sm:flex-wrap` + `hidden sm:block` on `w-px` dividers to avoid dividers floating solo on mobile
 - **`mt-auto` pattern:** in a flex-column container, `mt-auto` on the last child pushes it to the bottom without `justify-between` (which breaks when there are 3+ children)
 - **Tailwind JIT gotchas:** arbitrary hex with opacity (`dark:bg-[#hex]/95`) and opacity variants (`/30`, `/50`, `/60`) on new classes don't compile — use named tokens (`navy`, `dark`) or safelist explicitly
+- **Dark mode border/bg opacity modifiers:** `dark:border-slate-700/40`, `dark:bg-slate-800/40` etc. do NOT reliably compile — always drop the opacity modifier and use the plain form (`dark:border-slate-700`, `dark:bg-slate-800`). This applies to ALL `dark:border-*` and `dark:bg-*` with `/N` opacity modifiers. Plain forms are already in the safelist.
+- **Tailwind variant stacking order:** `dark:hover:class` (dark first, then hover) is correct; `hover:dark:class` (hover first) may not generate the expected selector — always put `dark:` before state variants
+- **Guest layout right panel is always dark:** `bg-dark` is applied unconditionally — Livewire views rendered via `->layout('layouts.guest')` should NOT add their own `min-h-screen dark:bg-navy bg-gray-*` wrapper; style directly for dark (no `dark:` prefixes needed inside the slot)
 - **Stripe race condition:** after `?checkout=success`, `subscribed()` returns false (webhook not yet fired) — update `user.plan` directly from the success URL, use webhook as async backup
 - **Dashboard sections:** `$businesses->where('pivot.role', 'owner')` and `->whereIn('pivot.role', [...])` to split owned vs shared after a single query
 

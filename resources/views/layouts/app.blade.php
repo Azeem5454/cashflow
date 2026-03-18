@@ -1,24 +1,25 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
       x-data="{
-          darkMode: (localStorage.getItem('cashflow_theme') ?? 'dark') === 'dark',
+          darkMode: (localStorage.getItem('cashflow_theme') ?? 'light') === 'dark',
           sidebarOpen: false,
           toggleTheme() {
+              document.documentElement.classList.add('theme-transition');
               this.darkMode = !this.darkMode;
               localStorage.setItem('cashflow_theme', this.darkMode ? 'dark' : 'light');
               document.documentElement.classList.toggle('dark', this.darkMode);
+              window.setTimeout(() => document.documentElement.classList.remove('theme-transition'), 300);
           }
-      }"
-      :class="{ 'dark': darkMode }">
+      }">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {{-- Prevent dark mode flash: runs synchronously before first paint --}}
-    <script>if ((localStorage.getItem('cashflow_theme') ?? 'dark') === 'dark') { document.documentElement.classList.add('dark'); }</script>
+    <script>if ((localStorage.getItem('cashflow_theme') ?? 'light') === 'dark') { document.documentElement.classList.add('dark'); }</script>
     {{-- Re-apply dark class after wire:navigate page swaps --}}
-    <script>document.addEventListener('livewire:navigated', function() { document.documentElement.classList.toggle('dark', (localStorage.getItem('cashflow_theme') ?? 'dark') === 'dark'); });</script>
+    <script>document.addEventListener('livewire:navigated', function() { document.documentElement.classList.toggle('dark', (localStorage.getItem('cashflow_theme') ?? 'light') === 'dark'); });</script>
 
     <title>{{ config('app.name', 'CashFlow') }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
@@ -64,7 +65,7 @@
                 <x-app-logo />
             </a>
             <button @click="sidebarOpen = false"
-                    class="lg:hidden p-1.5 rounded-lg dark:text-slate-500 text-gray-400
+                    class="lg:hidden p-2 rounded-lg dark:text-slate-500 text-gray-400
                            dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
@@ -220,25 +221,31 @@
             </div>
         </nav>
 
-        {{-- Bottom: Theme toggle + User --}}
+        {{-- Bottom: Notification bell + Theme toggle + User --}}
         <div class="p-3 flex-shrink-0 dark:border-slate-800 border-t border-gray-200 space-y-1">
+
+            {{-- Notification bell --}}
+            <livewire:notification-bell wire:key="notification-bell" :sidebar="true" />
 
             {{-- Theme toggle --}}
             <button @click="toggleTheme()"
                     class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                            dark:text-slate-400 text-gray-600 dark:hover:bg-slate-800/80 hover:bg-gray-100 dark:hover:text-white hover:text-gray-900">
-                <svg x-show="darkMode" class="w-[18px] h-[18px] text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                {{-- Sun icon: visible in dark mode --}}
+                <svg class="w-[18px] h-[18px] text-amber-400 flex-shrink-0 hidden dark:block" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/>
                 </svg>
-                <svg x-show="!darkMode" class="w-[18px] h-[18px] text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                {{-- Moon icon: visible in light mode --}}
+                <svg class="w-[18px] h-[18px] text-slate-500 flex-shrink-0 dark:hidden" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/>
                 </svg>
-                <span x-text="darkMode ? 'Light Mode' : 'Dark Mode'" class="flex-1 text-left"></span>
-                {{-- Toggle pill --}}
-                <div class="relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0"
-                     :class="darkMode ? 'bg-primary' : 'bg-gray-300'">
-                    <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200"
-                         :class="darkMode ? 'translate-x-4' : 'translate-x-0.5'"></div>
+                <span class="flex-1 text-left">
+                    <span class="dark:hidden">Dark Mode</span>
+                    <span class="hidden dark:inline">Light Mode</span>
+                </span>
+                {{-- Toggle pill: CSS-only, no Alpine bindings --}}
+                <div class="relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0 bg-gray-300 dark:bg-primary">
+                    <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 translate-x-0.5 dark:translate-x-4"></div>
                 </div>
             </button>
 
@@ -306,7 +313,7 @@
                 </svg>
             </button>
             <x-app-logo size="sm" />
-            <div class="w-9"></div>
+            <livewire:notification-bell wire:key="notification-bell-mobile" position="down" />
         </header>
 
         {{-- Impersonation banner --}}

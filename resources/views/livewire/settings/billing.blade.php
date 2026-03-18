@@ -74,7 +74,7 @@
 
         {{-- ===== CURRENT STATUS CARD ===== --}}
         <div class="dark:bg-[#1e293b] bg-white dark:border dark:border-slate-700/60 border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-            <div class="p-6 flex items-center justify-between gap-4">
+            <div class="p-5 sm:p-6 flex items-center justify-between gap-4 flex-wrap">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0
                                 {{ $user->isPro()
@@ -287,7 +287,7 @@
                         <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">Update payment method, view invoices, or cancel</p>
                     </div>
                 </div>
-                <div class="p-6 flex items-center justify-between gap-4">
+                <div class="p-5 sm:p-6 flex items-center justify-between gap-4 flex-wrap">
                     @if($user->pm_type && $user->pm_last_four)
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-7 dark:bg-slate-700 bg-gray-100 rounded flex items-center justify-center">

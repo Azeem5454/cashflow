@@ -64,4 +64,9 @@ class User extends Authenticatable implements MustVerifyEmail
         $pivot = $this->businesses()->where('businesses.id', $business->id)->first()?->pivot;
         return $pivot?->role;
     }
+
+    public function unreadNotificationsCount(): int
+    {
+        return $this->unreadNotifications()->count();
+    }
 }

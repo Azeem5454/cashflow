@@ -122,12 +122,14 @@
                             rounded-xl shadow-xl shadow-black/20 overflow-hidden py-1"
                      style="display:none;">
 
-                    {{-- Pro badge --}}
+                    {{-- Export header --}}
                     <div class="px-4 py-2 border-b dark:border-slate-700 border-gray-100">
                         <span class="text-[10px] font-semibold uppercase tracking-wider
                                      dark:text-slate-500 text-gray-400 font-body">Export Book</span>
-                        <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide
-                                     bg-primary/10 text-primary">Pro</span>
+                        @if(!$business->isPro())
+                            <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide
+                                         bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400">Pro</span>
+                        @endif
                     </div>
 
                     <button @click="$wire.exportPdf(); exportOpen = false"
@@ -179,7 +181,7 @@
                                 rounded-xl shadow-xl shadow-black/20 overflow-hidden py-1"
                          style="display:none;">
 
-                        <button @click="$wire.openRenameBook(); open = false"
+                        <button @click="$wire.openEditBook(); open = false"
                                 class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
                                        dark:text-slate-300 text-gray-700
                                        dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors">
@@ -189,7 +191,7 @@
                             Rename Book
                         </button>
 
-                        <button @click="$wire.duplicateBook(); open = false"
+                        <button @click="$wire.openDuplicateBook(); open = false"
                                 class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
                                        dark:text-slate-300 text-gray-700
                                        dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors">
@@ -218,42 +220,346 @@
         </div>
     </div>
 
-    {{-- ===== RENAME BOOK MODAL ===== --}}
-    @if($showRenameBook)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div class="fixed inset-0 bg-navy/70 backdrop-blur-sm" wire:click="$set('showRenameBook', false)"></div>
-            <div class="relative w-full max-w-md dark:bg-dark bg-white rounded-2xl shadow-2xl
-                        dark:border dark:border-slate-700 border border-gray-200 p-6">
-                <h3 class="font-heading font-bold text-lg dark:text-white text-gray-900 mb-4">Rename Book</h3>
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">
-                        Book Name
-                    </label>
-                    <input type="text"
-                           wire:model="renameBookName"
-                           wire:keydown.enter="renameBook"
-                           autofocus
-                           class="w-full px-4 py-2.5 text-sm font-body
-                                  dark:bg-slate-800 bg-white
-                                  dark:border dark:border-slate-700 border border-gray-300
-                                  dark:text-white text-gray-900 rounded-xl
-                                  focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
-                                  transition-all duration-150">
-                    @error('renameBookName')<p class="text-xs text-red-400 mt-1 font-body">{{ $message }}</p>@enderror
+    {{-- ===== bookPeriodPicker Alpine factory (used by Edit + Duplicate modals) ===== --}}
+    <script>
+    function bookPeriodPicker(initStart, initEnd) {
+        return {
+            show:      false,
+            preset:    '',
+            startDate: initStart || '',
+            endDate:   initEnd   || '',
+            fpStart:   null,
+            fpEnd:     null,
+            initFlatpickr(startEl, endEl) {
+                const self = this;
+                this.fpStart = flatpickr(startEl, {
+                    dateFormat:    'Y-m-d',
+                    defaultDate:   initStart || null,
+                    disableMobile: true,
+                    onChange(dates, str) { self.preset = 'custom'; self.startDate = str; }
+                });
+                this.fpEnd = flatpickr(endEl, {
+                    dateFormat:    'Y-m-d',
+                    defaultDate:   initEnd || null,
+                    disableMobile: true,
+                    onChange(dates, str) { self.preset = 'custom'; self.endDate = str; }
+                });
+            },
+            setPreset(p) {
+                this.preset = p;
+                if (p === 'custom') return;
+                const now = new Date();
+                let s, e;
+                if (p === 'this_month') {
+                    s = new Date(now.getFullYear(), now.getMonth(), 1);
+                    e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                } else if (p === 'last_month') {
+                    s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    e = new Date(now.getFullYear(), now.getMonth(), 0);
+                } else if (p === 'this_quarter') {
+                    const q = Math.floor(now.getMonth() / 3);
+                    s = new Date(now.getFullYear(), q * 3, 1);
+                    e = new Date(now.getFullYear(), q * 3 + 3, 0);
+                } else if (p === 'this_year') {
+                    s = new Date(now.getFullYear(), 0, 1);
+                    e = new Date(now.getFullYear(), 11, 31);
+                }
+                const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                this.startDate = fmt(s);
+                this.endDate   = fmt(e);
+                if (this.fpStart) this.fpStart.setDate(this.startDate, true);
+                if (this.fpEnd)   this.fpEnd.setDate(this.endDate,   true);
+            }
+        };
+    }
+    </script>
+
+    {{-- ===== EDIT BOOK MODAL ===== --}}
+    @if($showEditBook)
+        @php $editPresets = ['this_month' => 'This Month', 'last_month' => 'Last Month', 'this_quarter' => 'This Quarter', 'this_year' => 'This Year']; @endphp
+        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm"
+             x-data="bookPeriodPicker('{{ $editBookPeriodStartsAt }}','{{ $editBookPeriodEndsAt }}')"
+             x-init="$nextTick(() => { show = true; initFlatpickr($refs.editStart, $refs.editEnd); })"
+             @keydown.escape.window="$wire.set('showEditBook', false)">
+
+            <div :class="show ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'"
+                 class="w-full sm:max-w-lg dark:bg-slate-900 bg-white
+                        dark:border dark:border-slate-700 border-t sm:border border-gray-200
+                        rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl shadow-black/40
+                        transition-all duration-300 ease-out">
+
+                {{-- Header --}}
+                <div class="relative px-6 pt-6 pb-5 dark:border-b dark:border-slate-800 border-b border-gray-100">
+                    <div class="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full dark:bg-slate-700 bg-gray-300 sm:hidden"></div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex-shrink-0 w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-display font-extrabold text-xl dark:text-white text-gray-900 tracking-tight leading-none">Edit Book</h2>
+                            <p class="text-sm dark:text-slate-400 text-gray-500 mt-0.5 font-body">Update name, period, or opening balance.</p>
+                        </div>
+                        <button @click="$wire.set('showEditBook', false)"
+                                class="flex-shrink-0 p-2 rounded-xl dark:text-slate-500 text-gray-400
+                                       dark:hover:text-white hover:text-gray-900 dark:hover:bg-slate-800 hover:bg-gray-100 transition-all duration-150">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-                <div class="flex gap-2">
-                    <button wire:click="$set('showRenameBook', false)"
-                            class="flex-1 py-2.5 text-sm font-semibold font-body
-                                   dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700
-                                   dark:hover:bg-slate-700 hover:bg-gray-200
-                                   rounded-xl transition-all duration-200">
+
+                {{-- Body --}}
+                <div class="px-6 py-5 space-y-5">
+                    {{-- Name --}}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">
+                            Book Name <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="editBookName" type="text" placeholder="Book name" autofocus
+                               class="w-full px-4 py-3 text-base font-body rounded-xl
+                                      dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                      dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                        @error('editBookName') <p class="mt-1.5 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- Period --}}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2.5">Period</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                            @foreach($editPresets as $val => $lbl)
+                                <button type="button" @click="setPreset('{{ $val }}')"
+                                        :class="{
+                                            'bg-primary/10 dark:bg-primary/15 border-primary/40 text-primary dark:text-primary font-semibold ring-2 ring-primary/20': preset === '{{ $val }}',
+                                            'border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:hover:border-slate-600': preset !== '{{ $val }}'
+                                        }"
+                                        class="px-2 py-2 rounded-xl text-xs font-body border transition-all duration-150 text-center leading-tight">
+                                    {{ $lbl }}
+                                </button>
+                            @endforeach
+                        </div>
+                        <div class="grid grid-cols-2 gap-3" wire:ignore>
+                            <div>
+                                <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-600 text-gray-400 font-body mb-1.5">Start</p>
+                                <input x-ref="editStart" type="text" placeholder="Select date" readonly
+                                       class="w-full px-3 py-2.5 text-sm font-body rounded-xl cursor-pointer
+                                              dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                              dark:text-slate-300 text-gray-700 dark:placeholder-slate-600 placeholder-gray-400
+                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-600 text-gray-400 font-body mb-1.5">End</p>
+                                <input x-ref="editEnd" type="text" placeholder="Select date" readonly
+                                       class="w-full px-3 py-2.5 text-sm font-body rounded-xl cursor-pointer
+                                              dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                              dark:text-slate-300 text-gray-700 dark:placeholder-slate-600 placeholder-gray-400
+                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                            </div>
+                        </div>
+                        @error('editBookPeriodEndsAt') <p class="mt-1.5 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- Opening Balance + Description --}}
+                    <div class="grid grid-cols-2 gap-3 items-start">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">Opening Balance</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-sm font-mono dark:text-slate-500 text-gray-400 pointer-events-none select-none">
+                                    {{ $business->currencySymbol() }}
+                                </span>
+                                <input wire:model="editBookOpeningBalance" type="number" min="0" step="0.01" placeholder="0.00"
+                                       class="w-full pl-9 pr-3 py-2.5 text-sm font-mono rounded-xl
+                                              dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                              dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
+                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                            </div>
+                            @error('editBookOpeningBalance') <p class="mt-1 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">Description</label>
+                            <textarea wire:model="editBookDescription" rows="3" placeholder="Optional note"
+                                      class="w-full px-3 py-2.5 text-sm font-body rounded-xl resize-none
+                                             dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                             dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
+                                             focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Footer --}}
+                <div class="px-6 pb-6 flex items-center justify-between gap-3">
+                    <button @click="$wire.set('showEditBook', false)"
+                            class="px-4 py-2.5 text-sm font-body font-medium rounded-xl
+                                   dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900
+                                   dark:hover:bg-slate-800 hover:bg-gray-100 transition-all duration-150">
                         Cancel
                     </button>
-                    <button wire:click="renameBook"
-                            class="flex-1 py-2.5 text-sm font-semibold font-body
-                                   bg-primary text-white hover:bg-accent
-                                   rounded-xl transition-all duration-200">
-                        Save
+                    <button @click="$wire.saveEditBook(startDate, endDate)" wire:loading.attr="disabled" wire:target="saveEditBook"
+                            wire:loading.class="opacity-70 cursor-wait"
+                            class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold font-body
+                                   bg-primary hover:bg-accent text-white rounded-xl
+                                   transition-all duration-200 shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-wait">
+                        <span wire:loading.remove wire:target="saveEditBook" class="inline-flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+                            </svg>
+                            Save Changes
+                        </span>
+                        <span wire:loading wire:target="saveEditBook" class="inline-flex items-center gap-2">
+                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            Saving…
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ===== DUPLICATE BOOK MODAL ===== --}}
+    @if($showDuplicateBook)
+        @php $dupPresets = ['this_month' => 'This Month', 'last_month' => 'Last Month', 'this_quarter' => 'This Quarter', 'this_year' => 'This Year']; @endphp
+        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm"
+             x-data="bookPeriodPicker('','')"
+             x-init="$nextTick(() => { show = true; initFlatpickr($refs.dupStart, $refs.dupEnd); })"
+             @keydown.escape.window="$wire.set('showDuplicateBook', false)">
+
+            <div :class="show ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'"
+                 class="w-full sm:max-w-lg dark:bg-slate-900 bg-white
+                        dark:border dark:border-slate-700 border-t sm:border border-gray-200
+                        rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl shadow-black/40
+                        transition-all duration-300 ease-out">
+
+                {{-- Header --}}
+                <div class="relative px-6 pt-6 pb-5 dark:border-b dark:border-slate-800 border-b border-gray-100">
+                    <div class="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full dark:bg-slate-700 bg-gray-300 sm:hidden"></div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex-shrink-0 w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-display font-extrabold text-xl dark:text-white text-gray-900 tracking-tight leading-none">Duplicate Book</h2>
+                            <p class="text-sm dark:text-slate-400 text-gray-500 mt-0.5 font-body">Choose what to carry over into the new book.</p>
+                        </div>
+                        <button @click="$wire.set('showDuplicateBook', false)"
+                                class="flex-shrink-0 p-2 rounded-xl dark:text-slate-500 text-gray-400
+                                       dark:hover:text-white hover:text-gray-900 dark:hover:bg-slate-800 hover:bg-gray-100 transition-all duration-150">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Body --}}
+                <div class="px-6 py-5 space-y-5">
+                    {{-- New name --}}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">
+                            New Book Name <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="duplicateBookName" type="text" autofocus
+                               class="w-full px-4 py-3 text-base font-body rounded-xl
+                                      dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                      dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                        @error('duplicateBookName') <p class="mt-1.5 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- Period --}}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2.5">Period for New Book</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                            @foreach($dupPresets as $val => $lbl)
+                                <button type="button" @click="setPreset('{{ $val }}')"
+                                        :class="{
+                                            'bg-primary/10 dark:bg-primary/15 border-primary/40 text-primary dark:text-primary font-semibold ring-2 ring-primary/20': preset === '{{ $val }}',
+                                            'border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:hover:border-slate-600': preset !== '{{ $val }}'
+                                        }"
+                                        class="px-2 py-2 rounded-xl text-xs font-body border transition-all duration-150 text-center leading-tight">
+                                    {{ $lbl }}
+                                </button>
+                            @endforeach
+                        </div>
+                        <div class="grid grid-cols-2 gap-3" wire:ignore>
+                            <div>
+                                <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-600 text-gray-400 font-body mb-1.5">Start</p>
+                                <input x-ref="dupStart" type="text" placeholder="Select date" readonly
+                                       class="w-full px-3 py-2.5 text-sm font-body rounded-xl cursor-pointer
+                                              dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                              dark:text-slate-300 text-gray-700 dark:placeholder-slate-600 placeholder-gray-400
+                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-600 text-gray-400 font-body mb-1.5">End</p>
+                                <input x-ref="dupEnd" type="text" placeholder="Select date" readonly
+                                       class="w-full px-3 py-2.5 text-sm font-body rounded-xl cursor-pointer
+                                              dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                              dark:text-slate-300 text-gray-700 dark:placeholder-slate-600 placeholder-gray-400
+                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                            </div>
+                        </div>
+                        @error('duplicateBookPeriodEndsAt') <p class="mt-1.5 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- What to copy --}}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-3">Carry Over</label>
+                        <div class="space-y-2.5">
+                            @foreach([
+                                ['duplicateKeepCategories',   'Categories',      'Custom categories you\'ve created'],
+                                ['duplicateKeepPaymentModes', 'Payment Methods', 'Bank, Cash, Card, etc.'],
+                                ['duplicateKeepEntries',      'Entries',         'All cash in/out records (starts fresh if off)'],
+                            ] as [$prop, $title, $desc])
+                                <label class="flex items-start gap-3 p-3 rounded-xl cursor-pointer
+                                              dark:border-slate-700 border-gray-200 border
+                                              dark:hover:bg-slate-800 hover:bg-gray-50
+                                              transition-all duration-150 group">
+                                    <input type="checkbox" wire:model.live="{{ $prop }}"
+                                           class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary/30 dark:bg-slate-800 cursor-pointer flex-shrink-0">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold font-body dark:text-slate-200 text-gray-800">{{ $title }}</p>
+                                        <p class="text-xs font-body dark:text-slate-500 text-gray-400 mt-0.5">{{ $desc }}</p>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Footer --}}
+                <div class="px-6 pb-6 flex items-center justify-between gap-3">
+                    <button @click="$wire.set('showDuplicateBook', false)"
+                            class="px-4 py-2.5 text-sm font-body font-medium rounded-xl
+                                   dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900
+                                   dark:hover:bg-slate-800 hover:bg-gray-100 transition-all duration-150">
+                        Cancel
+                    </button>
+                    <button @click="$wire.executeDuplicate(startDate, endDate)" wire:loading.attr="disabled" wire:target="executeDuplicate"
+                            wire:loading.class="opacity-70 cursor-wait"
+                            class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold font-body
+                                   bg-primary hover:bg-accent text-white rounded-xl
+                                   transition-all duration-200 shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-wait">
+                        <span wire:loading.remove wire:target="executeDuplicate" class="inline-flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/>
+                            </svg>
+                            Create Copy
+                        </span>
+                        <span wire:loading wire:target="executeDuplicate" class="inline-flex items-center gap-2">
+                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            Creating…
+                        </span>
                     </button>
                 </div>
             </div>
@@ -313,158 +619,9 @@
     @endif
 
     {{-- ===== UPGRADE MODAL ===== --}}
-    <x-upgrade-modal :show="$showUpgradeModal" feature="export"
+    <x-upgrade-modal :show="$upgradeModalFeature !== ''" :feature="$upgradeModalFeature"
         :is-owner="auth()->user()->id === $business->owner_id"
         :business-name="$business->name" />
-
-    {{-- ===== RECURRING UPDATE CONFIRMATION ===== --}}
-    @if($showRecurringUpdateConfirm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div class="fixed inset-0 bg-navy/70 backdrop-blur-sm" wire:click="skipRecurringUpdate"></div>
-            <div class="relative w-full max-w-sm dark:bg-dark bg-white rounded-2xl shadow-2xl
-                        dark:border dark:border-slate-700 border border-gray-200 p-6"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100">
-
-                <div class="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3"/>
-                    </svg>
-                </div>
-
-                <h3 class="font-display font-extrabold text-lg dark:text-white text-gray-900 text-center mb-2">
-                    Update Recurring Entry?
-                </h3>
-                <p class="text-sm dark:text-slate-400 text-gray-500 font-body text-center mb-6">
-                    This entry is linked to a recurring rule. Apply your changes to all future auto-generated entries too?
-                </p>
-
-                <div class="space-y-2">
-                    <button wire:click="applyToRecurring"
-                            class="w-full py-2.5 text-sm font-semibold font-body text-white bg-primary hover:bg-accent rounded-xl transition-colors duration-150">
-                        Yes, update future entries
-                    </button>
-                    <button wire:click="skipRecurringUpdate"
-                            class="w-full py-2.5 text-sm font-semibold font-body dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 dark:hover:bg-slate-700 hover:bg-gray-200 rounded-xl transition-colors duration-150">
-                        No, this entry only
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- ===== EDIT RECURRING MODAL ===== --}}
-    @if($showEditRecurring)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div class="fixed inset-0 bg-navy/70 backdrop-blur-sm" wire:click="closeEditRecurring"></div>
-            <div class="relative w-full max-w-md dark:bg-dark bg-white rounded-2xl shadow-2xl
-                        dark:border dark:border-slate-700 border border-gray-200 p-6"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100">
-
-                <h3 class="font-display font-extrabold text-lg dark:text-white text-gray-900 mb-5">Edit Recurring Entry</h3>
-
-                <div class="space-y-4">
-                    {{-- Amount --}}
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">Amount</label>
-                        <input type="number" step="0.01" min="0.01"
-                               wire:model="editRecAmount"
-                               class="w-full px-4 py-2.5 text-sm font-mono
-                                      dark:bg-slate-800 bg-white dark:border dark:border-slate-700 border border-gray-300
-                                      dark:text-white text-gray-900 rounded-xl
-                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-150">
-                        @error('editRecAmount')<p class="text-xs text-red-400 mt-1 font-body">{{ $message }}</p>@enderror
-                    </div>
-
-                    {{-- Description --}}
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">Description</label>
-                        <input type="text" maxlength="255"
-                               wire:model="editRecDescription"
-                               class="w-full px-4 py-2.5 text-sm font-body
-                                      dark:bg-slate-800 bg-white dark:border dark:border-slate-700 border border-gray-300
-                                      dark:text-white text-gray-900 rounded-xl
-                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-150">
-                        @error('editRecDescription')<p class="text-xs text-red-400 mt-1 font-body">{{ $message }}</p>@enderror
-                    </div>
-
-                    {{-- Category --}}
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">
-                            Category <span class="normal-case tracking-normal font-normal dark:text-slate-600 text-gray-400 ml-1">· optional</span>
-                        </label>
-                        <input type="text" maxlength="100"
-                               wire:model="editRecCategory"
-                               class="w-full px-4 py-2.5 text-sm font-body
-                                      dark:bg-slate-800 bg-white dark:border dark:border-slate-700 border border-gray-300
-                                      dark:text-white text-gray-900 rounded-xl
-                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-150">
-                    </div>
-
-                    {{-- Payment Mode --}}
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">
-                            Payment Mode <span class="normal-case tracking-normal font-normal dark:text-slate-600 text-gray-400 ml-1">· optional</span>
-                        </label>
-                        <input type="text" maxlength="100"
-                               wire:model="editRecPaymentMode"
-                               class="w-full px-4 py-2.5 text-sm font-body
-                                      dark:bg-slate-800 bg-white dark:border dark:border-slate-700 border border-gray-300
-                                      dark:text-white text-gray-900 rounded-xl
-                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-150">
-                    </div>
-
-                    {{-- Frequency --}}
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-2">Frequency</label>
-                        <div class="flex flex-wrap gap-2">
-                            @foreach(['daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', 'yearly' => 'Yearly'] as $freqVal => $freqLabel)
-                                <button type="button"
-                                        wire:click="$set('editRecFrequency', '{{ $freqVal }}')"
-                                        class="px-3.5 py-2 rounded-xl text-sm font-body font-medium transition-all duration-150
-                                               {{ $editRecFrequency === $freqVal
-                                                   ? 'bg-primary/10 border-primary/50 text-primary ring-2 ring-primary/30 border'
-                                                   : 'dark:border-slate-700 border-gray-300 dark:text-slate-400 text-gray-500 border dark:hover:border-slate-600 hover:border-gray-400' }}">
-                                    {{ $freqLabel }}
-                                </button>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    {{-- End Date --}}
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">
-                            End Date <span class="normal-case tracking-normal font-normal dark:text-slate-600 text-gray-400 ml-1">· optional</span>
-                        </label>
-                        <input type="date"
-                               wire:model="editRecEndsAt"
-                               class="w-full max-w-[200px] px-4 py-2.5 text-sm font-body
-                                      dark:bg-slate-800 bg-white dark:border dark:border-slate-700 border border-gray-300
-                                      dark:text-white text-gray-900 rounded-xl
-                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
-                                      transition-all duration-150 dark:[color-scheme:dark]">
-                    </div>
-                </div>
-
-                {{-- Actions --}}
-                <div class="flex gap-2 mt-6">
-                    <button wire:click="closeEditRecurring"
-                            class="flex-1 py-2.5 text-sm font-semibold font-body
-                                   dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700
-                                   dark:hover:bg-slate-700 hover:bg-gray-200 rounded-xl transition-colors duration-150">
-                        Cancel
-                    </button>
-                    <button wire:click="updateRecurring"
-                            class="flex-1 py-2.5 text-sm font-semibold font-body text-white bg-primary hover:bg-accent rounded-xl transition-colors duration-150">
-                        Save Changes
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
 
     {{-- ===== ATTACHMENT PREVIEW MODAL ===== --}}
     @if($showAttachmentPreview && $previewAttachmentPath)
@@ -549,14 +706,42 @@
             <div class="fixed inset-0 bg-navy/70 backdrop-blur-sm" wire:click="cancelCustomDate"></div>
             <div class="relative w-full max-w-sm dark:bg-dark bg-white rounded-2xl shadow-2xl
                         dark:border dark:border-slate-700 border border-gray-200 p-6"
-                 x-data="{ mode: 'range' }"
+                 x-data="{
+                     mode: 'range',
+                     fpFrom: null, fpTo: null, fpSingle: null,
+                     initPickers() {
+                         const dark = document.documentElement.classList.contains('dark');
+                         const base = {
+                             appendTo: document.body,
+                             dateFormat: 'Y-m-d',
+                             disableMobile: true,
+                         };
+                         this.fpFrom = flatpickr(this.$refs.fpFrom, { ...base,
+                             defaultDate: $wire.filterCustomFrom || null,
+                             onChange: (_, s) => { if (s) $wire.set('filterCustomFrom', s); }
+                         });
+                         this.fpTo = flatpickr(this.$refs.fpTo, { ...base,
+                             defaultDate: $wire.filterCustomTo || null,
+                             onChange: (_, s) => { if (s) $wire.set('filterCustomTo', s); }
+                         });
+                         this.fpSingle = flatpickr(this.$refs.fpSingle, { ...base,
+                             defaultDate: $wire.filterCustomFrom || null,
+                             onChange: (_, s) => { if (s) { $wire.set('filterCustomFrom', s); $wire.set('filterCustomTo', s); } }
+                         });
+                     },
+                     destroyPickers() {
+                         [this.fpFrom, this.fpTo, this.fpSingle].forEach(fp => fp && fp.destroy());
+                     }
+                 }"
+                 x-init="$nextTick(() => initPickers())"
+                 x-on:close-custom-date-modal.window="destroyPickers()"
                  x-transition:enter="transition ease-out duration-200"
                  x-transition:enter-start="opacity-0 scale-95"
                  x-transition:enter-end="opacity-100 scale-100">
 
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-heading font-bold text-base dark:text-white text-gray-900">Custom Date</h3>
-                    <button wire:click="cancelCustomDate"
+                    <button type="button" wire:click="cancelCustomDate"
                             class="p-1.5 rounded-xl dark:text-slate-500 text-gray-400
                                    dark:hover:bg-slate-800 hover:bg-gray-100 dark:hover:text-white hover:text-gray-700
                                    transition-all duration-150">
@@ -568,12 +753,12 @@
 
                 {{-- Mode tabs --}}
                 <div class="flex gap-1 p-1 dark:bg-slate-900 bg-gray-100 rounded-xl mb-4">
-                    <button @click="mode = 'range'"
+                    <button type="button" @click="mode = 'range'"
                             :class="mode === 'range' ? 'dark:bg-slate-700 bg-white dark:text-white text-gray-900 shadow-sm' : 'dark:text-slate-500 text-gray-500'"
                             class="flex-1 py-1.5 text-xs font-semibold font-body rounded-lg transition-all duration-150">
                         Date Range
                     </button>
-                    <button @click="mode = 'single'"
+                    <button type="button" @click="mode = 'single'"
                             :class="mode === 'single' ? 'dark:bg-slate-700 bg-white dark:text-white text-gray-900 shadow-sm' : 'dark:text-slate-500 text-gray-500'"
                             class="flex-1 py-1.5 text-xs font-semibold font-body rounded-lg transition-all duration-150">
                         Single Day
@@ -583,55 +768,119 @@
                 {{-- Date range mode --}}
                 <div x-show="mode === 'range'" class="space-y-3">
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">From</label>
-                        <input type="date"
-                               wire:model="filterCustomFrom"
-                               class="w-full px-3 py-2 text-sm font-body rounded-xl
-                                      dark:bg-slate-800 bg-white
-                                      dark:border dark:border-slate-700 border border-gray-300
-                                      dark:text-white text-gray-900
-                                      dark:[color-scheme:dark]
-                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
-                                      transition-all duration-150">
+                        <p class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">From</p>
+                        <div class="relative">
+                            <input x-ref="fpFrom" type="text" readonly placeholder="Select date…"
+                                   class="w-full pl-3 pr-9 py-2 text-sm font-body rounded-xl cursor-pointer
+                                          dark:bg-slate-800 bg-white
+                                          dark:border dark:border-slate-700 border border-gray-300
+                                          dark:text-white text-gray-900
+                                          focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
+                                          transition-all duration-150">
+                            <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none dark:text-slate-500 text-gray-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/>
+                                </svg>
+                            </span>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">To</label>
-                        <input type="date"
-                               wire:model="filterCustomTo"
-                               class="w-full px-3 py-2 text-sm font-body rounded-xl
-                                      dark:bg-slate-800 bg-white
-                                      dark:border dark:border-slate-700 border border-gray-300
-                                      dark:text-white text-gray-900
-                                      dark:[color-scheme:dark]
-                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
-                                      transition-all duration-150">
+                        <p class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">To</p>
+                        <div class="relative">
+                            <input x-ref="fpTo" type="text" readonly placeholder="Select date…"
+                                   class="w-full pl-3 pr-9 py-2 text-sm font-body rounded-xl cursor-pointer
+                                          dark:bg-slate-800 bg-white
+                                          dark:border dark:border-slate-700 border border-gray-300
+                                          dark:text-white text-gray-900
+                                          focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
+                                          transition-all duration-150">
+                            <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none dark:text-slate-500 text-gray-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/>
+                                </svg>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 {{-- Single day mode --}}
                 <div x-show="mode === 'single'">
-                    <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">Date</label>
-                    <input type="date"
-                           wire:model="filterCustomFrom"
-                           @change="$wire.set('filterCustomTo', $event.target.value)"
-                           class="w-full px-3 py-2 text-sm font-body rounded-xl
-                                  dark:bg-slate-800 bg-white
-                                  dark:border dark:border-slate-700 border border-gray-300
-                                  dark:text-white text-gray-900
-                                  dark:[color-scheme:dark]
-                                  focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
-                                  transition-all duration-150">
+                    <p class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">Date</p>
+                    <div class="relative">
+                        <input x-ref="fpSingle" type="text" readonly placeholder="Select date…"
+                               class="w-full pl-3 pr-9 py-2 text-sm font-body rounded-xl cursor-pointer
+                                      dark:bg-slate-800 bg-white
+                                      dark:border dark:border-slate-700 border border-gray-300
+                                      dark:text-white text-gray-900
+                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
+                                      transition-all duration-150">
+                        <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none dark:text-slate-500 text-gray-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/>
+                            </svg>
+                        </span>
+                    </div>
                 </div>
 
-                <div class="flex gap-2 mt-5">
-                    <button wire:click="cancelCustomDate"
+                {{-- Compare toggle --}}
+                <div class="mt-5 dark:bg-slate-900 bg-gray-50 rounded-xl overflow-hidden">
+                    <div class="flex items-center justify-between gap-3 px-3.5 py-3">
+                        <div>
+                            <p class="text-sm font-semibold font-body dark:text-slate-200 text-gray-800">Compare with previous period</p>
+                            <p class="text-xs font-body dark:text-slate-500 text-gray-400 mt-0.5">Show side-by-side % change</p>
+                        </div>
+                        <button type="button" wire:click="toggleComparison"
+                                class="relative flex-shrink-0 w-10 h-6 rounded-full transition-colors duration-200
+                                       {{ $compareEnabled ? 'bg-primary' : 'dark:bg-slate-700 bg-gray-300' }}">
+                            <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200
+                                         {{ $compareEnabled ? 'translate-x-4' : 'translate-x-0' }}"></span>
+                        </button>
+                    </div>
+
+                    {{-- Mode selector — only shown when compare is on --}}
+                    @if($compareEnabled)
+                    <div class="px-3.5 pb-3 flex gap-2">
+                        <button type="button"
+                                wire:click="$set('compareMode', 'previous_period')"
+                                class="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold font-body transition-all duration-150
+                                       {{ $compareMode === 'previous_period'
+                                           ? 'border-primary bg-primary/10 text-primary dark:text-blue-light'
+                                           : 'dark:border-slate-700 border-gray-200 dark:text-slate-400 text-gray-500 dark:hover:border-slate-600 hover:border-gray-300' }}">
+                            <div class="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0
+                                        {{ $compareMode === 'previous_period' ? 'border-primary' : 'dark:border-slate-600 border-gray-300' }}">
+                                @if($compareMode === 'previous_period')
+                                    <div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+                                @endif
+                            </div>
+                            Previous period
+                        </button>
+                        <button type="button"
+                                wire:click="$set('compareMode', 'same_period_last_year')"
+                                class="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold font-body transition-all duration-150
+                                       {{ $compareMode === 'same_period_last_year'
+                                           ? 'border-primary bg-primary/10 text-primary dark:text-blue-light'
+                                           : 'dark:border-slate-700 border-gray-200 dark:text-slate-400 text-gray-500 dark:hover:border-slate-600 hover:border-gray-300' }}">
+                            <div class="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0
+                                        {{ $compareMode === 'same_period_last_year' ? 'border-primary' : 'dark:border-slate-600 border-gray-300' }}">
+                                @if($compareMode === 'same_period_last_year')
+                                    <div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+                                @endif
+                            </div>
+                            Same period last year
+                        </button>
+                    </div>
+                    @endif
+                </div>
+
+                <div class="flex gap-2 mt-4">
+                    <button type="button" wire:click="cancelCustomDate"
                             class="flex-1 py-2.5 text-sm font-semibold font-body
                                    dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700
                                    dark:hover:bg-slate-700 hover:bg-gray-200
                                    rounded-xl transition-all duration-200">
                         Cancel
                     </button>
-                    <button wire:click="applyCustomDate"
+                    <button type="button" wire:click="applyCustomDate"
                             class="flex-1 py-2.5 text-sm font-semibold font-body
                                    bg-primary text-white hover:bg-accent
                                    rounded-xl transition-all duration-200">
@@ -868,7 +1117,7 @@
                 </div>
 
                 {{-- Clear filters (shown only when any filter is active) --}}
-                @if($filterType !== 'all' || $filterDuration !== 'all_time' || count($filterCategories) > 0 || count($filterPaymentModes) > 0)
+                @if($filterType !== 'all' || $filterDuration !== 'all_time' || count($filterCategories) > 0 || count($filterPaymentModes) > 0 || $compareEnabled)
                     <button wire:click="clearFilters"
                             class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-body rounded-lg
                                    dark:text-slate-500 text-gray-400
@@ -884,21 +1133,263 @@
 
             </div>
 
-            {{-- ===== SUCCESS BANNER ===== --}}
-            @if($bulkSuccessMessage)
-                <div x-data="{ show: true }"
-                     x-init="setTimeout(() => { show = false; $wire.set('bulkSuccessMessage', '') }, 3000)"
-                     x-show="show"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="opacity-100"
-                     x-transition:leave-end="opacity-0"
-                     class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                    <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
-                    </svg>
-                    <span class="text-sm font-body text-emerald-400">{{ $bulkSuccessMessage }}</span>
+
+            @if($userRole !== 'viewer')
+                {{-- Mobile bulk toolbar --}}
+                <div x-show="hasSelection"
+                     x-cloak
+                     x-transition
+                     class="md:hidden fixed bottom-0 left-0 right-0 z-40
+                            dark:bg-dark bg-white
+                            dark:border-t dark:border-slate-700 border-t border-gray-200
+                            px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs dark:text-slate-400 text-gray-600 font-body font-semibold whitespace-nowrap"
+                              x-text="selectedIds.length + ' selected'"></span>
+                        <div class="flex-1 flex gap-1.5 overflow-x-auto">
+                            <button @click="$wire.set('showBulkDeleteConfirm', true)"
+                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
+                                           text-red-400 bg-red-500/10 rounded-lg whitespace-nowrap">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                                </svg>
+                                Delete
+                            </button>
+                            <button @click="$wire.openBulkBookPicker('move')"
+                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
+                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
+                                Move
+                            </button>
+                            <button @click="$wire.openBulkBookPicker('copy')"
+                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
+                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
+                                Copy
+                            </button>
+                            <button @click="$wire.openBulkBookPicker('copy_opposite')"
+                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
+                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
+                                Flip Type
+                            </button>
+                            <button @click="$wire.set('showBulkChangeCategory', true)"
+                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
+                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
+                                Category
+                            </button>
+                            <button @click="$wire.set('showBulkChangePaymentMode', true)"
+                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
+                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
+                                Pay Mode
+                            </button>
+                        </div>
+                        <button @click="clearSelection()"
+                                class="p-1.5 dark:text-slate-500 text-gray-400 flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             @endif
+
+            {{-- ===== PERIOD COMPARISON CARD (Pro, custom date range) ===== --}}
+            @if($comparisonData)
+            @php
+                $cmpSymbol = $business->currencySymbol();
+                $pctBadge = function(?float $pct, bool $invertSign = false) {
+                    if ($pct === null) return ['text' => '—', 'class' => 'dark:text-slate-500 text-gray-400'];
+                    $up = $pct >= 0;
+                    if ($invertSign) $up = !$up; // for Cash Out: higher is worse
+                    $arrow = $pct >= 0 ? '↑' : '↓';
+                    $cls = $up ? 'text-emerald-400' : 'text-red-400';
+                    return ['text' => $arrow . ' ' . abs($pct) . '%', 'class' => $cls];
+                };
+                $inBadge  = $pctBadge($comparisonData['changes']['in']);
+                $outBadge = $pctBadge($comparisonData['changes']['out'], true);
+                $netBadge = $pctBadge($comparisonData['changes']['net']);
+            @endphp
+            <div class="dark:bg-dark bg-white rounded-2xl dark:border dark:border-slate-700 border border-gray-200 overflow-hidden">
+                {{-- Header --}}
+                <div class="flex items-center justify-between px-5 py-3 dark:border-b dark:border-slate-800 border-b border-gray-100">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 dark:text-slate-500 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+                        </svg>
+                        <span class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">
+                            {{ $compareMode === 'same_period_last_year' ? 'vs Same Period Last Year' : 'vs Previous Period' }}
+                        </span>
+                    </div>
+                    <button wire:click="toggleComparison"
+                            class="text-xs font-body dark:text-slate-600 text-gray-400 dark:hover:text-slate-400 hover:text-gray-600 transition-colors">
+                        Dismiss
+                    </button>
+                </div>
+
+                {{-- Labels row --}}
+                <div class="grid grid-cols-3 gap-px dark:bg-slate-800 bg-gray-100">
+                    <div class="dark:bg-dark bg-white px-4 py-2.5">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body truncate">Metric</p>
+                    </div>
+                    <div class="dark:bg-dark bg-white px-4 py-2.5">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-primary font-body truncate">{{ $comparisonData['currentLabel'] }}</p>
+                    </div>
+                    <div class="dark:bg-dark bg-white px-4 py-2.5">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body truncate">{{ $comparisonData['previousLabel'] }}</p>
+                    </div>
+                </div>
+
+                {{-- Cash In row --}}
+                <div class="grid grid-cols-3 gap-px dark:bg-slate-800 bg-gray-100">
+                    <div class="dark:bg-dark bg-white flex items-center gap-2 px-4 py-3">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></div>
+                        <span class="text-xs font-semibold font-body dark:text-slate-300 text-gray-700">Cash In</span>
+                    </div>
+                    <div class="dark:bg-dark bg-white px-4 py-3 flex items-baseline gap-2">
+                        <span class="font-mono text-sm font-bold text-emerald-400 truncate">{{ $cmpSymbol }}{{ number_format($comparisonData['current']['in'], 0) }}</span>
+                        <span class="text-[10px] font-semibold font-body {{ $inBadge['class'] }} flex-shrink-0">{{ $inBadge['text'] }}</span>
+                    </div>
+                    <div class="dark:bg-dark bg-white px-4 py-3">
+                        <span class="font-mono text-sm dark:text-slate-400 text-gray-500 truncate">{{ $cmpSymbol }}{{ number_format($comparisonData['previous']['in'], 0) }}</span>
+                    </div>
+                </div>
+
+                {{-- Cash Out row --}}
+                <div class="grid grid-cols-3 gap-px dark:bg-slate-800 bg-gray-100">
+                    <div class="dark:bg-dark bg-white flex items-center gap-2 px-4 py-3">
+                        <div class="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></div>
+                        <span class="text-xs font-semibold font-body dark:text-slate-300 text-gray-700">Cash Out</span>
+                    </div>
+                    <div class="dark:bg-dark bg-white px-4 py-3 flex items-baseline gap-2">
+                        <span class="font-mono text-sm font-bold text-red-400 truncate">{{ $cmpSymbol }}{{ number_format($comparisonData['current']['out'], 0) }}</span>
+                        <span class="text-[10px] font-semibold font-body {{ $outBadge['class'] }} flex-shrink-0">{{ $outBadge['text'] }}</span>
+                    </div>
+                    <div class="dark:bg-dark bg-white px-4 py-3">
+                        <span class="font-mono text-sm dark:text-slate-400 text-gray-500 truncate">{{ $cmpSymbol }}{{ number_format($comparisonData['previous']['out'], 0) }}</span>
+                    </div>
+                </div>
+
+                {{-- Net row --}}
+                @php
+                    $currNetPos = $comparisonData['current']['net'] >= 0;
+                    $prevNetPos = $comparisonData['previous']['net'] >= 0;
+                @endphp
+                <div class="grid grid-cols-3 gap-px dark:bg-slate-800 bg-gray-100">
+                    <div class="dark:bg-dark bg-white flex items-center gap-2 px-4 py-3 rounded-bl-2xl">
+                        <div class="w-2 h-2 rounded-full {{ $currNetPos ? 'bg-primary' : 'bg-red-400' }} flex-shrink-0"></div>
+                        <span class="text-xs font-semibold font-body dark:text-slate-300 text-gray-700">Net</span>
+                    </div>
+                    <div class="dark:bg-dark bg-white px-4 py-3 flex items-baseline gap-2">
+                        <span class="font-mono text-sm font-bold {{ $currNetPos ? 'dark:text-blue-light text-primary' : 'text-red-400' }} truncate">
+                            @if(!$currNetPos)−@endif{{ $cmpSymbol }}{{ number_format(abs($comparisonData['current']['net']), 0) }}
+                        </span>
+                        <span class="text-[10px] font-semibold font-body {{ $netBadge['class'] }} flex-shrink-0">{{ $netBadge['text'] }}</span>
+                    </div>
+                    <div class="dark:bg-dark bg-white px-4 py-3 rounded-br-2xl">
+                        <span class="font-mono text-sm {{ $prevNetPos ? 'dark:text-slate-400 text-gray-500' : 'text-red-400/60' }} truncate">
+                            @if(!$prevNetPos)−@endif{{ $cmpSymbol }}{{ number_format(abs($comparisonData['previous']['net']), 0) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            {{-- ===== BALANCE SUMMARY STRIP ===== --}}
+            @php
+                $isPositive  = bccomp((string)$balance, '0', 2) >= 0;
+                $currSymbol  = $business->currencySymbol();
+                $openingBal  = (float)$book->opening_balance;
+            @endphp
+            <div class="dark:bg-dark bg-white rounded-2xl
+                        dark:border dark:border-slate-700 border border-gray-200 overflow-hidden">
+                <div class="flex divide-x dark:divide-slate-700 divide-gray-200">
+
+                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
+                        <div class="hidden sm:flex w-9 h-9 rounded-full bg-emerald-500/10 items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                            </svg>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash In</p>
+                            <p class="font-mono font-bold text-base sm:text-xl text-emerald-400 leading-tight mt-0.5 truncate">
+                                {{ $currSymbol }}{{ number_format((float)$totalIn, 0) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
+                        <div class="hidden sm:flex w-9 h-9 rounded-full bg-red-500/10 items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
+                            </svg>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash Out</p>
+                            <p class="font-mono font-bold text-base sm:text-xl text-red-400 leading-tight mt-0.5 truncate">
+                                {{ $currSymbol }}{{ number_format((float)$totalOut, 0) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
+                        <div class="hidden sm:flex w-9 h-9 rounded-full {{ $isPositive ? 'bg-primary/10' : 'bg-red-500/10' }} items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 {{ $isPositive ? 'text-blue-light' : 'text-red-400' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.499 8.248h15m-15 7.501h15"/>
+                            </svg>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Net Balance</p>
+                            <p class="font-mono font-bold text-base sm:text-xl leading-tight mt-0.5 truncate
+                                      {{ $isPositive ? 'dark:text-blue-light text-primary' : 'text-red-400' }}">
+                                {{ $currSymbol }}@if(!$isPositive)−@endif{{ number_format(abs((float)$balance), 0) }}
+                            </p>
+                            @if($openingBal > 0)
+                                <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body mt-0.5 truncate">
+                                    incl. {{ $currSymbol }}{{ number_format($openingBal, 0) }} opening
+                                </p>
+                            @endif
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            {{-- ===== VIEW TABS ===== --}}
+            <div class="overflow-x-auto">
+            <div class="flex items-center gap-1 dark:bg-slate-800/60 bg-gray-100 rounded-xl p-1 w-max">
+                <button wire:click="$set('activeTab', 'entries')"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150
+                               {{ $activeTab === 'entries'
+                                   ? 'dark:bg-dark bg-white dark:text-white text-gray-900 shadow-sm'
+                                   : 'dark:text-slate-400 text-gray-500 hover:dark:text-white hover:text-gray-900' }}">
+                    Entries
+                </button>
+                <button wire:click="$set('activeTab', 'activity')"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150
+                               {{ $activeTab === 'activity'
+                                   ? 'dark:bg-dark bg-white dark:text-white text-gray-900 shadow-sm'
+                                   : 'dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900' }}">
+                    Activity
+                </button>
+                <button wire:click="$set('activeTab', 'reports')"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150 flex items-center gap-1.5
+                               {{ $activeTab === 'reports'
+                                   ? 'dark:bg-dark bg-white dark:text-white text-gray-900 shadow-sm'
+                                   : 'dark:text-slate-400 text-gray-500 hover:dark:text-white hover:text-gray-900' }}">
+                    Reports
+                    @if(!$business->isPro())<span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 leading-none">Pro</span>@endif
+                </button>
+                <button wire:click="$set('activeTab', 'recurring')"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150 flex items-center gap-1.5
+                               {{ $activeTab === 'recurring'
+                                   ? 'dark:bg-dark bg-white dark:text-white text-gray-900 shadow-sm'
+                                   : 'dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900' }}">
+                    Recurring
+                    @if(!$business->isPro())<span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 leading-none">Pro</span>@endif
+                </button>
+            </div>
+            </div>{{-- end overflow-x-auto tab scroller --}}
+
+            @if($activeTab === 'entries')
 
             {{-- ===== BULK ACTIONS TOOLBAR ===== --}}
             @if($userRole !== 'viewer')
@@ -1002,7 +1493,7 @@
                             </svg>
                         </button>
                         <div x-show="open" @click.outside="open = false" x-transition
-                             class="absolute left-0 top-full mt-1 w-52 py-1.5
+                             class="absolute left-0 top-full mt-1 w-56 py-1.5
                                     dark:bg-[#1e293b] bg-white dark:border-slate-700 border border-gray-200
                                     rounded-xl shadow-2xl z-20"
                              style="display:none;">
@@ -1038,147 +1529,7 @@
                         </svg>
                     </button>
                 </div>
-
-                {{-- Mobile bulk toolbar --}}
-                <div x-show="hasSelection"
-                     x-cloak
-                     x-transition
-                     class="md:hidden fixed bottom-0 left-0 right-0 z-40
-                            dark:bg-dark bg-white
-                            dark:border-t dark:border-slate-700 border-t border-gray-200
-                            px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs dark:text-slate-400 text-gray-600 font-body font-semibold whitespace-nowrap"
-                              x-text="selectedIds.length + ' selected'"></span>
-                        <div class="flex-1 flex gap-1.5 overflow-x-auto">
-                            <button @click="$wire.set('showBulkDeleteConfirm', true)"
-                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
-                                           text-red-400 bg-red-500/10 rounded-lg whitespace-nowrap">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
-                                </svg>
-                                Delete
-                            </button>
-                            <button @click="$wire.openBulkBookPicker('move')"
-                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
-                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
-                                Move
-                            </button>
-                            <button @click="$wire.openBulkBookPicker('copy')"
-                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
-                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
-                                Copy
-                            </button>
-                            <button @click="$wire.set('showBulkChangeCategory', true)"
-                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
-                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
-                                Category
-                            </button>
-                            <button @click="$wire.set('showBulkChangePaymentMode', true)"
-                                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold font-body
-                                           dark:text-slate-300 text-gray-700 dark:bg-slate-800 bg-gray-100 rounded-lg whitespace-nowrap">
-                                Pay Mode
-                            </button>
-                        </div>
-                        <button @click="clearSelection()"
-                                class="p-1.5 dark:text-slate-500 text-gray-400 flex-shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
             @endif
-
-            {{-- ===== BALANCE SUMMARY STRIP ===== --}}
-            @php
-                $isPositive  = bccomp((string)$balance, '0', 2) >= 0;
-                $currSymbol  = $business->currencySymbol();
-                $openingBal  = (float)$book->opening_balance;
-            @endphp
-            <div class="dark:bg-dark bg-white rounded-2xl
-                        dark:border dark:border-slate-700 border border-gray-200 overflow-hidden">
-                <div class="flex divide-x dark:divide-slate-700 divide-gray-200">
-
-                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
-                        <div class="hidden sm:flex w-9 h-9 rounded-full bg-emerald-500/10 items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash In</p>
-                            <p class="font-mono font-bold text-base sm:text-xl text-emerald-400 leading-tight mt-0.5 truncate">
-                                {{ $currSymbol }}{{ number_format((float)$totalIn, 0) }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
-                        <div class="hidden sm:flex w-9 h-9 rounded-full bg-red-500/10 items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash Out</p>
-                            <p class="font-mono font-bold text-base sm:text-xl text-red-400 leading-tight mt-0.5 truncate">
-                                {{ $currSymbol }}{{ number_format((float)$totalOut, 0) }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
-                        <div class="hidden sm:flex w-9 h-9 rounded-full {{ $isPositive ? 'bg-primary/10' : 'bg-red-500/10' }} items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 {{ $isPositive ? 'text-blue-light' : 'text-red-400' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.499 8.248h15m-15 7.501h15"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Net Balance</p>
-                            <p class="font-mono font-bold text-base sm:text-xl leading-tight mt-0.5 truncate
-                                      {{ $isPositive ? 'dark:text-blue-light text-primary' : 'text-red-400' }}">
-                                {{ $currSymbol }}@if(!$isPositive)−@endif{{ number_format(abs((float)$balance), 0) }}
-                            </p>
-                            @if($openingBal > 0)
-                                <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body mt-0.5 truncate">
-                                    incl. {{ $currSymbol }}{{ number_format($openingBal, 0) }} opening
-                                </p>
-                            @endif
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            {{-- ===== VIEW TABS ===== --}}
-            <div class="flex items-center gap-1 dark:bg-slate-800/60 bg-gray-100 rounded-xl p-1 w-fit">
-                <button wire:click="$set('activeTab', 'entries')"
-                        class="px-4 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150
-                               {{ $activeTab === 'entries'
-                                   ? 'dark:bg-dark bg-white dark:text-white text-gray-900 shadow-sm'
-                                   : 'dark:text-slate-400 text-gray-500 hover:dark:text-white hover:text-gray-900' }}">
-                    Entries
-                </button>
-                <button wire:click="$set('activeTab', 'reports')"
-                        class="px-4 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150 flex items-center gap-1.5
-                               {{ $activeTab === 'reports'
-                                   ? 'dark:bg-dark bg-white dark:text-white text-gray-900 shadow-sm'
-                                   : 'dark:text-slate-400 text-gray-500 hover:dark:text-white hover:text-gray-900' }}">
-                    Reports
-                    <span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/10 text-primary leading-none">Pro</span>
-                </button>
-                <button wire:click="$set('activeTab', 'recurring')"
-                        class="px-4 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150 flex items-center gap-1.5
-                               {{ $activeTab === 'recurring'
-                                   ? 'dark:bg-dark bg-white dark:text-white text-gray-900 shadow-sm'
-                                   : 'dark:text-slate-400 text-gray-500 hover:dark:text-white hover:text-gray-900' }}">
-                    Recurring
-                    <span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/10 text-primary leading-none">Pro</span>
-                </button>
-            </div>
-
-            @if($activeTab === 'entries')
 
             {{-- ===== SEARCH + ADD BUTTONS ===== --}}
             <div class="flex items-center gap-2 sm:gap-3">
@@ -1297,9 +1648,9 @@
                                 $rbPos = bccomp((string)$rb, '0', 2) >= 0;
                             @endphp
                             <div wire:key="{{ $entry->id }}"
-                                 x-data="{ hovered: false, confirming: false }"
+                                 x-data="{ hovered: false }"
                                  @mouseenter="hovered = true"
-                                 @mouseleave="hovered = false; confirming = false"
+                                 @mouseleave="hovered = false"
                                  class="transition-colors duration-100 dark:hover:bg-slate-800/30 hover:bg-gray-50/80">
 
                                 {{-- Desktop --}}
@@ -1335,10 +1686,29 @@
                                                     </svg>
                                                 </button>
                                             @endif
+                                            {{-- Comment icon: always visible when comments exist; revealed on row hover when none --}}
+                                            <button wire:click.stop="openComments('{{ $entry->id }}')"
+                                                    x-show="{{ $entry->comments_count > 0 ? 'true' : 'hovered' }}"
+                                                    x-cloak
+                                                    class="flex-shrink-0 flex items-center gap-0.5 transition-colors
+                                                           {{ $entry->comments_count > 0 ? 'dark:text-violet-400 text-violet-500' : 'dark:text-slate-400 text-gray-400' }}"
+                                                    title="{{ $entry->comments_count > 0 ? $entry->comments_count . ' comment(s)' : 'Add comment' }}">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/>
+                                                </svg>
+                                                @if($entry->comments_count > 0)
+                                                    <span class="text-[10px] font-mono leading-none">{{ $entry->comments_count }}</span>
+                                                @endif
+                                            </button>
                                         </p>
                                         @if($entry->reference)
                                             <p class="text-[11px] font-mono dark:text-slate-600 text-gray-400 mt-0.5 truncate">
                                                 {{ $entry->reference }}
+                                            </p>
+                                        @endif
+                                        @if($entry->creator)
+                                            <p class="text-[11px] font-body dark:text-slate-600 text-gray-400 mt-0.5 truncate">
+                                                by {{ $entry->created_by === auth()->id() ? 'You' : $entry->creator->name }}
                                             </p>
                                         @endif
                                     </div>
@@ -1371,39 +1741,26 @@
                                     </div>
 
                                     <div class="flex items-center justify-end gap-0.5"
-                                         :class="(hovered || confirming) ? 'opacity-100' : 'opacity-0'"
+                                         :class="hovered ? 'opacity-100' : 'opacity-0'"
                                          style="transition: opacity 0.15s;">
-                                        <template x-if="!confirming">
-                                            <div class="flex gap-0.5">
-                                                @if($userRole !== 'viewer')
-                                                    <button @click.stop="$wire.openEditEntry('{{ $entry->id }}')"
-                                                            class="p-1.5 rounded-lg dark:text-slate-500 text-gray-400
-                                                                   dark:hover:bg-slate-700 hover:bg-gray-200
-                                                                   dark:hover:text-white hover:text-gray-700 transition-colors duration-150">
-                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125"/>
-                                                        </svg>
-                                                    </button>
-                                                    <button @click.stop="confirming = true"
-                                                            class="p-1.5 rounded-lg dark:text-slate-500 text-gray-400
-                                                                   dark:hover:bg-red-500/10 hover:bg-red-50
-                                                                   dark:hover:text-red-400 hover:text-red-500 transition-colors duration-150">
-                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
-                                                        </svg>
-                                                    </button>
-                                                @endif
-                                            </div>
-                                        </template>
-                                        <template x-if="confirming">
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="text-[10px] dark:text-slate-400 text-gray-500 font-body whitespace-nowrap">Delete?</span>
-                                                <button @click.stop="$wire.deleteEntry('{{ $entry->id }}'); confirming = false"
-                                                        class="px-2 py-1 text-[11px] font-semibold font-body bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors">Yes</button>
-                                                <button @click.stop="confirming = false"
-                                                        class="px-2 py-1 text-[11px] font-semibold font-body dark:bg-slate-700 bg-gray-200 dark:text-slate-300 text-gray-600 dark:hover:bg-slate-600 rounded-lg transition-colors">No</button>
-                                            </div>
-                                        </template>
+                                        @if($userRole !== 'viewer')
+                                            <button @click.stop="$wire.openEditEntry('{{ $entry->id }}')"
+                                                    class="p-1.5 rounded-lg dark:text-slate-500 text-gray-400
+                                                           dark:hover:bg-slate-700 hover:bg-gray-200
+                                                           dark:hover:text-white hover:text-gray-700 transition-colors duration-150">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125"/>
+                                                </svg>
+                                            </button>
+                                            <button @click.stop="$wire.confirmDeleteEntry('{{ $entry->id }}')"
+                                                    class="p-1.5 rounded-lg dark:text-slate-500 text-gray-400
+                                                           dark:hover:bg-red-500/10 hover:bg-red-50
+                                                           dark:hover:text-red-400 hover:text-red-500 transition-colors duration-150">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                                                </svg>
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -1439,18 +1796,33 @@
                                         </p>
                                         <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                                             <span class="text-xs dark:text-slate-500 text-gray-400 font-body">{{ $entry->date->format('d M Y') }}</span>
+                                            @if($entry->creator)
+                                                <span class="text-xs dark:text-slate-600 text-gray-400 font-body">· by {{ $entry->created_by === auth()->id() ? 'You' : $entry->creator->name }}</span>
+                                            @endif
                                             @if($entry->category)<span class="text-xs dark:text-slate-600 text-gray-400 font-body">· {{ $entry->category }}</span>@endif
                                         </div>
                                     </div>
-                                    <div class="text-right flex-shrink-0">
+                                    <div class="text-right flex-shrink-0 flex flex-col items-end gap-1">
                                         @if($entry->type === 'in')
                                             <p class="font-mono text-sm font-semibold text-emerald-400">+{{ $currSymbol }}{{ number_format((float)$entry->amount, 2) }}</p>
                                         @else
                                             <p class="font-mono text-sm font-semibold text-red-400">−{{ $currSymbol }}{{ number_format((float)$entry->amount, 2) }}</p>
                                         @endif
-                                        <p class="font-mono text-xs {{ $rbPos ? 'dark:text-slate-500 text-gray-400' : 'text-red-400/70' }} mt-0.5">
+                                        <p class="font-mono text-xs {{ $rbPos ? 'dark:text-slate-500 text-gray-400' : 'text-red-400/70' }}">
                                             @if(!$rbPos)−@endif{{ $currSymbol }}{{ number_format(abs((float)$rb), 2) }}
                                         </p>
+                                        {{-- Comment button (mobile) --}}
+                                        <button wire:click.stop="openComments('{{ $entry->id }}')"
+                                                class="flex items-center gap-0.5 transition-colors
+                                                       {{ $entry->comments_count > 0 ? 'dark:text-violet-400 text-violet-500' : 'dark:text-slate-600 text-gray-300' }}"
+                                                title="{{ $entry->comments_count > 0 ? $entry->comments_count . ' comment(s)' : 'Add comment' }}">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/>
+                                            </svg>
+                                            @if($entry->comments_count > 0)
+                                                <span class="text-[10px] font-mono leading-none">{{ $entry->comments_count }}</span>
+                                            @endif
+                                        </button>
                                     </div>
                                 </div>
 
@@ -1497,45 +1869,233 @@
 
                 <div class="space-y-5">
 
-                    {{-- Period Summary Cards --}}
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        {{-- Cash In --}}
-                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-4">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash In</p>
-                            <p class="font-mono font-bold text-lg sm:text-xl text-emerald-400 leading-tight mt-1 truncate">
-                                {{ $rCurr }}{{ number_format((float)($rSummary['totalIn'] ?? 0), 0) }}
-                            </p>
-                            <p class="text-[10px] dark:text-slate-600 text-gray-400 font-body mt-1">{{ $rSummary['inCount'] ?? 0 }} {{ Str::plural('entry', $rSummary['inCount'] ?? 0) }}</p>
+                    {{-- ===== AI INSIGHTS CARD ===== --}}
+                    @if($aiInsightsLoading)
+                        {{-- First-time loading — x-init fires generateInsights() when Alpine mounts the element --}}
+                        <div x-data x-init="$wire.generateInsights()"
+                             class="dark:bg-slate-800 bg-white rounded-2xl border dark:border-slate-700 border-gray-200 overflow-hidden">
+                            {{-- Animated header --}}
+                            <div class="px-5 pt-8 pb-6 flex flex-col items-center text-center border-b dark:border-slate-700 border-gray-100">
+                                {{-- Pulsing AI icon with orbiting ping --}}
+                                <div class="relative mb-4">
+                                    <div class="w-14 h-14 rounded-2xl dark:bg-slate-700 bg-blue-50 flex items-center justify-center">
+                                        <svg class="w-7 h-7 dark:text-blue-light text-primary" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary animate-ping"></span>
+                                    <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary"></span>
+                                </div>
+                                <p class="text-sm font-semibold dark:text-slate-200 text-gray-800 font-body">Analyzing your cash flow…</p>
+                                <p class="text-xs dark:text-slate-500 text-gray-400 font-body mt-1.5">AI is reviewing your entries. This takes a few seconds.</p>
+                                {{-- Animated dots --}}
+                                <div class="flex items-center gap-1.5 mt-4">
+                                    <span class="w-1.5 h-1.5 rounded-full dark:bg-blue-light bg-primary animate-bounce" style="animation-delay:0ms; animation-duration:1s"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full dark:bg-blue-light bg-primary animate-bounce" style="animation-delay:200ms; animation-duration:1s"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full dark:bg-blue-light bg-primary animate-bounce" style="animation-delay:400ms; animation-duration:1s"></span>
+                                </div>
+                            </div>
+                            {{-- Shimmer skeleton below to show card structure --}}
+                            <div class="px-5 py-4 space-y-3">
+                                <div class="flex items-start gap-2.5">
+                                    <div class="w-1.5 h-1.5 rounded-full dark:bg-slate-700 bg-gray-200 mt-2 flex-shrink-0"></div>
+                                    <div class="h-4 dark:bg-slate-700 bg-gray-200 rounded animate-pulse w-full"></div>
+                                </div>
+                                <div class="flex items-start gap-2.5">
+                                    <div class="w-1.5 h-1.5 rounded-full dark:bg-slate-700 bg-gray-200 mt-2 flex-shrink-0"></div>
+                                    <div class="h-4 dark:bg-slate-700 bg-gray-200 rounded animate-pulse w-5/6"></div>
+                                </div>
+                                <div class="flex items-start gap-2.5">
+                                    <div class="w-1.5 h-1.5 rounded-full dark:bg-slate-700 bg-gray-200 mt-2 flex-shrink-0"></div>
+                                    <div class="h-4 dark:bg-slate-700 bg-gray-200 rounded animate-pulse w-4/6"></div>
+                                </div>
+                            </div>
+                            <div class="mx-5 mb-5 h-10 dark:bg-slate-700 bg-gray-100 rounded-xl animate-pulse"></div>
                         </div>
 
-                        {{-- Cash Out --}}
-                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-4">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash Out</p>
-                            <p class="font-mono font-bold text-lg sm:text-xl text-red-400 leading-tight mt-1 truncate">
-                                {{ $rCurr }}{{ number_format((float)($rSummary['totalOut'] ?? 0), 0) }}
-                            </p>
-                            <p class="text-[10px] dark:text-slate-600 text-gray-400 font-body mt-1">{{ $rSummary['outCount'] ?? 0 }} {{ Str::plural('entry', $rSummary['outCount'] ?? 0) }}</p>
+                    @elseif($aiInsightsError === 'not_enough_data')
+                        {{-- Not enough entries --}}
+                        <div class="dark:bg-slate-800 bg-white rounded-2xl border dark:border-slate-700 border-gray-200 px-5 py-8 text-center">
+                            <div class="w-10 h-10 rounded-xl dark:bg-slate-700 bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                                <svg class="w-5 h-5 dark:text-slate-500 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5"/>
+                                </svg>
+                            </div>
+                            <p class="text-sm font-semibold font-body dark:text-slate-300 text-gray-700 mb-1">Not enough data yet</p>
+                            <p class="text-xs dark:text-slate-500 text-gray-400 font-body">Add at least 3 entries to generate AI insights.</p>
                         </div>
 
-                        {{-- Net Balance --}}
-                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-4">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Net Balance</p>
-                            <p class="font-mono font-bold text-lg sm:text-xl leading-tight mt-1 truncate {{ $rNetPositive ? 'dark:text-blue-light text-primary' : 'text-red-400' }}">
-                                @if(!$rNetPositive)−@endif{{ $rCurr }}{{ number_format(abs((float)($rSummary['netBalance'] ?? 0)), 0) }}
-                            </p>
-                            <p class="text-[10px] dark:text-slate-600 text-gray-400 font-body mt-1">{{ ($rSummary['inCount'] ?? 0) + ($rSummary['outCount'] ?? 0) }} total entries</p>
+                    @elseif($aiInsightsError === 'failed')
+                        {{-- API failed --}}
+                        <div class="dark:bg-red-500/8 bg-red-50 rounded-2xl border dark:border-red-500/15 border-red-200 px-5 py-4 flex items-start gap-3">
+                            <svg class="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+                            </svg>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold dark:text-red-300 text-red-700 font-body">Couldn't generate insights</p>
+                                <p class="text-xs dark:text-red-400/70 text-red-500 font-body mt-0.5">Something went wrong. Try again in a moment.</p>
+                            </div>
+                            <button wire:click="generateInsights"
+                                    class="flex-shrink-0 text-xs font-semibold font-body px-3 py-1.5 rounded-lg
+                                           dark:bg-red-500/15 bg-red-100 dark:text-red-300 text-red-700
+                                           dark:hover:bg-red-500/25 hover:bg-red-200 transition-colors duration-150">
+                                Retry
+                            </button>
                         </div>
 
-                        {{-- Daily Average --}}
-                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-4">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Daily Average</p>
-                            @php $avgPositive = bccomp($rSummary['dailyAverage'] ?? '0', '0', 2) >= 0; @endphp
-                            <p class="font-mono font-bold text-lg sm:text-xl leading-tight mt-1 truncate {{ $avgPositive ? 'dark:text-slate-300 text-gray-700' : 'text-red-400' }}">
-                                @if(!$avgPositive)−@endif{{ $rCurr }}{{ number_format(abs((float)($rSummary['dailyAverage'] ?? 0)), 0) }}
-                            </p>
-                            <p class="text-[10px] dark:text-slate-600 text-gray-400 font-body mt-1">over {{ $rSummary['daySpan'] ?? 1 }} {{ Str::plural('day', $rSummary['daySpan'] ?? 1) }}</p>
+                    @elseif($aiInsightsLimitReached && empty($aiInsightsData))
+                        {{-- Daily limit hit, no cache to show --}}
+                        <div class="dark:bg-amber-500/8 bg-amber-50 rounded-2xl border dark:border-amber-500/15 border-amber-200 px-5 py-4 flex items-start gap-3">
+                            <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                            </svg>
+                            <div>
+                                <p class="text-sm font-semibold dark:text-amber-300 text-amber-700 font-body">Daily limit reached</p>
+                                <p class="text-xs dark:text-amber-400/70 text-amber-600 font-body mt-0.5">You've used all 10 insight generations for today. Resets at midnight.</p>
+                            </div>
                         </div>
-                    </div>
+
+                    @elseif(!empty($aiInsightsData))
+                        {{-- ✅ Insights loaded --}}
+                        @php $sentiment = $aiInsightsData['sentiment'] ?? 'watch'; @endphp
+
+                        <div class="relative">
+
+                            {{-- Regenerating overlay — wire:loading.flex forces display:flex so centering works --}}
+                            <div wire:loading.flex wire:target="generateInsights"
+                                 style="display:none"
+                                 class="absolute inset-0 z-10 flex-col items-center justify-center gap-4 rounded-2xl
+                                        dark:bg-slate-900 bg-white backdrop-blur-sm">
+                                {{-- Spinning ring --}}
+                                <div class="relative w-12 h-12">
+                                    <svg class="w-12 h-12 animate-spin dark:text-slate-700 text-gray-200" fill="none" viewBox="0 0 48 48">
+                                        <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="4"/>
+                                    </svg>
+                                    <svg class="absolute inset-0 w-12 h-12 animate-spin dark:text-blue-light text-primary" style="animation-duration:1.1s" fill="none" viewBox="0 0 48 48">
+                                        <path d="M44 24a20 20 0 0 0-20-20" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+                                    </svg>
+                                    {{-- AI sparkle in center --}}
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <svg class="w-5 h-5 dark:text-blue-light text-primary" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-sm font-semibold dark:text-slate-200 text-gray-700 font-body">AI insights are regenerating…</p>
+                                    <p class="text-xs dark:text-slate-500 text-gray-400 font-body mt-1">Hang tight, this takes a few seconds.</p>
+                                </div>
+                                {{-- Animated dots --}}
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full dark:bg-blue-light bg-primary animate-bounce" style="animation-delay:0ms; animation-duration:1s"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full dark:bg-blue-light bg-primary animate-bounce" style="animation-delay:200ms; animation-duration:1s"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full dark:bg-blue-light bg-primary animate-bounce" style="animation-delay:400ms; animation-duration:1s"></span>
+                                </div>
+                            </div>
+
+                            {{-- Card — blurred while regenerating --}}
+                            <div wire:loading.class="opacity-30 pointer-events-none" wire:target="generateInsights"
+                                 class="dark:bg-slate-800 bg-white rounded-2xl border dark:border-slate-700 border-gray-200 overflow-hidden transition-opacity duration-200">
+
+                            {{-- Header --}}
+                            <div class="flex items-center justify-between px-5 pt-5 pb-4
+                                        border-b dark:border-slate-700 border-gray-100">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    {{-- Sentiment badge — inline styles via Alpine so dark mode works regardless of Tailwind compilation --}}
+                                    @if($sentiment === 'healthy')
+                                        <span x-data="{ d: document.documentElement.classList.contains('dark') }"
+                                              :style="d ? 'background:#064e3b;color:#6ee7b7;border-color:#15803d' : 'background:#ecfdf5;color:#047857;border-color:#a7f3d0'"
+                                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold font-body border flex-shrink-0">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+                                            Healthy
+                                        </span>
+                                    @elseif($sentiment === 'concern')
+                                        <span x-data="{ d: document.documentElement.classList.contains('dark') }"
+                                              :style="d ? 'background:#7f1d1d;color:#fca5a5;border-color:#b91c1c' : 'background:#fef2f2;color:#b91c1c;border-color:#fecaca'"
+                                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold font-body border flex-shrink-0">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"></span>
+                                            Concern
+                                        </span>
+                                    @else
+                                        <span x-data="{ d: document.documentElement.classList.contains('dark') }"
+                                              :style="d ? 'background:#78350f;color:#fcd34d;border-color:#b45309' : 'background:#fffbeb;color:#b45309;border-color:#fde68a'"
+                                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold font-body border flex-shrink-0">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+                                            Watch
+                                        </span>
+                                    @endif
+                                    @if(!empty($aiInsightsData['sentiment_reason']))
+                                        <span class="text-sm dark:text-slate-400 text-gray-500 font-body truncate">
+                                            {{ $aiInsightsData['sentiment_reason'] }}
+                                        </span>
+                                    @endif
+                                </div>
+                                <div class="flex items-center gap-3 flex-shrink-0 ml-3">
+                                    @if($aiInsightsGeneratedAt)
+                                        <span class="text-[11px] dark:text-slate-600 text-gray-400 font-body hidden sm:block">
+                                            {{ $aiInsightsGeneratedAt }}
+                                        </span>
+                                    @endif
+                                    @if(!$aiInsightsLimitReached)
+                                        <button wire:click="generateInsights"
+                                                wire:loading.attr="disabled"
+                                                wire:target="generateInsights"
+                                                title="Regenerate insights"
+                                                class="p-1.5 rounded-lg dark:text-slate-500 text-gray-400
+                                                       dark:hover:bg-slate-700 hover:bg-gray-100
+                                                       dark:hover:text-slate-300 hover:text-gray-600
+                                                       transition-colors duration-150 disabled:opacity-40">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+                                            </svg>
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+
+                            {{-- Bullets --}}
+                            <div class="px-5 py-4 space-y-3">
+                                @foreach($aiInsightsData['bullets'] ?? [] as $bullet)
+                                    <div class="flex items-start gap-3">
+                                        @if($sentiment === 'healthy')
+                                            <span class="ai-bullet-healthy w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0"></span>
+                                        @elseif($sentiment === 'concern')
+                                            <span class="ai-bullet-concern w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0"></span>
+                                        @else
+                                            <span class="ai-bullet-watch w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0"></span>
+                                        @endif
+                                        <p class="text-sm dark:text-slate-300 text-gray-700 font-body leading-relaxed">{{ $bullet }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            {{-- Tip --}}
+                            @if(!empty($aiInsightsData['tip']))
+                                <div class="mx-5 mb-5 flex items-start gap-3 px-4 py-3 rounded-xl
+                                            dark:bg-slate-700 bg-blue-50
+                                            dark:border dark:border-slate-600 border border-blue-100">
+                                    <svg class="w-4 h-4 dark:text-blue-light text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/>
+                                    </svg>
+                                    <p class="text-sm dark:text-blue-light text-primary font-body leading-relaxed">
+                                        <strong class="font-semibold">Tip:</strong> {{ $aiInsightsData['tip'] }}
+                                    </p>
+                                </div>
+                            @endif
+
+                            {{-- Limit warning inline --}}
+                            @if($aiInsightsLimitReached)
+                                <div class="px-5 pb-4">
+                                    <p class="text-[11px] dark:text-amber-500/70 text-amber-600 font-body text-center">
+                                        Daily limit reached — insights will refresh tomorrow.
+                                    </p>
+                                </div>
+                            @endif
+
+                            </div>{{-- end inner card --}}
+                        </div>{{-- end relative wrapper --}}
+
+                    @endif
 
                     {{-- Cash Flow Trend Chart --}}
                     <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-5">
@@ -1761,107 +2321,90 @@
 
             @elseif($activeTab === 'recurring')
 
-                {{-- ===== RECURRING ENTRIES TAB ===== --}}
+                {{-- ===== RECURRING TAB ===== --}}
                 @if($business->isPro())
 
                     @if($recurringEntries->isEmpty())
-                        {{-- Empty state --}}
-                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-dashed border-gray-200
-                                    rounded-2xl px-8 py-20 text-center">
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-dashed border-gray-200 rounded-2xl px-8 py-20 text-center">
                             <div class="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                                 <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3"/>
                                 </svg>
                             </div>
-                            <h3 class="font-display font-extrabold text-lg dark:text-white text-gray-900 mb-2">No recurring entries</h3>
+                            <h3 class="font-display font-extrabold text-lg dark:text-white text-gray-900 mb-2">No recurring entries yet</h3>
                             <p class="text-sm dark:text-slate-500 text-gray-400 font-body max-w-sm mx-auto">
-                                When you add an entry and enable "Repeat this entry", it will appear here. Recurring entries auto-create new entries on your schedule.
+                                Add an entry and enable "Repeat this entry" to set up a daily, weekly, or bi-weekly schedule.
                             </p>
                         </div>
                     @else
                         <div class="space-y-3">
                             @foreach($recurringEntries as $rec)
-                                <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-4 transition-all duration-150
-                                            {{ $rec->is_active ? '' : 'opacity-60' }}">
+                                @php $isActive = $rec->isActive(); $isCompleted = $rec->isCompleted(); @endphp
+                                <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-4
+                                            {{ !$isActive ? 'opacity-60' : '' }} transition-opacity duration-150">
                                     <div class="flex items-start gap-3">
-                                        {{-- Type indicator --}}
+                                        {{-- Type dot --}}
                                         <div class="mt-1.5 flex-shrink-0">
-                                            <span class="block w-2.5 h-2.5 rounded-full {{ $rec->type === 'in' ? 'bg-emerald-400' : 'bg-red-400' }}"></span>
+                                            <span class="block w-2.5 h-2.5 rounded-full {{ $rec->type === 'in' ? 'bg-emerald-400' : 'bg-red-400' }}
+                                                         {{ $isActive ? 'animate-pulse' : '' }}"></span>
                                         </div>
 
-                                        {{-- Content --}}
+                                        {{-- Info --}}
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2 flex-wrap">
                                                 <span class="text-sm font-body font-medium dark:text-white text-gray-900 truncate">{{ $rec->description }}</span>
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
                                                              dark:bg-slate-800 bg-gray-100 dark:text-slate-400 text-gray-500">
-                                                    {{ ucfirst($rec->frequency) }}
+                                                    {{ $rec->frequency === 'biweekly' ? 'Bi-weekly' : ucfirst($rec->frequency) }}
                                                 </span>
-                                                @if(!$rec->is_active)
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
-                                                                 bg-amber-500/10 text-amber-400">
-                                                        Paused
-                                                    </span>
+                                                @if($isCompleted)
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-500/10 text-slate-400">Completed</span>
+                                                @elseif(!$isActive)
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400">Paused</span>
                                                 @endif
                                             </div>
-
-                                            <div class="flex items-center gap-3 mt-1.5 flex-wrap">
-                                                <span class="font-mono text-sm font-medium {{ $rec->type === 'in' ? 'text-emerald-400' : 'text-red-400' }}">
+                                            <div class="flex items-center gap-3 mt-1 flex-wrap">
+                                                <span class="font-mono text-sm {{ $rec->type === 'in' ? 'text-emerald-400' : 'text-red-400' }}">
                                                     {{ $rec->type === 'in' ? '+' : '-' }}{{ $business->currency }} {{ number_format($rec->amount, 2) }}
                                                 </span>
-                                                <span class="text-[11px] dark:text-slate-600 text-gray-400 font-body">
-                                                    Next: <span class="font-mono dark:text-slate-400 text-gray-500">{{ $rec->next_run_at->format('d M Y') }}</span>
-                                                </span>
-                                                @if($rec->ends_at)
-                                                    <span class="text-[11px] dark:text-slate-600 text-gray-400 font-body">
-                                                        Ends: <span class="font-mono dark:text-slate-400 text-gray-500">{{ $rec->ends_at->format('d M Y') }}</span>
+                                                @if(!$isCompleted)
+                                                    <span class="text-[11px] dark:text-slate-500 text-gray-400 font-body">
+                                                        Next: <span class="font-mono dark:text-slate-400 text-gray-500">{{ $rec->next_run_at->format('d M Y') }}</span>
                                                     </span>
                                                 @endif
-                                                @if($rec->category)
-                                                    <span class="text-[11px] dark:text-slate-600 text-gray-400 font-body">{{ $rec->category }}</span>
+                                                @if($rec->ends_at)
+                                                    <span class="text-[11px] dark:text-slate-500 text-gray-400 font-body">
+                                                        Until: <span class="font-mono dark:text-slate-400 text-gray-500">{{ $rec->ends_at->format('d M Y') }}</span>
+                                                    </span>
+                                                @else
+                                                    <span class="text-[11px] dark:text-slate-500 text-gray-400 font-body">No end date</span>
                                                 @endif
                                             </div>
                                         </div>
 
                                         {{-- Actions --}}
-                                        <div class="flex items-center gap-1 flex-shrink-0">
-                                            {{-- Edit --}}
-                                            <button wire:click="openEditRecurring('{{ $rec->id }}')"
-                                                    title="Edit"
-                                                    class="p-2 rounded-lg dark:text-slate-500 text-gray-400 dark:hover:text-white hover:text-gray-700 dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors duration-150">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"/>
-                                                </svg>
-                                            </button>
-
-                                            {{-- Toggle active/paused --}}
-                                            <button wire:click="toggleRecurring('{{ $rec->id }}')"
-                                                    title="{{ $rec->is_active ? 'Pause' : 'Resume' }}"
-                                                    class="p-2 rounded-lg transition-colors duration-150
-                                                           {{ $rec->is_active
-                                                               ? 'dark:text-emerald-400 text-emerald-500 dark:hover:bg-emerald-500/10 hover:bg-emerald-50'
-                                                               : 'dark:text-slate-500 text-gray-400 dark:hover:bg-slate-800 hover:bg-gray-100' }}">
-                                                @if($rec->is_active)
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5"/>
-                                                    </svg>
-                                                @else
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/>
-                                                    </svg>
+                                        @if($userRole !== 'viewer')
+                                            <div class="flex items-center gap-1 flex-shrink-0">
+                                                @if(!$isCompleted)
+                                                    <button wire:click="toggleRecurringStatus('{{ $rec->id }}')"
+                                                            title="{{ $isActive ? 'Pause' : 'Resume' }}"
+                                                            class="p-2 rounded-lg transition-colors duration-150
+                                                                   {{ $isActive ? 'dark:text-slate-400 text-gray-500 dark:hover:bg-slate-700 hover:bg-gray-100' : 'text-emerald-500 dark:hover:bg-emerald-500/10 hover:bg-emerald-50' }}">
+                                                        @if($isActive)
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5"/></svg>
+                                                        @else
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/></svg>
+                                                        @endif
+                                                    </button>
                                                 @endif
-                                            </button>
-
-                                            {{-- Delete --}}
-                                            <button wire:click="deleteRecurring('{{ $rec->id }}')"
-                                                    wire:confirm="Delete this recurring entry? Future auto-entries will stop."
-                                                    title="Delete"
-                                                    class="p-2 rounded-lg dark:text-slate-600 text-gray-400 hover:text-red-400 dark:hover:bg-red-500/10 hover:bg-red-50 transition-colors duration-150">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
-                                                </svg>
-                                            </button>
-                                        </div>
+                                                <button wire:click="deleteRecurring('{{ $rec->id }}')"
+                                                        wire:confirm="Delete this recurring entry? It will stop repeating."
+                                                        title="Delete"
+                                                        class="p-2 rounded-lg text-red-400 dark:hover:bg-red-500/10 hover:bg-red-50 transition-colors duration-150">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                                                </button>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             @endforeach
@@ -1869,57 +2412,538 @@
                     @endif
 
                 @else
-                    {{-- Free user: blurred preview + upgrade CTA --}}
+                    {{-- Free user blurred preview --}}
                     <div class="relative">
-                        <div class="filter blur-sm pointer-events-none select-none">
-                            @for($i = 0; $i < 3; $i++)
-                                <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-4 {{ $i > 0 ? 'mt-3' : '' }}">
+                        <div class="filter blur-sm pointer-events-none select-none space-y-3">
+                            @foreach([['Monthly Rent', 'out', '50,000.00', 'weekly'], ['Daily Sales', 'in', '5,000.00', 'daily'], ['Staff Salary', 'out', '25,000.00', 'biweekly']] as [$desc, $type, $amt, $freq])
+                                <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-4">
                                     <div class="flex items-start gap-3">
-                                        <div class="mt-1.5"><span class="block w-2.5 h-2.5 rounded-full {{ $i % 2 === 0 ? 'bg-emerald-400' : 'bg-red-400' }}"></span></div>
+                                        <div class="mt-1.5"><span class="block w-2.5 h-2.5 rounded-full {{ $type === 'in' ? 'bg-emerald-400' : 'bg-red-400' }}"></span></div>
                                         <div class="flex-1">
                                             <div class="flex items-center gap-2">
-                                                <span class="text-sm font-body dark:text-white text-gray-900">{{ $i === 0 ? 'Monthly Rent' : ($i === 1 ? 'Weekly Salary' : 'Server Hosting') }}</span>
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase dark:bg-slate-800 bg-gray-100 dark:text-slate-400 text-gray-500">
-                                                    {{ $i === 0 ? 'Monthly' : ($i === 1 ? 'Weekly' : 'Yearly') }}
-                                                </span>
+                                                <span class="text-sm font-body dark:text-white text-gray-900">{{ $desc }}</span>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase dark:bg-slate-800 bg-gray-100 dark:text-slate-400 text-gray-500">{{ ucfirst($freq) }}</span>
                                             </div>
-                                            <div class="flex items-center gap-3 mt-1.5">
-                                                <span class="font-mono text-sm {{ $i % 2 === 0 ? 'text-emerald-400' : 'text-red-400' }}">
-                                                    {{ $i % 2 === 0 ? '+' : '-' }}{{ $business->currency }} {{ $i === 0 ? '50,000.00' : ($i === 1 ? '25,000.00' : '5,000.00') }}
-                                                </span>
-                                                <span class="text-[11px] dark:text-slate-600 text-gray-400 font-body">Next: <span class="font-mono">01 Apr 2026</span></span>
-                                            </div>
+                                            <span class="font-mono text-sm {{ $type === 'in' ? 'text-emerald-400' : 'text-red-400' }} mt-1 block">{{ $type === 'in' ? '+' : '-' }}PKR {{ $amt }}</span>
                                         </div>
                                     </div>
                                 </div>
-                            @endfor
+                            @endforeach
                         </div>
-
-                        {{-- Upgrade overlay --}}
                         <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
                             <div class="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3"/>
-                                </svg>
+                                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3"/></svg>
                             </div>
                             <h3 class="font-display font-extrabold text-lg dark:text-white text-gray-900 mb-2">Automate Recurring Entries</h3>
-                            <p class="text-sm dark:text-slate-400 text-gray-500 font-body mb-5">Set up rent, salaries, and subscriptions to auto-repeat on schedule with Pro.</p>
+                            <p class="text-sm dark:text-slate-400 text-gray-500 font-body mb-5">Set daily or weekly entries to repeat automatically. Upgrade to Pro.</p>
                             <a href="{{ route('billing') }}" wire:navigate
                                class="inline-flex items-center justify-center w-full max-w-xs px-5 py-2.5 bg-primary hover:bg-accent text-white text-sm font-semibold font-body rounded-xl transition-colors duration-150 shadow-lg shadow-primary/25">
-                                Upgrade to Pro — $3/mo
+                                Upgrade to Pro
                             </a>
-                            <button wire:click="$set('activeTab', 'entries')"
-                                    class="mt-3 text-sm dark:text-slate-500 text-gray-400 font-body hover:dark:text-white hover:text-gray-900 transition-colors">
-                                Not Now
-                            </button>
                         </div>
                     </div>
                 @endif
+
+            @elseif($activeTab === 'activity')
+
+                {{-- ===== ACTIVITY TAB ===== --}}
+                <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl overflow-hidden">
+
+                    {{-- Header --}}
+                    <div class="px-5 py-4 border-b dark:border-slate-700 border-gray-100">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="font-heading font-bold text-base dark:text-white text-gray-900">Activity Log</h3>
+                                <p class="text-xs font-body dark:text-slate-500 text-gray-400 mt-0.5">All changes made to entries in this book</p>
+                            </div>
+                            <div class="w-8 h-8 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-4 h-4 text-primary dark:text-blue-light" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        {{-- Colour legend --}}
+                        <div class="flex items-center gap-4 mt-3">
+                            <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
+                                <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>Added
+                            </span>
+                            <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
+                                <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>Modified
+                            </span>
+                            <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
+                                <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>Deleted
+                            </span>
+                        </div>
+                    </div>
+
+                    @if($activityLog->isEmpty())
+                        {{-- Empty state --}}
+                        <div class="px-8 py-16 text-center">
+                            <div class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-6 h-6 text-gray-400 dark:text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                                </svg>
+                            </div>
+                            <p class="font-body text-sm font-semibold dark:text-slate-300 text-gray-700 mb-1">No activity yet</p>
+                            <p class="font-body text-xs dark:text-slate-500 text-gray-400">Actions on entries will appear here as they happen.</p>
+                        </div>
+
+                    @else
+                        <div class="divide-y dark:divide-slate-800 divide-gray-100">
+                            @foreach($activityLog as $log)
+                                @php
+                                    $meta        = $log->meta ?? [];
+                                    $iconType    = $log->iconType();
+                                    $initials    = strtoupper(substr($log->user->name ?? '?', 0, 1));
+                                    $isCurrentUser = $log->user_id === auth()->id();
+                                    $entryType   = $meta['type'] ?? null;
+                                    $amount      = isset($meta['amount']) ? number_format((float) $meta['amount'], 2) : null;
+                                    $description = $meta['description'] ?? null;
+                                @endphp
+                                <div class="flex items-start gap-3 px-5 py-3.5 dark:hover:bg-slate-800 hover:bg-gray-50 transition-colors duration-100">
+
+                                    {{-- Avatar --}}
+                                    <div class="flex-shrink-0 mt-0.5">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center
+                                                    {{ $isCurrentUser
+                                                        ? 'bg-primary/10 dark:bg-primary/20'
+                                                        : 'bg-gray-100 dark:bg-slate-700' }}">
+                                            <span class="text-[11px] font-bold
+                                                         {{ $isCurrentUser
+                                                             ? 'text-primary dark:text-blue-light'
+                                                             : 'text-gray-600 dark:text-slate-300' }}">
+                                                {{ $initials }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {{-- Content --}}
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <p class="text-sm font-body leading-snug dark:text-slate-300 text-gray-700">
+                                                {{-- Action dot --}}
+                                                @if($iconType === 'created')
+                                                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-1 relative top-[-1px] bg-green-500"></span>
+                                                @elseif($iconType === 'deleted')
+                                                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-1 relative top-[-1px] bg-red-500"></span>
+                                                @else
+                                                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-1 relative top-[-1px] bg-blue-500"></span>
+                                                @endif
+                                                {{-- User name --}}
+                                                <span class="font-semibold dark:text-white text-gray-900">
+                                                    {{ $isCurrentUser ? 'You' : ($log->user->name ?? 'Unknown') }}
+                                                </span>
+                                                {{ $log->describe() }}
+                                                {{-- Amount (for single entry actions) --}}
+                                                @if($amount !== null)
+                                                    <span class="font-mono font-semibold
+                                                                 {{ $entryType === 'in' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
+                                                        · {{ $business->currency ?? 'PKR' }} {{ $amount }}
+                                                    </span>
+                                                @endif
+                                            </p>
+                                            {{-- Timestamp --}}
+                                            <span class="font-mono text-[11px] dark:text-slate-500 text-gray-400 flex-shrink-0 whitespace-nowrap">
+                                                {{ $log->created_at->diffForHumans(short: true) }}
+                                            </span>
+                                        </div>
+                                        {{-- Sub-detail: entry description --}}
+                                        @if($description)
+                                            <p class="font-body text-xs dark:text-slate-500 text-gray-400 mt-0.5 truncate">{{ $description }}</p>
+                                        @endif
+                                    </div>
+
+                                </div>
+                            @endforeach
+                        </div>
+
+                        @if($activityLog->count() >= 100)
+                            <div class="px-5 py-3 border-t dark:border-slate-800 border-gray-100 text-center">
+                                <p class="font-body text-xs dark:text-slate-500 text-gray-400">Showing the 100 most recent actions.</p>
+                            </div>
+                        @endif
+                    @endif
+
+                </div>
 
             @endif {{-- end activeTab --}}
 
         </div>
     </div>
+
+    {{-- ===== COMMENTS PANEL ===== --}}
+    @if($showCommentPanel)
+        {{-- Backdrop --}}
+        <div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:bg-transparent lg:backdrop-blur-none"
+             wire:click="closeComments"></div>
+
+        {{-- Slide-over panel --}}
+        <div x-data="{ show: false }"
+             x-init="$nextTick(() => show = true)"
+             :class="show ? 'translate-x-0' : 'translate-x-full'"
+             class="fixed inset-y-0 right-0 z-50 w-full max-w-md flex flex-col
+                    dark:bg-slate-900 bg-white
+                    dark:border-l dark:border-slate-800 border-l border-gray-200
+                    shadow-2xl shadow-black/30 transition-transform duration-300 ease-out">
+
+            {{-- Header --}}
+            <div class="flex items-start justify-between px-5 py-4 border-b dark:border-slate-800 border-gray-100 flex-shrink-0">
+                <div class="min-w-0 flex-1 pr-3">
+                    <div class="flex items-center gap-2 mb-1">
+                        <div class="w-2 h-2 rounded-full flex-shrink-0 {{ $commentingEntryType === 'in' ? 'bg-emerald-400' : 'bg-red-400' }}"></div>
+                        <p class="text-xs font-semibold uppercase tracking-wider font-body
+                                  {{ $commentingEntryType === 'in' ? 'text-emerald-400' : 'text-red-400' }}">
+                            {{ $commentingEntryType === 'in' ? 'Cash In' : 'Cash Out' }}
+                        </p>
+                    </div>
+                    <h3 class="text-base font-heading font-semibold dark:text-white text-gray-900 truncate">
+                        {{ $commentingEntryDesc }}
+                    </h3>
+                    <p class="text-sm font-mono {{ $commentingEntryType === 'in' ? 'text-emerald-400' : 'text-red-400' }} mt-0.5">
+                        {{ $commentingEntryType === 'in' ? '+' : '-' }}{{ number_format((float)$commentingEntryAmount, 2) }}
+                    </p>
+                </div>
+                <button wire:click="closeComments"
+                        class="p-2 rounded-lg dark:text-slate-400 text-gray-500 dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Comments list --}}
+            <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                @if($commentThread->isEmpty())
+                    <div class="flex flex-col items-center justify-center h-40 text-center">
+                        <div class="w-12 h-12 rounded-full dark:bg-slate-800 bg-gray-100 flex items-center justify-center mb-3">
+                            <svg class="w-6 h-6 dark:text-slate-500 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/>
+                            </svg>
+                        </div>
+                        <p class="text-sm font-semibold font-heading dark:text-slate-300 text-gray-700">No comments yet</p>
+                        <p class="text-xs font-body dark:text-slate-500 text-gray-400 mt-1">
+                            Add a note or @mention a team member.
+                        </p>
+                    </div>
+                @else
+                    @foreach($commentThread as $comment)
+                        <div class="flex gap-3 group">
+                            {{-- Avatar --}}
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white
+                                        {{ $comment->user_id === auth()->id() ? 'bg-gradient-to-br from-primary to-accent' : 'dark:bg-slate-700 bg-gray-200 dark:text-slate-300 text-gray-600' }}">
+                                {{ strtoupper(substr($comment->user?->name ?? '?', 0, 1)) }}
+                            </div>
+                            {{-- Body --}}
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-baseline gap-2 mb-1">
+                                    <span class="text-xs font-semibold font-body dark:text-slate-200 text-gray-800">
+                                        {{ $comment->user_id === auth()->id() ? 'You' : ($comment->user?->name ?? 'Deleted user') }}
+                                    </span>
+                                    <span class="text-[10px] font-mono dark:text-slate-600 text-gray-400">
+                                        {{ $comment->created_at->diffForHumans() }}
+                                    </span>
+                                </div>
+                                <div class="text-sm font-body dark:text-slate-300 text-gray-700 leading-relaxed break-words">
+                                    {!! $comment->renderedBody() !!}
+                                </div>
+                            </div>
+                            {{-- Delete --}}
+                            @if($comment->user_id === auth()->id() || $userRole === 'owner')
+                                <button wire:click="confirmDeleteComment('{{ $comment->id }}')"
+                                        class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded dark:text-slate-600 text-gray-300 dark:hover:text-red-400 hover:text-red-500 transition-all">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                                    </svg>
+                                </button>
+                            @endif
+                        </div>
+                    @endforeach
+                @endif
+            </div>
+
+            {{-- Add comment input (viewers can read but not comment) --}}
+            @if($userRole !== 'viewer')
+                <div class="flex-shrink-0 px-5 py-4 border-t dark:border-slate-800 border-gray-100"
+                     x-data="{
+                         body: @entangle('commentBody').live,
+                         showMentions: false,
+                         mentionStart: -1,
+                         members: {{ $commentMembers->toJson() }},
+                         filtered: [],
+                         onInput(e) {
+                             const val = e.target.value;
+                             const cur = e.target.selectionStart;
+                             // Find last @ before cursor
+                             const before = val.slice(0, cur);
+                             const atIdx = before.lastIndexOf('@');
+                             if (atIdx !== -1 && !before.slice(atIdx + 1).includes(' ')) {
+                                 const query = before.slice(atIdx + 1).toLowerCase();
+                                 this.filtered = this.members.filter(m => m.name.toLowerCase().includes(query));
+                                 this.showMentions = this.filtered.length > 0;
+                                 this.mentionStart = atIdx;
+                             } else {
+                                 this.showMentions = false;
+                                 this.mentionStart = -1;
+                             }
+                         },
+                         selectMember(member) {
+                             const ta = this.$refs.commentInput;
+                             const before = ta.value.slice(0, this.mentionStart);
+                             const after = ta.value.slice(ta.selectionStart);
+                             const token = '@[' + member.name + ']{' + member.id + '}';
+                             this.body = before + token + ' ' + after;
+                             this.showMentions = false;
+                             this.mentionStart = -1;
+                             this.$nextTick(() => ta.focus());
+                         }
+                     }">
+                    <div class="relative">
+                        {{-- @mention dropdown --}}
+                        <div x-show="showMentions"
+                             x-cloak
+                             class="absolute bottom-full left-0 right-0 mb-2 dark:bg-slate-800 bg-white
+                                    dark:border dark:border-slate-700 border border-gray-200
+                                    rounded-xl shadow-xl overflow-hidden z-10">
+                            <template x-for="member in filtered" :key="member.id">
+                                <button type="button"
+                                        @click="selectMember(member)"
+                                        @mousedown.prevent
+                                        class="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-body
+                                               dark:hover:bg-slate-700 hover:bg-gray-50
+                                               dark:text-slate-200 text-gray-800 transition-colors">
+                                    <div class="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                                         x-text="member.name.charAt(0).toUpperCase()"></div>
+                                    <span x-text="member.name"></span>
+                                </button>
+                            </template>
+                        </div>
+
+                        <div class="flex gap-2 items-end">
+                            {{-- Current user avatar --}}
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-white self-end">
+                                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                            </div>
+                            {{-- Textarea --}}
+                            <div class="flex-1 relative">
+                                <textarea x-ref="commentInput"
+                                          x-model="body"
+                                          @input="onInput($event)"
+                                          @keydown.escape="showMentions = false"
+                                          @keydown.enter.prevent="if(!showMentions) { $wire.addComment() }"
+                                          placeholder="Add a comment… type @ to mention"
+                                          rows="1"
+                                          class="w-full px-3 py-2.5 text-sm font-body resize-none rounded-xl
+                                                 dark:bg-slate-800 bg-gray-50
+                                                 dark:border dark:border-slate-700 border border-gray-200
+                                                 dark:text-white text-gray-900
+                                                 dark:placeholder-slate-600 placeholder-gray-400
+                                                 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
+                                                 transition-all duration-150"
+                                          style="field-sizing: content; max-height: 120px;"></textarea>
+                            </div>
+                            {{-- Send button --}}
+                            <button wire:click="addComment"
+                                    :disabled="!body.trim()"
+                                    class="flex-shrink-0 p-2.5 rounded-xl transition-all duration-150
+                                           disabled:opacity-30 disabled:cursor-not-allowed
+                                           bg-primary hover:bg-accent text-white">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="text-[10px] font-body dark:text-slate-600 text-gray-400 mt-1.5 ml-10">
+                            Enter to send · type @ to mention a team member
+                        </p>
+                    </div>
+                </div>
+            @else
+                <div class="flex-shrink-0 px-5 py-3 border-t dark:border-slate-800 border-gray-100 text-center">
+                    <p class="text-xs font-body dark:text-slate-500 text-gray-400">Viewers can read but not add comments.</p>
+                </div>
+            @endif
+        </div>
+    @endif
+
+    {{-- ===== DELETE ENTRY CONFIRM MODAL ===== --}}
+    @if($showDeleteEntryModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" wire:click="$set('showDeleteEntryModal', false)"></div>
+            <div class="relative w-full max-w-md dark:bg-dark bg-white rounded-2xl shadow-2xl
+                        dark:border dark:border-slate-700 border border-gray-200 overflow-hidden"
+                 x-data x-init="$el.querySelector('[data-autofocus]')?.focus()">
+
+                {{-- Header --}}
+                <div class="flex items-center justify-between px-6 pt-6 pb-4
+                            border-b dark:border-slate-700/60 border-gray-100">
+                    <h3 class="font-heading font-bold text-lg dark:text-white text-gray-900">Delete Entry</h3>
+                    <button wire:click="$set('showDeleteEntryModal', false)"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg
+                                   dark:text-slate-400 text-gray-400
+                                   dark:hover:bg-slate-700 hover:bg-gray-100
+                                   transition-colors duration-150">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="px-6 py-5 space-y-5">
+
+                    {{-- Warning banner --}}
+                    <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl
+                                bg-red-50 dark:bg-red-500/10
+                                border border-red-200 dark:border-red-500/20">
+                        <svg class="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                        </svg>
+                        <p class="text-sm dark:text-red-300 text-red-700 font-body leading-relaxed">
+                            Once deleted, this entry <strong>cannot be restored</strong>. Are you sure you want to delete it?
+                        </p>
+                    </div>
+
+                    {{-- Entry details --}}
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-3">Review Details</p>
+                        <div class="rounded-xl dark:bg-slate-800 bg-gray-50 border dark:border-slate-700 border-gray-200 px-4 py-4">
+                            <div class="grid grid-cols-3 gap-4">
+                                <div>
+                                    <p class="text-xs dark:text-slate-500 text-gray-400 font-body mb-1">Type</p>
+                                    <p class="text-sm font-semibold font-body
+                                              {{ $pendingDeleteType === 'Cash In' ? 'text-emerald-500' : 'text-red-500' }}">
+                                        {{ $pendingDeleteType }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-xs dark:text-slate-500 text-gray-400 font-body mb-1">Amount</p>
+                                    <p class="text-sm font-semibold font-mono dark:text-white text-gray-900">
+                                        {{ $currSymbol }}{{ $pendingDeleteAmount }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-xs dark:text-slate-500 text-gray-400 font-body mb-1">Date</p>
+                                    <p class="text-sm font-semibold font-body dark:text-white text-gray-900">{{ $pendingDeleteDate }}</p>
+                                </div>
+                            </div>
+                            @if($pendingDeleteDesc)
+                                <div class="mt-3 pt-3 border-t dark:border-slate-700 border-gray-200">
+                                    <p class="text-xs dark:text-slate-500 text-gray-400 font-body mb-1">Description</p>
+                                    <p class="text-sm dark:text-slate-300 text-gray-700 font-body truncate">{{ $pendingDeleteDesc }}</p>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                </div>
+
+                {{-- Actions --}}
+                <div class="flex items-center gap-3 px-6 py-4
+                            border-t dark:border-slate-700/60 border-gray-100">
+                    <button wire:click="deleteEntry"
+                            wire:loading.attr="disabled"
+                            data-autofocus
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-3
+                                   border-2 border-red-500 text-red-500
+                                   dark:hover:bg-red-500/10 hover:bg-red-50
+                                   rounded-xl text-sm font-bold font-body transition-all duration-150">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                        </svg>
+                        <span wire:loading.remove wire:target="deleteEntry">Yes, Delete</span>
+                        <span wire:loading wire:target="deleteEntry">Deleting…</span>
+                    </button>
+                    <button wire:click="$set('showDeleteEntryModal', false)"
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-3
+                                   bg-primary hover:bg-accent text-white
+                                   rounded-xl text-sm font-bold font-body transition-all duration-150">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                        Cancel
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    @endif
+
+    {{-- ===== DELETE COMMENT CONFIRM MODAL ===== --}}
+    @if($showDeleteCommentModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" wire:click="$set('showDeleteCommentModal', false)"></div>
+            <div class="relative w-full max-w-sm dark:bg-dark bg-white rounded-2xl shadow-2xl
+                        dark:border dark:border-slate-700 border border-gray-200 overflow-hidden"
+                 x-data x-init="$el.querySelector('[data-autofocus]')?.focus()">
+
+                {{-- Header --}}
+                <div class="flex items-center justify-between px-6 pt-6 pb-4
+                            border-b dark:border-slate-700/60 border-gray-100">
+                    <h3 class="font-heading font-bold text-lg dark:text-white text-gray-900">Delete Comment</h3>
+                    <button wire:click="$set('showDeleteCommentModal', false)"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg
+                                   dark:text-slate-400 text-gray-400
+                                   dark:hover:bg-slate-700 hover:bg-gray-100
+                                   transition-colors duration-150">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="px-6 py-5 space-y-4">
+
+                    {{-- Warning --}}
+                    <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl
+                                bg-red-50 dark:bg-red-500/10
+                                border border-red-200 dark:border-red-500/20">
+                        <svg class="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                        </svg>
+                        <p class="text-sm dark:text-red-300 text-red-700 font-body leading-relaxed">
+                            This comment will be <strong>permanently deleted</strong> and cannot be restored.
+                        </p>
+                    </div>
+
+                    {{-- Comment excerpt --}}
+                    @if($pendingDeleteCommentExcerpt)
+                        <div class="rounded-xl dark:bg-slate-800 bg-gray-50 border dark:border-slate-700 border-gray-200 px-4 py-3">
+                            <p class="text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-1.5">Comment</p>
+                            <p class="text-sm dark:text-slate-300 text-gray-700 font-body italic">"{{ $pendingDeleteCommentExcerpt }}"</p>
+                        </div>
+                    @endif
+
+                </div>
+
+                {{-- Actions --}}
+                <div class="flex items-center gap-3 px-6 py-4
+                            border-t dark:border-slate-700/60 border-gray-100">
+                    <button wire:click="deleteComment"
+                            wire:loading.attr="disabled"
+                            data-autofocus
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-3
+                                   border-2 border-red-500 text-red-500
+                                   dark:hover:bg-red-500/10 hover:bg-red-50
+                                   rounded-xl text-sm font-bold font-body transition-all duration-150">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                        </svg>
+                        <span wire:loading.remove wire:target="deleteComment">Yes, Delete</span>
+                        <span wire:loading wire:target="deleteComment">Deleting…</span>
+                    </button>
+                    <button wire:click="$set('showDeleteCommentModal', false)"
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-3
+                                   bg-primary hover:bg-accent text-white
+                                   rounded-xl text-sm font-bold font-body transition-all duration-150">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                        Cancel
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    @endif
 
     {{-- ===== BULK DELETE CONFIRM MODAL ===== --}}
     @if($showBulkDeleteConfirm)
@@ -2157,6 +3181,28 @@
         </div>
     @endif
 
+    {{-- Save & Add New toast — wire:ignore prevents Livewire morphdom from resetting Alpine's display state --}}
+    <div wire:ignore
+         x-data="{ show: false, message: '' }"
+         x-on:entry-saved.window="message = ($event.detail.message ?? $event.detail[0] ?? 'Entry saved.'); show = true; setTimeout(() => show = false, 2500)"
+         x-show="show"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed bottom-4 sm:bottom-6 left-4 right-4 sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2 flex items-center gap-3 px-5 py-3.5
+                bg-slate-900 rounded-2xl shadow-2xl border border-white/10 sm:whitespace-nowrap"
+         style="z-index: 9998; display: none;">
+        <span class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75 10.5 18.75 19.5 6.75"/>
+            </svg>
+        </span>
+        <span class="text-sm font-body font-medium text-white" x-text="message"></span>
+    </div>
+
     {{-- ===== ENTRY SLIDE-OVER ===== --}}
     <div x-data="{ show: $wire.entangle('showEntryPanel').live }">
 
@@ -2193,7 +3239,7 @@
             <div class="flex items-center justify-between mb-4">
                 <p class="text-xs dark:text-slate-500 text-gray-400 font-body">{{ $book->name }} · {{ $business->currency }}</p>
                 <button @click="show = false"
-                        class="p-1.5 rounded-xl dark:text-slate-500 text-gray-400
+                        class="p-2 rounded-xl dark:text-slate-500 text-gray-400
                                dark:hover:bg-slate-800 hover:bg-gray-100 dark:hover:text-white hover:text-gray-700
                                transition-all duration-150">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -2243,7 +3289,7 @@
 
                 {{-- Scanning state (shown while wire:loading on ocrFile) --}}
                 <div wire:loading wire:target="ocrFile">
-                    <div class="relative overflow-hidden rounded-2xl border dark:border-violet-500/20 border-violet-200 dark:bg-violet-500/5 bg-violet-50 p-4">
+                    <div class="relative overflow-hidden rounded-xl border dark:border-violet-700 border-violet-200 dark:bg-slate-900 bg-violet-50 p-4">
                         {{-- Shimmer sweep --}}
                         <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite]"
                              style="background: linear-gradient(90deg, transparent, rgba(167,139,250,0.08), transparent)"></div>
@@ -2292,43 +3338,45 @@
 
                     @elseif(!empty($aiFilledFields))
                         {{-- Success state --}}
-                        <div class="rounded-2xl border dark:border-emerald-500/20 border-emerald-200 dark:bg-emerald-500/5 bg-emerald-50 p-4">
+                        <div class="rounded-xl border border-emerald-300 dark:border-slate-600 bg-emerald-50 dark:bg-slate-800 py-3.5 px-4">
                             <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full dark:bg-emerald-500/15 bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-4 h-4 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
                                     </svg>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-semibold font-body dark:text-emerald-300 text-emerald-700">
-                                        AI filled {{ count($aiFilledFields) }} {{ count($aiFilledFields) === 1 ? 'field' : 'fields' }}
-                                    </p>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-sm font-semibold font-body text-emerald-800 dark:text-emerald-300">
+                                            AI filled {{ count($aiFilledFields) }} {{ count($aiFilledFields) === 1 ? 'field' : 'fields' }}
+                                        </p>
+                                        <button wire:click="clearOcrScan" type="button"
+                                                class="text-xs font-semibold font-body text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 underline underline-offset-2 transition-colors flex-shrink-0">
+                                            Scan another
+                                        </button>
+                                    </div>
                                     @if($ocrOriginalAmount && $ocrConvertedAt)
-                                        <p class="text-xs font-mono dark:text-emerald-400/70 text-emerald-600 mt-0.5">
+                                        <p class="text-xs font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
                                             {{ $ocrOriginalAmount }} → {{ $business->currency }} {{ number_format((float)$entryAmount, 2) }}
-                                            <span class="dark:text-emerald-500/40 text-emerald-400">· {{ $ocrConvertedAt }}</span>
+                                            <span class="text-emerald-400 dark:text-slate-500">· {{ $ocrConvertedAt }}</span>
                                         </p>
                                     @else
-                                        <p class="text-xs font-body dark:text-emerald-400/50 text-emerald-500 mt-0.5">Review and edit anything before saving</p>
+                                        <p class="text-xs font-body text-emerald-600 dark:text-slate-400 mt-0.5">Review and edit anything before saving</p>
                                     @endif
                                 </div>
-                                <button wire:click="clearOcrScan" type="button"
-                                        class="text-xs font-semibold font-body dark:text-emerald-400/60 text-emerald-500 dark:hover:text-emerald-400 hover:text-emerald-600 underline underline-offset-2 transition-colors flex-shrink-0">
-                                    Scan another
-                                </button>
                             </div>
                         </div>
 
                     @else
                         {{-- Default state — main Scan Receipt button --}}
                         <button wire:click="prepareScan" type="button"
-                                class="group w-full rounded-2xl border transition-all duration-200
-                                       dark:border-slate-700/80 border-gray-200
-                                       dark:hover:border-violet-500/30 hover:border-violet-300
-                                       dark:bg-slate-800/40 bg-white
-                                       dark:hover:bg-violet-500/5 hover:bg-violet-50/60
-                                       py-3.5 px-4">
-                            <div class="flex items-center gap-3.5">
+                                class="group w-full rounded-xl border transition-all duration-200
+                                       dark:border-slate-700 border-gray-200
+                                       dark:hover:border-violet-500 hover:border-violet-300
+                                       dark:bg-slate-800 bg-white
+                                       dark:hover:bg-slate-700 hover:bg-violet-50
+                                       py-4 px-5">
+                            <div class="flex items-center gap-4">
                                 {{-- Icon --}}
                                 <div class="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center
                                             dark:bg-slate-700 bg-gray-100
@@ -2357,7 +3405,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/>
                                     </svg>
                                 @else
-                                    <span class="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold font-body tracking-wide bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                                    <span class="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold font-body tracking-wide bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-500/20">
                                         PRO
                                     </span>
                                 @endif
@@ -2372,7 +3420,7 @@
 
                 {{-- Divider --}}
                 @if(empty($aiFilledFields) && !$scanError)
-                    <div class="flex items-center gap-3 mt-3 mb-1">
+                    <div class="flex items-center gap-3">
                         <div class="flex-1 h-px dark:bg-slate-800 bg-gray-100"></div>
                         <span class="text-[11px] dark:text-slate-700 text-gray-400 font-body">or fill in manually</span>
                         <div class="flex-1 h-px dark:bg-slate-800 bg-gray-100"></div>
@@ -2389,14 +3437,27 @@
                     Date <span class="text-red-400">*</span>
                     @if(in_array('date', $aiFilledFields))<span class="normal-case tracking-normal font-semibold px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 text-[10px]">✦ AI</span>@endif
                 </label>
-                <input type="date"
-                       wire:model="entryDate"
-                       class="w-full px-4 py-2.5 text-sm font-body
-                              dark:bg-slate-800 bg-white
-                              dark:border dark:border-slate-700 border border-gray-300
-                              dark:text-white text-gray-900 rounded-xl
-                              focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
-                              transition-all duration-150 dark:[color-scheme:dark]">
+                <div wire:ignore
+                     x-data="{
+                         fp: null,
+                         init() {
+                             this.fp = flatpickr(this.$refs.picker, {
+                                 dateFormat: 'Y-m-d',
+                                 defaultDate: $wire.entryDate || null,
+                                 disableMobile: true,
+                                 onChange: (dates, str) => { $wire.set('entryDate', str) }
+                             })
+                         }
+                     }"
+                     x-on:entry-date-updated.window="fp && fp.setDate($event.detail.date, false)">
+                    <input x-ref="picker" type="text" placeholder="Select date" readonly
+                           class="w-full px-4 py-2.5 text-sm font-body cursor-pointer
+                                  dark:bg-slate-800 bg-white
+                                  dark:border dark:border-slate-700 border border-gray-300
+                                  dark:text-slate-300 text-gray-700 dark:placeholder-slate-600 placeholder-gray-400 rounded-xl
+                                  focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
+                                  transition-all duration-150">
+                </div>
                 @error('entryDate')<p class="text-xs text-red-400 mt-1 font-body">{{ $message }}</p>@enderror
             </div>
 
@@ -2437,6 +3498,7 @@
                 </label>
                 <input type="text"
                        wire:model="entryDescription"
+                       wire:blur="suggestCategory"
                        placeholder="e.g. Client payment, Office rent…"
                        maxlength="255"
                        class="w-full px-4 py-2.5 text-sm font-body
@@ -2447,6 +3509,38 @@
                               focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
                               transition-all duration-150">
                 @error('entryDescription')<p class="text-xs text-red-400 mt-1 font-body">{{ $message }}</p>@enderror
+
+                {{-- AI category suggestion chip --}}
+                @if($showCategoryChip && $aiCategorySuggestion)
+                    <div class="mt-2 flex items-center gap-2"
+                         x-data
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0">
+                        <span class="text-[11px] dark:text-slate-500 text-gray-400 font-body flex-shrink-0">AI suggests:</span>
+                        <button type="button"
+                                wire:click="applyAiCategory"
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold font-body
+                                       dark:bg-violet-500/10 bg-violet-50
+                                       dark:text-violet-400 text-violet-700
+                                       dark:border dark:border-violet-500/20 border border-violet-200
+                                       dark:hover:bg-violet-500/20 hover:bg-violet-100
+                                       transition-all duration-150">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z"/>
+                            </svg>
+                            {{ $aiCategorySuggestion }}
+                        </button>
+                        <span class="text-[10px] dark:text-slate-600 text-gray-400 font-body">— tap to apply</span>
+                        <button type="button"
+                                wire:click="dismissCategoryChip"
+                                class="p-0.5 rounded dark:text-slate-600 text-gray-400 dark:hover:text-slate-400 hover:text-gray-600 transition-colors ml-auto">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                @endif
             </div>
 
             {{-- Category --}}
@@ -2506,7 +3600,7 @@
                                     rounded-xl shadow-2xl shadow-black/30 overflow-hidden"
                              style="display:none;">
                             <div class="p-2 dark:border-b dark:border-slate-700 border-b border-gray-100">
-                                <input x-model="search" type="text" placeholder="Search categories…"
+                                <input x-model="search" @click.stop type="text" placeholder="Search categories…"
                                        class="w-full px-3 py-1.5 text-sm font-body
                                               dark:bg-slate-800 bg-gray-50
                                               dark:border dark:border-slate-600 border border-gray-200
@@ -2521,7 +3615,7 @@
                                     @foreach($categories as $cat)
                                         <button type="button"
                                                 x-show="search === '' || '{{ strtolower(addslashes($cat->name)) }}'.includes(search.toLowerCase())"
-                                                @click.stop="$wire.set('entryCategory', '{{ addslashes($cat->name) }}'); open = false; search = ''"
+                                                @click.stop="$wire.set('entryCategory', '{{ addslashes($cat->name) }}'); $wire.set('showCategoryChip', false); $wire.set('aiCategorySuggestion', ''); open = false; search = ''"
                                                 class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
                                                        dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors text-left
                                                        {{ $entryCategory === $cat->name ? 'dark:text-white text-gray-900 font-semibold' : 'dark:text-slate-300 text-gray-700' }}">
@@ -2614,7 +3708,7 @@
                                     rounded-xl shadow-2xl shadow-black/30 overflow-hidden"
                              style="display:none;">
                             <div class="p-2 dark:border-b dark:border-slate-700 border-b border-gray-100">
-                                <input x-model="search" type="text" placeholder="Search modes…"
+                                <input x-model="search" @click.stop type="text" placeholder="Search modes…"
                                        class="w-full px-3 py-1.5 text-sm font-body
                                               dark:bg-slate-800 bg-gray-50
                                               dark:border dark:border-slate-600 border border-gray-200
@@ -2784,8 +3878,13 @@
                 <div class="border-t dark:border-slate-700 border-gray-200 pt-4 mt-2">
                     <div class="flex items-center justify-between">
                         <div>
-                            <label class="text-sm font-body font-medium dark:text-slate-300 text-gray-700">Repeat this entry</label>
-                            <p class="text-[11px] dark:text-slate-600 text-gray-400 font-body mt-0.5">Auto-create on a schedule</p>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm font-body font-medium dark:text-slate-300 text-gray-700">Repeat this entry</label>
+                                @if(!$business->isPro())
+                                    <span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 leading-none">Pro</span>
+                                @endif
+                            </div>
+                            <p class="text-[11px] dark:text-slate-600 text-gray-400 font-body mt-0.5">Repeats within this book only</p>
                         </div>
                         <button type="button"
                                 wire:click="{{ $entryRecurring ? "\$toggle('entryRecurring')" : "enableRecurring" }}"
@@ -2804,7 +3903,7 @@
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-2">Frequency</label>
                                 <div class="flex flex-wrap gap-2">
-                                    @foreach(['daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', 'yearly' => 'Yearly'] as $freqVal => $freqLabel)
+                                    @foreach(['daily' => 'Daily', 'weekly' => 'Weekly', 'biweekly' => 'Bi-weekly'] as $freqVal => $freqLabel)
                                         <button type="button"
                                                 wire:click="$set('entryFrequency', '{{ $freqVal }}')"
                                                 class="px-3.5 py-2 rounded-xl text-sm font-body font-medium transition-all duration-150
@@ -2817,24 +3916,45 @@
                                 </div>
                             </div>
 
-                            {{-- End date (optional) --}}
-                            <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">
-                                    End Date
-                                    <span class="normal-case tracking-normal font-normal dark:text-slate-600 text-gray-400 ml-1">· optional</span>
+                            {{-- End date --}}
+                            <div x-data="{ forever: $wire.entangle('entryRunForever').live }"
+                                 x-on:entry-date-updated.window="
+                                     if ($refs.endPicker && $refs.endPicker._flatpickr) {
+                                         // keep end picker in sync when slide-over opens
+                                     }
+                                 ">
+                                <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">End Date</label>
+                                <div x-show="!forever" wire:ignore
+                                     x-data="{
+                                         fp: null,
+                                         init() {
+                                             this.fp = flatpickr(this.$refs.endPicker, {
+                                                 dateFormat: 'Y-m-d',
+                                                 defaultDate: $wire.entryEndsAt || null,
+                                                 disableMobile: true,
+                                                 onChange: (dates, str) => { $wire.set('entryEndsAt', str) }
+                                             })
+                                         }
+                                     }">
+                                    <input x-ref="endPicker" type="text" placeholder="Select end date" readonly
+                                           class="w-full max-w-[200px] px-4 py-2.5 text-sm font-body cursor-pointer
+                                                  dark:bg-slate-800 bg-white
+                                                  dark:border dark:border-slate-700 border border-gray-300
+                                                  dark:text-slate-300 text-gray-700 dark:placeholder-slate-600 placeholder-gray-400 rounded-xl
+                                                  focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
+                                                  transition-all duration-150">
+                                </div>
+                                {{-- Run forever checkbox --}}
+                                <label class="flex items-center gap-2 mt-2 cursor-pointer select-none group">
+                                    <input type="checkbox"
+                                           wire:model.live="entryRunForever"
+                                           class="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary/30 dark:bg-slate-800 cursor-pointer">
+                                    <span class="text-xs font-body dark:text-slate-400 text-gray-500 group-hover:dark:text-slate-300 group-hover:text-gray-700 transition-colors">Run until I stop it</span>
                                 </label>
-                                <input type="date"
-                                       wire:model="entryEndsAt"
-                                       class="w-full max-w-[200px] px-4 py-2.5 text-sm font-body
-                                              dark:bg-slate-800 bg-white
-                                              dark:border dark:border-slate-700 border border-gray-300
-                                              dark:text-white text-gray-900 rounded-xl
-                                              focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
-                                              transition-all duration-150 dark:[color-scheme:dark]">
-                                <p class="mt-1 text-[10px] dark:text-slate-600 text-gray-400 font-body">Leave empty to repeat forever.</p>
                             </div>
                         </div>
                     @endif
+
                 </div>
             @endif
 

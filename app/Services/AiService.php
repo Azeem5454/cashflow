@@ -183,6 +183,244 @@ PROMPT;
     }
 
     /**
+     * Suggest a category for an entry based on its description.
+     *
+     * @param  string  $description  Entry description
+     * @param  string  $type         'in' | 'out'
+     * @param  array   $categories   Existing category names to prefer
+     * @return array|null            ['category' => string, 'confidence' => float] or null
+     */
+    public function suggestCategory(string $description, string $type = 'out', array $categories = []): ?array
+    {
+        if (empty($this->apiKey)) {
+            return null;
+        }
+
+        $typeLabel = $type === 'in' ? 'income/money received' : 'expense/money spent';
+        $categoryList = !empty($categories)
+            ? 'Prefer one of these existing categories (exact spelling): ' . implode(', ', $categories) . '. If none fit, suggest a short, common business category.'
+            : 'Suggest a short, common business category name (2–3 words max).';
+
+        $prompt = <<<PROMPT
+Categorize this business transaction.
+
+Description: "{$description}"
+Transaction type: {$typeLabel}
+{$categoryList}
+
+Return ONLY a valid JSON object:
+{"category": "category name", "confidence": 0.0 to 1.0}
+
+No explanation, no markdown fences.
+PROMPT;
+
+        try {
+            $response = Http::withHeaders([
+                'x-api-key'         => $this->apiKey,
+                'anthropic-version' => '2023-06-01',
+                'content-type'      => 'application/json',
+            ])->timeout(10)->post('https://api.anthropic.com/v1/messages', [
+                'model'      => $this->model,
+                'max_tokens' => 60,
+                'messages'   => [[
+                    'role'    => 'user',
+                    'content' => $prompt,
+                ]],
+            ]);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $content      = $response->json('content.0.text', '');
+            $inputTokens  = $response->json('usage.input_tokens', 0);
+            $outputTokens = $response->json('usage.output_tokens', 0);
+            $cost = ($inputTokens * $this->inputCostPerToken) + ($outputTokens * $this->outputCostPerToken);
+
+            AiUsageLog::create([
+                'user_id'    => auth()->id(),
+                'type'       => 'categorize',
+                'tokens_in'  => $inputTokens,
+                'tokens_out' => $outputTokens,
+                'cost_usd'   => $cost,
+            ]);
+
+            if (preg_match('/\{.*?\}/s', $content, $matches)) {
+                $data = json_decode($matches[0], true);
+                if (is_array($data) && !empty($data['category'])) {
+                    return [
+                        'category'   => mb_substr(trim($data['category']), 0, 100),
+                        'confidence' => isset($data['confidence']) ? (float) $data['confidence'] : 0.8,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('AI categorization failed', ['error' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Generate AI cash flow insights for a book.
+     *
+     * @param  array       $current   Aggregated data for the current book
+     * @param  array|null  $previous  Aggregated data for the previous book (optional)
+     * @param  string      $currency  ISO 4217 currency code
+     * @param  int         $recurringCount  Active recurring entries count
+     * @return array|null  { sentiment, sentiment_reason, bullets[], tip } or null on failure
+     */
+    public function generateInsights(
+        array $current,
+        ?array $previous = null,
+        string $currency = 'USD',
+        int $recurringCount = 0
+    ): ?array {
+        if (empty($this->apiKey)) {
+            return null;
+        }
+
+        $currentBlock  = $this->formatBookBlock('Current book', $current, $currency);
+        $previousBlock = $previous
+            ? $this->formatBookBlock('Previous book (for comparison)', $previous, $currency)
+            : 'No previous book data available.';
+
+        $prompt = <<<PROMPT
+You are a financial analyst for a small business. Analyze the cash flow data below and return concise insights.
+
+{$currentBlock}
+
+{$previousBlock}
+
+Active recurring entries: {$recurringCount}
+Currency: {$currency}
+
+Return ONLY a valid JSON object with exactly these fields:
+{
+  "sentiment": "healthy" | "watch" | "concern",
+  "sentiment_reason": "one short phrase, max 8 words",
+  "bullets": ["insight 1", "insight 2", "insight 3"],
+  "tip": "one concrete actionable suggestion, max 18 words"
+}
+
+Rules:
+- sentiment: healthy = positive net + stable or improving; watch = tight margins or slight decline; concern = negative net or sharp decline
+- If previous book data is available, bullet 1 MUST compare current vs previous with a specific % or absolute change
+- bullets: specific numbers only — no vague language like "significant" or "notable". Max 20 words each.
+- tip: one actionable next step the business owner can take today. Not generic advice.
+- Write amounts as plain numbers without currency symbols
+- No markdown, no explanation outside the JSON
+
+Return ONLY the JSON object.
+PROMPT;
+
+        try {
+            $response = Http::withHeaders([
+                'x-api-key'         => $this->apiKey,
+                'anthropic-version' => '2023-06-01',
+                'content-type'      => 'application/json',
+            ])->timeout(25)->post('https://api.anthropic.com/v1/messages', [
+                'model'      => $this->model,
+                'max_tokens' => 380,
+                'messages'   => [[
+                    'role'    => 'user',
+                    'content' => $prompt,
+                ]],
+            ]);
+
+            if (! $response->successful()) {
+                Log::warning('AI insights API error', [
+                    'status'  => $response->status(),
+                    'message' => $response->json('error.message', 'Unknown'),
+                ]);
+                return null;
+            }
+
+            $content      = $response->json('content.0.text', '');
+            $inputTokens  = $response->json('usage.input_tokens', 0);
+            $outputTokens = $response->json('usage.output_tokens', 0);
+            $cost = ($inputTokens * $this->inputCostPerToken) + ($outputTokens * $this->outputCostPerToken);
+
+            AiUsageLog::create([
+                'user_id'    => auth()->id(),
+                'type'       => 'insights',
+                'tokens_in'  => $inputTokens,
+                'tokens_out' => $outputTokens,
+                'cost_usd'   => $cost,
+            ]);
+
+            if (preg_match('/\{.*?\}/s', $content, $matches)) {
+                $data = json_decode($matches[0], true);
+                if (is_array($data)) {
+                    return $this->sanitiseInsights($data);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('AI insights generation failed', ['error' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Format a book's aggregated data as a readable prompt block.
+     */
+    private function formatBookBlock(string $label, array $data, string $currency): string
+    {
+        $lines = ["{$label} — {$data['name']}:"];
+        $lines[] = "  Period: {$data['period']}";
+        $lines[] = "  Total Cash In: {$data['totalIn']} {$currency}";
+        $lines[] = "  Total Cash Out: {$data['totalOut']} {$currency}";
+        $lines[] = "  Net Balance: {$data['balance']} {$currency}";
+        $lines[] = "  Entry count: {$data['entryCount']}";
+
+        if (! empty($data['topCategoriesOut'])) {
+            $lines[] = '  Top expense categories: ' . implode(', ', $data['topCategoriesOut']);
+        }
+        if (! empty($data['topCategoriesIn'])) {
+            $lines[] = '  Top income categories: ' . implode(', ', $data['topCategoriesIn']);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Sanitise and validate the insights JSON from the API.
+     */
+    private function sanitiseInsights(array $data): array
+    {
+        $out = [];
+
+        // Sentiment — strict whitelist
+        $validSentiments = ['healthy', 'watch', 'concern'];
+        $out['sentiment'] = in_array($data['sentiment'] ?? '', $validSentiments)
+            ? $data['sentiment']
+            : 'watch';
+
+        // Sentiment reason
+        if (! empty($data['sentiment_reason']) && is_string($data['sentiment_reason'])) {
+            $out['sentiment_reason'] = mb_substr(trim($data['sentiment_reason']), 0, 100);
+        }
+
+        // Bullets — exactly 3, plain strings only
+        if (isset($data['bullets']) && is_array($data['bullets'])) {
+            $out['bullets'] = array_values(
+                array_map(
+                    fn ($b) => mb_substr(trim((string) $b), 0, 220),
+                    array_filter(array_slice($data['bullets'], 0, 3), fn ($b) => is_string($b) || is_numeric($b))
+                )
+            );
+        }
+
+        // Tip
+        if (! empty($data['tip']) && is_string($data['tip'])) {
+            $out['tip'] = mb_substr(trim($data['tip']), 0, 220);
+        }
+
+        return $out;
+    }
+
+    /**
      * Convert an amount from one currency to another using open.er-api.com (free, 1500 req/month).
      * Returns ['converted_amount' => float, 'rate' => float] or null on failure.
      */

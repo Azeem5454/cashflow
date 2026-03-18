@@ -1,7 +1,7 @@
 <div class="min-h-full">
 
     {{-- ===== UPGRADE MODAL ===== --}}
-    <x-upgrade-modal :show="$showUpgradeModal" feature="business" :dismiss-href="route('dashboard')" />
+    <x-upgrade-modal :show="$upgradeModalFeature !== ''" :feature="$upgradeModalFeature" :dismiss-href="route('dashboard')" />
 
     {{-- ===== PAGE HEADER ===== --}}
     <div class="px-6 lg:px-8 py-7
