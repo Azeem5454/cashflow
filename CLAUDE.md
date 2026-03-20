@@ -667,7 +667,53 @@ Core screens mirror the web app:
 
 ---
 
-## Session Notes (last updated 2026-03-23)
+## Session Notes (last updated 2026-03-25)
+
+### Completed this session (2026-03-25)
+
+- **Landing page v3 (`landing-v3.blade.php`)** — full redesign and cleanup:
+  - Removed scrolling testimonial strip (deleted `$row1`/`$row2` PHP arrays + `.ml` scroll div)
+  - Hero mockup moved up (`md:self-end` → `md:-mt-16`)
+  - Dot grids removed from all sections except Pain (kept 1, subtler: `rgba(59,130,246,0.038)`, `28px 28px`); How it Works uses diagonal gradient `linear-gradient(140deg,var(--dark2) 0%,#0c1a2e 55%,var(--dark2) 100%)`; Outcomes uses vertical gradient `linear-gradient(to bottom,var(--black),#081525 50%,var(--black))`
+  - Alpine CDN added in `<head>` (`https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js`) — landing has no Livewire so CDN is required
+  - Smooth scroll: `html { scroll-behavior: smooth; scroll-padding-top: 90px; }` — all nav links use `href="#section-id"` anchors
+
+- **Floating island navbar** — permanent island state (not only on scroll):
+  - Wrapper div pattern: outer `div#nav-wrapper` is `sticky top-0 z-50` with `padding: 12px 5% 0` (creates visible top gap when stuck); inner `<nav id="main-nav">` has no sticky
+  - Nav CSS: `border-radius:20px; border:1px solid rgba(255,255,255,0.13); background:rgba(7,11,22,0.92); backdrop-filter:blur(24px); box-shadow: 0 4px 6px ...`
+  - Mobile: `padding: 8px 3% 0`, `border-radius: 16px`
+  - All scroll JS (`.classList.add('scrolled')`) removed — island is always visible
+  - Key pattern: `sticky top-3` with `margin-top` breaks sticking; must use wrapper with `sticky top-0` + `padding-top` on wrapper
+
+- **Deleted old landing files** — `resources/views/landing.blade.php` and `resources/views/landing-v2.blade.php` deleted; `/home` route removed from `routes/web.php`; `landing-v3.blade.php` is now the sole landing page at `/`
+
+- **Security audit — 20 issues found and addressed**:
+  - `routes/web.php`: `session()->regenerate()` added after stop-impersonating to prevent session fixation
+  - `app/Livewire/Admin/UserDetail.php`: admin re-verification (`abort_unless(auth()->user()->is_admin)`) + guard prevents impersonating another admin
+  - `app/Livewire/Business/Create.php`: currency validation tightened to `size:3` + `regex:/^[A-Z]{3}$/`
+  - `app/Providers/AppServiceProvider.php`: HTTPS enforcement changed from `isProduction()` to `!isLocal()` (covers staging too)
+  - `app/Livewire/Settings/Billing.php`: verbose Stripe exception message replaced with generic "Payment processing is temporarily unavailable"
+  - `app/Livewire/Book/Show.php`: `$this->guardEditor()` added to `updatedOcrFile()` to block viewer role from OCR
+  - `app/Http/Controllers/ExportController.php`: rate limiting added to `pdf()` and `csv()` (10 exports/minute per user via `RateLimiter`)
+  - `{!! $comment->renderedBody() !!}` confirmed safe — `renderedBody()` calls `e($this->body)` to escape raw input first, then only injects `<span>` with `e($m[1])` on matched mention names
+  - `{!! $d !!}` in landing-v3 confirmed safe — hardcoded PHP array strings, not user input
+
+- **Admin panel mobile fixes**:
+  - All 9 admin Blade pages: `p-8` → `p-4 sm:p-8` for comfortable mobile padding
+  - `admin/businesses.blade.php`: added `overflow-x-auto` wrapper + `min-w-[640px]` on table
+  - `admin/dashboard.blade.php`: Recent Signups table wrapped in `overflow-x-auto` + `min-w-[500px]`
+  - `layouts/app.blade.php` impersonation banner: `min-w-0` + `truncate` on name span, `flex-shrink-0` on form, button text shortened to "Stop" to prevent overflow on narrow screens
+
+### Completed this session (2026-03-24)
+
+- **Unified theme persistence** — landing page, guest layout (login/register), app layout, and admin layout all read/write the same `cashflow_theme` localStorage key and default to `light`; landing page now reads saved preference before paint via blocking `<script>` and applies `data-theme="dark"` when dark is saved; admin layout changed from `?? 'dark'` to `?? 'light'` in all 3 locations; result: selecting dark on dashboard persists to landing/login and vice versa
+- **Billing page updated to $5/month** — Pro plan price changed from `$3` to `$5`; feature list expanded from 6 to 10 items including AI features (receipt OCR 200/month, auto-categorization, cash flow insights); added "Billed monthly · Cancel anytime" subtitle
+- **Dashboard onboarding empty state** — new 3-section empty state for users with no businesses: welcome banner + CTA, "How it works" 3-step guide, use-case tiles (My Business / Freelance+Personal / Team); staggered reveal animation; dark mode fixed (`dark:bg-slate-800` not `dark:bg-slate-800/50`)
+- **Currency dropdown on Create Business** — replaced native `<select>` with custom Alpine.js dropdown; 60+ currencies across South Asia, Middle East, Europe, East Asia, Africa, Latin America; search bar filters by code or name; removed `overflow-hidden` from parent card (clipping fix), inline `style="max-height: 220px"` on options list; `$wire.entangle('currency').live` binding
+- **Dashboard "+Add Book" button fixed** — links to `route('businesses.show', $business) . '?createBook=1'`; `business/show.blade.php` adds Alpine `x-init` on root div to call `$wire.call('openCreateBook')` when param present
+- **Admin panel light mode** — all text-white hardcodes fixed across 8 admin blade files to `dark:text-white text-gray-900`; FREE badges, section headings, badges, user links all fixed; admin layout default changed from `?? 'dark'` to `?? 'light'`
+- **Admin announcement date picker** — replaced `<input type="datetime-local">` with Flatpickr date-only picker (`disableMobile: true`, `minDate: today`)
+- **All Books page redesign** — new design matching dashboard aesthetic (see below)
 
 ### Completed this session (2026-03-23)
 

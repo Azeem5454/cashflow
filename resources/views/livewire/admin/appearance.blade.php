@@ -1,4 +1,4 @@
-<div class="p-8 dark:text-white text-gray-900" x-data="{ tab: @entangle('activeTab').live }">
+<div class="p-4 sm:p-8 dark:text-white text-gray-900" x-data="{ tab: @entangle('activeTab').live }">
 
     {{-- Breadcrumb --}}
     <div class="flex items-center gap-2 text-xs text-slate-600 font-body mb-6">
@@ -7,7 +7,7 @@
         <span class="text-slate-400">Appearance</span>
     </div>
 
-    <h1 class="font-display font-extrabold text-2xl text-white tracking-tight mb-2">Appearance & Branding</h1>
+    <h1 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 tracking-tight mb-2">Appearance & Branding</h1>
     <p class="font-body text-sm text-slate-500 mb-8">Manage your app identity, logos, colours, typography, and landing page copy.</p>
 
     {{-- ══════ Tab Navigation ══════ --}}
@@ -38,7 +38,7 @@
         <div x-show="tab === 'general'" x-cloak>
             <form wire:submit="saveGeneral">
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
-                    <h2 class="font-heading font-bold text-sm text-white mb-1">App Identity</h2>
+                    <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">App Identity</h2>
                     <p class="text-xs text-slate-500 font-body mb-4">These values appear in the browser title, navbar, emails, and PDF exports.</p>
 
                     {{-- App Name --}}
@@ -113,7 +113,7 @@
 
                 {{-- Dark Logo --}}
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6">
-                    <h2 class="font-heading font-bold text-sm text-white mb-1">Logo — Dark Mode</h2>
+                    <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Logo — Dark Mode</h2>
                     <p class="text-xs text-slate-500 font-body mb-4">Used on dark navbar and dark landing page. PNG only, max 1 MB. Recommended: 1200×400 px.</p>
 
                     <div class="flex items-start gap-6">
@@ -140,7 +140,7 @@
                                 </button>
                                 @if(file_exists(public_path('brand/logo-dark.png')))
                                     <button wire:click="revertLogo('dark')" wire:confirm="Remove the custom dark logo?"
-                                            class="px-4 py-2 border border-slate-700 text-slate-400 hover:text-white text-xs font-medium font-body rounded-lg transition-all duration-150">
+                                            class="px-4 py-2 border dark:border-slate-700 border-gray-300 dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900 text-xs font-medium font-body rounded-lg transition-all duration-150">
                                         Revert to Default
                                     </button>
                                 @endif
@@ -151,7 +151,7 @@
 
                 {{-- Light Logo --}}
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6">
-                    <h2 class="font-heading font-bold text-sm text-white mb-1">Logo — Light Mode</h2>
+                    <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Logo — Light Mode</h2>
                     <p class="text-xs text-slate-500 font-body mb-4">Used on light navbar and light landing page. PNG only, max 1 MB. Recommended: 1200×400 px.</p>
 
                     <div class="flex items-start gap-6">
@@ -177,7 +177,7 @@
                                 </button>
                                 @if(file_exists(public_path('brand/logo-light.png')))
                                     <button wire:click="revertLogo('light')" wire:confirm="Remove the custom light logo?"
-                                            class="px-4 py-2 border border-slate-700 text-slate-400 hover:text-white text-xs font-medium font-body rounded-lg transition-all duration-150">
+                                            class="px-4 py-2 border dark:border-slate-700 border-gray-300 dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900 text-xs font-medium font-body rounded-lg transition-all duration-150">
                                         Revert to Default
                                     </button>
                                 @endif
@@ -188,7 +188,7 @@
 
                 {{-- Favicon --}}
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6">
-                    <h2 class="font-heading font-bold text-sm text-white mb-1">Favicon</h2>
+                    <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Favicon</h2>
                     <p class="text-xs text-slate-500 font-body mb-4">Browser tab icon. PNG only, max 1 MB. Recommended: 512x512.</p>
 
                     <div class="flex items-start gap-6">
@@ -289,7 +289,7 @@
         <div x-show="tab === 'typography'" x-cloak>
             <form wire:submit="saveTypography">
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
-                    <h2 class="font-heading font-bold text-sm text-white mb-1">Typography</h2>
+                    <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Typography</h2>
                     <p class="text-xs text-slate-500 font-body mb-4">Choose a font for each typographic role. Changes are written to <code class="text-slate-400">theme.css</code>.</p>
 
                     @foreach([
@@ -316,7 +316,7 @@
                     <div class="pt-5 border-t border-slate-800">
                         <p class="text-xs text-slate-500 font-body mb-3">Preview</p>
                         <div class="space-y-3 bg-navy rounded-xl p-5 border border-slate-700">
-                            <p class="text-lg font-extrabold text-white" :style="'font-family: ' + $wire.fontDisplay">The quick brown fox jumps over the lazy dog</p>
+                            <p class="text-lg font-extrabold dark:text-white text-gray-900" :style="'font-family: ' + $wire.fontDisplay">The quick brown fox jumps over the lazy dog</p>
                             <p class="text-base font-bold text-slate-300" :style="'font-family: ' + $wire.fontHeading">Section heading preview</p>
                             <p class="text-sm text-slate-400" :style="'font-family: ' + $wire.fontBody">Body text and UI labels look like this.</p>
                             <p class="text-sm text-green-400" :style="'font-family: ' + $wire.fontMono">$12,450.00 — PKR 3,450,000</p>
@@ -346,7 +346,7 @@
         <div x-show="tab === 'copy'" x-cloak>
             <form wire:submit="saveCopy">
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
-                    <h2 class="font-heading font-bold text-sm text-white mb-1">Landing Page Copy</h2>
+                    <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Landing Page Copy</h2>
                     <p class="text-xs text-slate-500 font-body mb-4">Override the default landing page text. Leave blank to use the built-in default.</p>
 
                     {{-- Hero Headline --}}
@@ -413,7 +413,7 @@
         <div x-show="tab === 'email'" x-cloak>
             <form wire:submit="saveEmail">
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
-                    <h2 class="font-heading font-bold text-sm text-white mb-1">Email Sender</h2>
+                    <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Email Sender</h2>
                     <p class="text-xs text-slate-500 font-body mb-4">Controls the "From" name and address on all outgoing emails. Does not expose SMTP credentials.</p>
 
                     {{-- From Name --}}

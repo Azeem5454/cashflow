@@ -1,4 +1,4 @@
-<div class="p-8 dark:text-white text-gray-900">
+<div class="p-4 sm:p-8 dark:text-white text-gray-900">
 
     {{-- Breadcrumb --}}
     <div class="flex items-center gap-2 text-xs text-slate-600 font-body mb-6">
@@ -7,7 +7,7 @@
         <span class="text-slate-400">Dashboard</span>
     </div>
 
-    <h1 class="font-display font-extrabold text-2xl text-white tracking-tight mb-6">Overview</h1>
+    <h1 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 tracking-tight mb-6">Overview</h1>
 
     {{-- ===== KPI STRIP ===== --}}
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
@@ -34,7 +34,7 @@
 
         {{-- ===== SIGNUPS CHART ===== --}}
         <div class="lg:col-span-2 dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-5">
-            <h2 class="font-heading font-bold text-sm text-white mb-4">New Signups — Last 30 Days</h2>
+            <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-4">New Signups — Last 30 Days</h2>
             @php $maxCount = max(1, collect($chartDays)->max('count')); @endphp
             <div class="flex items-end gap-0.5 h-24">
                 @foreach($chartDays as $i => $day)
@@ -55,7 +55,7 @@
 
         {{-- ===== TOP BUSINESSES ===== --}}
         <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-5">
-            <h2 class="font-heading font-bold text-sm text-white mb-4">Top Businesses by Entries</h2>
+            <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-4">Top Businesses by Entries</h2>
             <div class="space-y-2.5">
                 @forelse($topBusinesses as $biz)
                     <div class="flex items-center justify-between">
@@ -75,10 +75,11 @@
     {{-- ===== RECENT SIGNUPS ===== --}}
     <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
-            <h2 class="font-heading font-bold text-sm text-white">Recent Signups</h2>
+            <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900">Recent Signups</h2>
             <a href="{{ route('admin.users') }}" wire:navigate class="text-xs text-primary hover:text-accent font-body transition-colors">View all →</a>
         </div>
-        <table class="w-full text-sm">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[500px]">
             <thead>
                 <tr class="border-b border-gray-200 dark:border-slate-800">
                     <th class="text-left px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 font-body">Name</th>
@@ -90,7 +91,7 @@
             <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
                 @foreach($recentUsers as $user)
                     <tr class="dark:hover:bg-slate-800/30 hover:bg-gray-50 transition-colors">
-                        <td class="px-5 py-3 font-body text-white">
+                        <td class="px-5 py-3 font-body dark:text-white text-gray-900">
                             <a href="{{ route('admin.users.show', $user) }}" wire:navigate class="hover:text-blue-light transition-colors">
                                 {{ $user->name }}
                             </a>
@@ -98,7 +99,7 @@
                         <td class="px-5 py-3 text-slate-400 font-body">{{ $user->email }}</td>
                         <td class="px-5 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide
-                                         {{ $user->plan === 'pro' ? 'bg-amber-400/10 text-amber-400' : 'bg-slate-800 text-slate-500' }}">
+                                         {{ $user->plan === 'pro' ? 'bg-amber-400/10 text-amber-400' : 'dark:bg-slate-800 dark:text-slate-400 bg-gray-100 text-gray-500' }}">
                                 {{ $user->plan }}
                             </span>
                         </td>
@@ -107,6 +108,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 
 </div>

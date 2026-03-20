@@ -18,6 +18,8 @@ class UserDetail extends Component
 
     public function impersonate(): void
     {
+        abort_unless(auth()->check() && auth()->user()->is_admin, 403);
+
         if ($this->user->is_admin) {
             return;
         }

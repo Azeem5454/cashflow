@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Models\Business;
 use App\Models\Entry;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -44,6 +45,7 @@ class ExportController extends Controller
     public function pdf(Business $business, Book $book): \Illuminate\Http\Response
     {
         $this->authorise($business, $book);
+        abort_unless(RateLimiter::attempt('export:' . auth()->id(), 10, fn () => true, 60), 429);
 
         $entries  = $this->entriesWithRunningBalance($book);
         $totalIn  = $book->totalIn();
@@ -62,6 +64,7 @@ class ExportController extends Controller
     public function csv(Business $business, Book $book): StreamedResponse
     {
         $this->authorise($business, $book);
+        abort_unless(RateLimiter::attempt('export:' . auth()->id(), 10, fn () => true, 60), 429);
 
         $entries  = $this->entriesWithRunningBalance($book);
         $filename = str()->slug($business->name) . '-' . str()->slug($book->name) . '.csv';

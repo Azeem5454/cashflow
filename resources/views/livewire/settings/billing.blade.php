@@ -99,7 +99,7 @@
                                 @if($subscription && $subscription->ends_at)
                                     Cancels {{ $subscription->ends_at->format('M j, Y') }}
                                 @elseif($subscription)
-                                    Active subscription — {{ config('cashier.currency', 'USD') === 'usd' ? '$3' : config('cashier.currency', 'USD') . ' 3' }}/month
+                                    Active subscription — $5/month
                                 @else
                                     Pro features unlocked
                                 @endif
@@ -212,17 +212,22 @@
                             {{ $user->isPro() ? 'Current Plan' : 'Most Popular' }}
                         </span>
                     </div>
-                    <div class="flex items-end gap-1 mt-3 mb-6">
-                        <span class="font-mono text-4xl font-bold dark:text-white text-gray-900">$3</span>
+                    <div class="flex items-end gap-1 mt-3 mb-1">
+                        <span class="font-mono text-4xl font-bold dark:text-white text-gray-900">$5</span>
                         <span class="text-sm dark:text-slate-500 text-gray-400 mb-1">/month</span>
                     </div>
+                    <p class="text-xs dark:text-slate-500 text-gray-400 mb-5">Billed monthly · Cancel anytime</p>
                     <ul class="space-y-2.5">
                         @foreach([
                             ['✓', 'Unlimited businesses'],
-                            ['✓', 'Unlimited books'],
-                            ['✓', 'Unlimited entries'],
+                            ['✓', 'Unlimited books & entries'],
                             ['✓', 'Unlimited team members'],
                             ['✓', 'PDF & CSV export'],
+                            ['✓', 'Book reports & charts'],
+                            ['✓', 'Recurring entries'],
+                            ['✓', 'AI receipt OCR (200/month)'],
+                            ['✓', 'AI auto-categorization'],
+                            ['✓', 'AI cash flow insights'],
                             ['✓', 'Priority support'],
                         ] as [$icon, $label])
                             <li class="flex items-center gap-2.5 text-sm">

@@ -1,4 +1,10 @@
 <div class="min-h-full"
+     x-init="
+         const p = new URLSearchParams(window.location.search);
+         if (p.get('addEntry') === 'in' || p.get('addEntry') === 'out') {
+             $nextTick(() => $wire.call('openAddEntry', p.get('addEntry')));
+         }
+     "
      x-data="{
          selectedIds: [],
          filteredIds: [],
@@ -44,10 +50,10 @@
      x-on:bulk-operation-complete.window="clearSelection()">
 
     {{-- ===== STICKY HEADER ===== --}}
-    <div class="sticky top-0 z-30 px-6 lg:px-8 py-4
-                dark:bg-navy/95 bg-white/95 backdrop-blur-md
-                dark:border-b dark:border-slate-800 border-b border-gray-200/80">
-        <div class="max-w-5xl mx-auto flex items-center gap-4">
+    <div class="sticky top-0 z-30 px-4 sm:px-6 lg:px-8 py-4
+                dark:bg-navy/80 bg-white/90 backdrop-blur-xl
+                dark:border-b dark:border-white/5 border-b border-gray-200/70">
+        <div class="max-w-5xl mx-auto flex items-center gap-3 sm:gap-4">
 
             <a href="{{ route('businesses.show', $business) }}" wire:navigate
                class="p-2 rounded-xl dark:text-slate-500 text-gray-400
@@ -60,27 +66,28 @@
             </a>
 
             <div class="flex-1 min-w-0">
-                <h1 class="font-display font-extrabold text-xl dark:text-white text-gray-900 tracking-tight leading-none truncate">
-                    {{ $book->name }}
-                </h1>
-                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span class="text-xs dark:text-slate-500 text-gray-400 font-body">{{ $business->name }}</span>
-                    <span class="w-1 h-1 rounded-full dark:bg-slate-700 bg-gray-300 flex-shrink-0"></span>
-                    <span class="text-xs font-mono dark:text-slate-500 text-gray-400 uppercase tracking-wider">{{ $business->currency }}</span>
-                    @if($book->period_starts_at || $book->period_ends_at)
-                        <span class="w-1 h-1 rounded-full dark:bg-slate-700 bg-gray-300 flex-shrink-0"></span>
-                        <span class="text-xs dark:text-slate-500 text-gray-400 font-body">
-                            @if($book->period_starts_at && $book->period_ends_at)
-                                {{ $book->period_starts_at->format('d M') }} – {{ $book->period_ends_at->format('d M Y') }}
-                            @elseif($book->period_starts_at)
-                                from {{ $book->period_starts_at->format('d M Y') }}
-                            @else
-                                until {{ $book->period_ends_at->format('d M Y') }}
-                            @endif
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h1 class="font-display font-extrabold text-xl dark:text-white text-gray-900 tracking-tight leading-none truncate">
+                        {{ $book->name }}
+                    </h1>
+                    @php
+                        $bookStatus = null;
+                        if ($book->period_starts_at && $book->period_ends_at) {
+                            $bookStatus = now()->between($book->period_starts_at, $book->period_ends_at) ? 'active'
+                                        : ($book->period_ends_at->lt(now()) ? 'archived' : 'upcoming');
+                        }
+                    @endphp
+                    @if($bookStatus === 'active')
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0
+                                     bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>Active
                         </span>
+                    @elseif($bookStatus === 'upcoming')
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0
+                                     bg-blue-500/10 text-blue-600 dark:text-blue-400">Upcoming</span>
                     @endif
                     @if($userRole !== 'owner')
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider flex-shrink-0
                                      {{ $userRole === 'editor'
                                          ? 'dark:bg-blue-500/10 dark:text-blue-400 bg-blue-50 text-blue-600'
                                          : 'dark:bg-slate-800 dark:text-slate-500 bg-gray-100 text-gray-500' }}">
@@ -88,7 +95,37 @@
                         </span>
                     @endif
                 </div>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-xs dark:text-slate-500 text-gray-400 font-body">{{ $business->name }}</span>
+                    <span class="w-1 h-1 rounded-full dark:bg-slate-700 bg-gray-300 flex-shrink-0"></span>
+                    <span class="text-xs font-mono dark:text-slate-500 text-gray-400 uppercase tracking-wider">{{ $business->currency }}</span>
+                    @if($book->period_starts_at && $book->period_ends_at)
+                        @php
+                            $hPs = $book->period_starts_at; $hPe = $book->period_ends_at;
+                            $hPeriod = $hPs->format('M Y') === $hPe->format('M Y')
+                                ? $hPs->format('M Y')
+                                : $hPs->format('j M') . ' – ' . $hPe->format('j M Y');
+                        @endphp
+                        <span class="w-1 h-1 rounded-full dark:bg-slate-700 bg-gray-300 flex-shrink-0"></span>
+                        <span class="text-xs dark:text-slate-500 text-gray-400 font-body">{{ $hPeriod }}</span>
+                    @endif
+                </div>
             </div>
+
+            {{-- Add Entry (primary CTA in header) --}}
+            @if($userRole !== 'viewer')
+                <button wire:click="openAddEntry('in')"
+                        class="inline-flex items-center gap-1.5 px-3.5 py-2
+                               bg-primary hover:bg-accent text-white
+                               text-sm font-semibold font-body rounded-xl
+                               shadow-lg shadow-primary/25 hover:shadow-accent/30
+                               transition-all duration-200 flex-shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    <span class="hidden sm:inline">Add Entry</span>
+                </button>
+            @endif
 
             {{-- Export dropdown --}}
             <div x-data="{ exportOpen: false }" class="relative flex-shrink-0">
@@ -188,7 +225,7 @@
                             <svg class="w-4 h-4 dark:text-slate-500 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125"/>
                             </svg>
-                            Rename Book
+                            Edit Book
                         </button>
 
                         <button @click="$wire.openDuplicateBook(); open = false"
@@ -201,18 +238,16 @@
                             Duplicate Book
                         </button>
 
-                        @if($userRole === 'owner')
-                            <div class="my-1 dark:border-t dark:border-slate-700 border-t border-gray-100"></div>
-                            <button @click="$wire.openDeleteBook(); open = false"
-                                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
-                                           text-red-400
-                                           dark:hover:bg-red-500/10 hover:bg-red-50 transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
-                                </svg>
-                                Delete Book
-                            </button>
-                        @endif
+                        <div class="my-1 dark:border-t dark:border-slate-700 border-t border-gray-100"></div>
+                        <button @click="$wire.openDeleteBook(); open = false"
+                                class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
+                                       text-red-400
+                                       dark:hover:bg-red-500/10 hover:bg-red-50 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                            </svg>
+                            Delete Book
+                        </button>
                     </div>
                 </div>
             @endif
@@ -232,18 +267,45 @@
             fpEnd:     null,
             initFlatpickr(startEl, endEl) {
                 const self = this;
+                const inputClass = 'w-full px-3 py-2.5 text-sm font-body rounded-xl cursor-pointer dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border dark:text-slate-300 text-gray-700 dark:placeholder-slate-600 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150';
                 this.fpStart = flatpickr(startEl, {
                     dateFormat:    'Y-m-d',
+                    altInput:      true,
+                    altFormat:     'j M Y',
+                    altInputClass: inputClass,
                     defaultDate:   initStart || null,
                     disableMobile: true,
-                    onChange(dates, str) { self.preset = 'custom'; self.startDate = str; }
+                    onChange(dates, str) { if (!self._prog) { self.preset = 'custom'; } self.startDate = str; }
                 });
                 this.fpEnd = flatpickr(endEl, {
                     dateFormat:    'Y-m-d',
+                    altInput:      true,
+                    altFormat:     'j M Y',
+                    altInputClass: inputClass,
                     defaultDate:   initEnd || null,
                     disableMobile: true,
-                    onChange(dates, str) { self.preset = 'custom'; self.endDate = str; }
+                    onChange(dates, str) { if (!self._prog) { self.preset = 'custom'; } self.endDate = str; }
                 });
+                this.detectPreset();
+            },
+            detectPreset() {
+                if (!this.startDate || !this.endDate) return;
+                const now = new Date();
+                const q = Math.floor(now.getMonth() / 3);
+                const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                const candidates = {
+                    this_month:   [new Date(now.getFullYear(), now.getMonth(), 1),     new Date(now.getFullYear(), now.getMonth() + 1, 0)],
+                    last_month:   [new Date(now.getFullYear(), now.getMonth() - 1, 1), new Date(now.getFullYear(), now.getMonth(), 0)],
+                    this_quarter: [new Date(now.getFullYear(), q * 3, 1),              new Date(now.getFullYear(), q * 3 + 3, 0)],
+                    this_year:    [new Date(now.getFullYear(), 0, 1),                  new Date(now.getFullYear(), 11, 31)],
+                };
+                for (const [key, [s, e]] of Object.entries(candidates)) {
+                    if (this.startDate === fmt(s) && this.endDate === fmt(e)) {
+                        this.preset = key;
+                        return;
+                    }
+                }
+                this.preset = 'custom';
             },
             setPreset(p) {
                 this.preset = p;
@@ -267,8 +329,10 @@
                 const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
                 this.startDate = fmt(s);
                 this.endDate   = fmt(e);
+                this._prog = true;
                 if (this.fpStart) this.fpStart.setDate(this.startDate, true);
                 if (this.fpEnd)   this.fpEnd.setDate(this.endDate,   true);
+                this._prog = false;
             }
         };
     }
@@ -362,30 +426,30 @@
                         @error('editBookPeriodEndsAt') <p class="mt-1.5 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
                     </div>
 
-                    {{-- Opening Balance + Description --}}
-                    <div class="grid grid-cols-2 gap-3 items-start">
-                        <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">Opening Balance</label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-sm font-mono dark:text-slate-500 text-gray-400 pointer-events-none select-none">
-                                    {{ $business->currencySymbol() }}
-                                </span>
-                                <input wire:model="editBookOpeningBalance" type="number" min="0" step="0.01" placeholder="0.00"
-                                       class="w-full pl-9 pr-3 py-2.5 text-sm font-mono rounded-xl
-                                              dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
-                                              dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
-                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
-                            </div>
-                            @error('editBookOpeningBalance') <p class="mt-1 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+                    {{-- Opening Balance --}}
+                    <div class="max-w-xs">
+                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">Opening Balance</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-sm font-mono dark:text-slate-500 text-gray-400 pointer-events-none select-none">
+                                {{ $business->currencySymbol() }}
+                            </span>
+                            <input wire:model="editBookOpeningBalance" type="number" min="0" step="0.01" placeholder="0.00"
+                                   class="w-full pl-9 pr-3 py-2.5 text-sm font-mono rounded-xl
+                                          dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                          dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
+                                          focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">Description</label>
-                            <textarea wire:model="editBookDescription" rows="3" placeholder="Optional note"
-                                      class="w-full px-3 py-2.5 text-sm font-body rounded-xl resize-none
-                                             dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
-                                             dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
-                                             focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150"></textarea>
-                        </div>
+                        @error('editBookOpeningBalance') <p class="mt-1 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- Description --}}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">Description</label>
+                        <textarea wire:model="editBookDescription" rows="2" placeholder="Optional note"
+                                  class="w-full px-3 py-2.5 text-sm font-body rounded-xl resize-none
+                                         dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                         dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
+                                         focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150"></textarea>
                     </div>
                 </div>
 
@@ -898,53 +962,17 @@
             {{-- ===== FILTER BAR ===== --}}
             <div class="flex items-center gap-2 flex-wrap">
 
-                {{-- Types filter --}}
-                <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open" @click.outside="open = false" type="button"
-                            class="flex items-center gap-1.5 px-3 py-1.5
-                                   dark:bg-dark bg-white
-                                   dark:border dark:border-slate-700 border border-gray-200
-                                   dark:text-slate-300 text-gray-700
-                                   text-xs font-semibold font-body rounded-lg
-                                   hover:dark:border-slate-600 hover:border-gray-300
-                                   transition-all duration-150">
-                        <span>Types:
-                            <span class="{{ $filterType !== 'all' ? 'text-primary' : '' }}">
-                                {{ $filterType === 'all' ? 'All' : ($filterType === 'in' ? 'Cash In' : 'Cash Out') }}
-                            </span>
-                        </span>
-                        <svg class="w-3 h-3 dark:text-slate-500 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-                        </svg>
-                    </button>
-
-                    <div x-show="open"
-                         x-transition:enter="transition ease-out duration-100"
-                         x-transition:enter-start="opacity-0 -translate-y-1"
-                         x-transition:enter-end="opacity-100 translate-y-0"
-                         x-transition:leave="transition ease-in duration-75"
-                         x-transition:leave-start="opacity-100 translate-y-0"
-                         x-transition:leave-end="opacity-0 -translate-y-1"
-                         class="absolute top-full left-0 mt-1 w-44 z-20
-                                dark:bg-slate-800 bg-white
-                                dark:border dark:border-slate-700 border border-gray-200
-                                rounded-xl shadow-xl shadow-black/20 overflow-hidden"
-                         style="display:none;">
-                        @foreach(['all' => 'All', 'in' => 'Cash In', 'out' => 'Cash Out'] as $val => $label)
-                            <button @click="$wire.set('filterType', '{{ $val }}'); open = false"
-                                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
-                                           dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors
-                                           {{ $filterType === $val ? 'dark:text-white text-gray-900 font-semibold' : 'dark:text-slate-400 text-gray-600' }}">
-                                <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0
-                                            {{ $filterType === $val ? 'border-primary' : 'dark:border-slate-600 border-gray-300' }}">
-                                    @if($filterType === $val)
-                                        <div class="w-2 h-2 rounded-full bg-primary"></div>
-                                    @endif
-                                </div>
-                                {{ $label }}
-                            </button>
-                        @endforeach
-                    </div>
+                {{-- Type segmented control --}}
+                <div class="flex items-center dark:bg-slate-800/60 bg-gray-100 rounded-lg p-0.5">
+                    @foreach(['all' => 'All', 'in' => 'Cash In', 'out' => 'Cash Out'] as $val => $label)
+                        <button wire:click="$set('filterType', '{{ $val }}')" type="button"
+                                class="px-3 py-1.5 rounded-md text-xs font-semibold font-body transition-all duration-150
+                                       {{ $filterType === $val
+                                           ? 'dark:bg-dark bg-white dark:text-white text-gray-900 shadow-sm'
+                                           : 'dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-700' }}">
+                            {{ $label }}
+                        </button>
+                    @endforeach
                 </div>
 
                 {{-- Duration filter --}}
@@ -1300,54 +1328,40 @@
             @endphp
             <div class="dark:bg-dark bg-white rounded-2xl
                         dark:border dark:border-slate-700 border border-gray-200 overflow-hidden">
+                @php
+                    $totalFlow = (float)$totalIn + (float)$totalOut;
+                    $inPct = $totalFlow > 0 ? round(((float)$totalIn / $totalFlow) * 100) : 50;
+                @endphp
                 <div class="flex divide-x dark:divide-slate-700 divide-gray-200">
 
-                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
-                        <div class="hidden sm:flex w-9 h-9 rounded-full bg-emerald-500/10 items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash In</p>
-                            <p class="font-mono font-bold text-base sm:text-xl text-emerald-400 leading-tight mt-0.5 truncate">
-                                {{ $currSymbol }}{{ number_format((float)$totalIn, 0) }}
-                            </p>
-                        </div>
+                    {{-- Cash In --}}
+                    <div class="flex-1 px-5 py-4 sm:px-6 sm:py-5">
+                        <p class="text-[10px] font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 font-body">Cash In</p>
+                        <p class="font-mono font-bold text-lg sm:text-2xl text-emerald-400 leading-none mt-2 truncate">
+                            {{ $currSymbol }}{{ number_format((float)$totalIn, 2) }}
+                        </p>
                     </div>
 
-                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
-                        <div class="hidden sm:flex w-9 h-9 rounded-full bg-red-500/10 items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Cash Out</p>
-                            <p class="font-mono font-bold text-base sm:text-xl text-red-400 leading-tight mt-0.5 truncate">
-                                {{ $currSymbol }}{{ number_format((float)$totalOut, 0) }}
-                            </p>
-                        </div>
+                    {{-- Cash Out --}}
+                    <div class="flex-1 px-5 py-4 sm:px-6 sm:py-5">
+                        <p class="text-[10px] font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 font-body">Cash Out</p>
+                        <p class="font-mono font-bold text-lg sm:text-2xl text-red-400 leading-none mt-2 truncate">
+                            {{ $currSymbol }}{{ number_format((float)$totalOut, 2) }}
+                        </p>
                     </div>
 
-                    <div class="flex-1 px-3 py-3 sm:px-5 sm:py-4 flex items-center gap-2 sm:gap-3">
-                        <div class="hidden sm:flex w-9 h-9 rounded-full {{ $isPositive ? 'bg-primary/10' : 'bg-red-500/10' }} items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 {{ $isPositive ? 'text-blue-light' : 'text-red-400' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.499 8.248h15m-15 7.501h15"/>
-                            </svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body">Net Balance</p>
-                            <p class="font-mono font-bold text-base sm:text-xl leading-tight mt-0.5 truncate
-                                      {{ $isPositive ? 'dark:text-blue-light text-primary' : 'text-red-400' }}">
-                                {{ $currSymbol }}@if(!$isPositive)−@endif{{ number_format(abs((float)$balance), 0) }}
+                    {{-- Net Balance — centrepiece --}}
+                    <div class="flex-1 px-5 py-4 sm:px-6 sm:py-5 {{ $isPositive ? 'dark:bg-primary/[0.04] bg-primary/[0.02]' : 'dark:bg-red-500/[0.04] bg-red-500/[0.02]' }}">
+                        <p class="text-[10px] font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 font-body">Net Balance</p>
+                        <p class="font-mono font-extrabold text-xl sm:text-3xl leading-none mt-2 truncate
+                                  {{ $isPositive ? 'dark:text-blue-light text-primary' : 'text-red-400' }}">
+                            @if(!$isPositive)<span class="opacity-70">−</span>@endif{{ $currSymbol }}{{ number_format(abs((float)$balance), 2) }}
+                        </p>
+                        @if($openingBal > 0)
+                            <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body mt-0.5 truncate">
+                                incl. {{ $currSymbol }}{{ number_format($openingBal, 0) }} opening
                             </p>
-                            @if($openingBal > 0)
-                                <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body mt-0.5 truncate">
-                                    incl. {{ $currSymbol }}{{ number_format($openingBal, 0) }} opening
-                                </p>
-                            @endif
-                        </div>
+                        @endif
                     </div>
 
                 </div>
@@ -1648,10 +1662,12 @@
                                 $rbPos = bccomp((string)$rb, '0', 2) >= 0;
                             @endphp
                             <div wire:key="{{ $entry->id }}"
-                                 x-data="{ hovered: false }"
+                                 x-data="{ hovered: false, shown: false }"
+                                 x-init="setTimeout(() => shown = true, {{ $loop->index * 30 }})"
+                                 :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'"
                                  @mouseenter="hovered = true"
                                  @mouseleave="hovered = false"
-                                 class="transition-colors duration-100 dark:hover:bg-slate-800/30 hover:bg-gray-50/80">
+                                 class="transition-all duration-300 dark:hover:bg-slate-800/30 hover:bg-gray-50/80">
 
                                 {{-- Desktop --}}
                                 <div class="hidden md:grid {{ $userRole !== 'viewer' ? 'md:grid-cols-[36px_120px_1fr_120px_110px_140px_130px_56px]' : 'md:grid-cols-[120px_1fr_120px_110px_140px_130px_56px]' }} items-center px-5 py-3.5"
@@ -1665,9 +1681,10 @@
                                         </label>
                                     @endif
 
-                                    <span class="text-sm dark:text-slate-400 text-gray-600 font-body">
-                                        {{ $entry->date->format('d M Y') }}
-                                    </span>
+                                    <div class="flex flex-col leading-none">
+                                        <span class="text-xs font-semibold font-body dark:text-slate-300 text-gray-700">{{ $entry->date->format('d M') }}</span>
+                                        <span class="text-[10px] font-body dark:text-slate-500 text-gray-400 mt-0.5">{{ $entry->date->format('Y') }}</span>
+                                    </div>
 
                                     <div class="min-w-0 pr-3">
                                         <p class="text-sm font-medium dark:text-white text-gray-900 font-body truncate flex items-center gap-1.5">
@@ -1723,11 +1740,11 @@
 
                                     <div class="text-right pr-4">
                                         @if($entry->type === 'in')
-                                            <span class="font-mono text-sm font-semibold text-emerald-400">
+                                            <span class="font-mono text-base font-bold text-emerald-400">
                                                 +{{ $currSymbol }}{{ number_format((float)$entry->amount, 2) }}
                                             </span>
                                         @else
-                                            <span class="font-mono text-sm font-semibold text-red-400">
+                                            <span class="font-mono text-base font-bold text-red-400">
                                                 −{{ $currSymbol }}{{ number_format((float)$entry->amount, 2) }}
                                             </span>
                                         @endif
@@ -1859,11 +1876,19 @@
             @if($business->isPro())
 
                 @php
-                    $rCurr = $business->currencySymbol();
-                    $rSummary = $reportData['periodSummary'] ?? [];
-                    $rTrend = $reportData['trendChart'] ?? [];
-                    $rCategories = $reportData['categoryBreakdown'] ?? [];
-                    $rPayModes = $reportData['paymentModeBreakdown'] ?? [];
+                    $rCurr        = $business->currencySymbol();
+                    $rSummary     = $reportData['periodSummary']     ?? [];
+                    $rHealth      = $reportData['healthScore']        ?? [];
+                    $rTimeline    = $reportData['balanceTimeline']    ?? [];
+                    $rTrend       = $reportData['trendChart']         ?? [];
+                    $rBurn        = $reportData['burnMetrics']        ?? [];
+                    $rReliability = $reportData['incomeReliability']  ?? [];
+                    $rConcentration = $reportData['spendConcentration'] ?? [];
+                    $rVelocity    = $reportData['spendingVelocity']   ?? [];
+                    $rTopOut      = $reportData['topOutEntries']      ?? collect();
+                    $rTopIn       = $reportData['topInEntries']       ?? collect();
+                    $rCategories  = $reportData['categoryBreakdown']  ?? [];
+                    $rPayModes    = $reportData['paymentModeBreakdown'] ?? [];
                     $rNetPositive = bccomp($rSummary['netBalance'] ?? '0', '0', 2) >= 0;
                 @endphp
 
@@ -1945,7 +1970,7 @@
 
                     @elseif($aiInsightsLimitReached && empty($aiInsightsData))
                         {{-- Daily limit hit, no cache to show --}}
-                        <div class="dark:bg-amber-500/8 bg-amber-50 rounded-2xl border dark:border-amber-500/15 border-amber-200 px-5 py-4 flex items-start gap-3">
+                        <div class="dark:bg-amber-500/10 bg-amber-50 rounded-2xl border dark:border-amber-500/20 border-amber-200 px-5 py-4 flex items-start gap-3">
                             <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
                             </svg>
@@ -2097,152 +2122,853 @@
 
                     @endif
 
-                    {{-- Cash Flow Trend Chart --}}
-                    <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-5">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Cash Flow Trend</h3>
-                            <div class="flex items-center gap-3 text-[10px] font-body">
-                                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-400"></span> <span class="dark:text-slate-400 text-gray-500">Cash In</span></span>
-                                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-red-400"></span> <span class="dark:text-slate-400 text-gray-500">Cash Out</span></span>
+                    {{-- ===== 1. HEALTH SCORE ===== --}}
+                    @if(!empty($rHealth))
+                    @php
+                        $hColor = $rHealth['color'];
+                        $hGrade = $rHealth['grade'];
+                        $hScore = $rHealth['score'];
+                        [$hBg, $hBorder, $hText, $hBar, $hMuted] = match($hColor) {
+                            'emerald' => ['dark:bg-emerald-500/10 bg-emerald-50', 'dark:border-emerald-500/20 border-emerald-200', 'text-emerald-500', 'bg-emerald-500', 'dark:text-emerald-400/70 text-emerald-700/70'],
+                            'blue'    => ['dark:bg-blue-500/10 bg-blue-50',       'dark:border-blue-500/20 border-blue-200',       'text-blue-400',    'bg-blue-500',    'dark:text-blue-400/70 text-blue-700/70'],
+                            'amber'   => ['dark:bg-amber-500/10 bg-amber-50',     'dark:border-amber-500/20 border-amber-200',     'text-amber-500',   'bg-amber-500',   'dark:text-amber-400/70 text-amber-700/70'],
+                            'orange'  => ['dark:bg-orange-500/10 bg-orange-50',   'dark:border-orange-500/20 border-orange-200',   'text-orange-500',  'bg-orange-500',  'dark:text-orange-400/70 text-orange-700/70'],
+                            'red'     => ['dark:bg-red-500/10 bg-red-50',         'dark:border-red-500/20 border-red-200',         'text-red-500',     'bg-red-500',     'dark:text-red-400/70 text-red-700/70'],
+                            default   => ['dark:bg-slate-800 bg-gray-100',        'dark:border-slate-700 border-gray-200',         'dark:text-slate-400 text-gray-500', 'bg-slate-500', 'dark:text-slate-500 text-gray-400'],
+                        };
+                        $hConfidence  = $rHealth['confidence'] ?? 'good';
+                        $hPrevGrade   = $rHealth['previousGrade'] ?? null;
+                        $hRatio       = $rHealth['ratio']       ?? 0;
+                        $hTrendChange = $rHealth['trendChange'] ?? 0;
+                        $hCv          = $rHealth['cv']          ?? null;
+                    @endphp
+                    <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl overflow-hidden"
+                         x-data="{ scoreInfo: null }">
+
+                        {{-- Header row: grade circle + headline + badges --}}
+                        <div class="flex items-start gap-5 p-5 pb-4">
+                            {{-- Grade circle --}}
+                            <div class="flex-shrink-0 w-[72px] h-[72px] rounded-2xl {{ $hBg }} {{ $hBorder }} border-2 flex flex-col items-center justify-center">
+                                <span class="font-display font-extrabold text-2xl {{ $hText }} leading-none">{{ $hGrade }}</span>
+                                <span class="text-[10px] font-semibold font-mono {{ $hMuted }} mt-0.5">{{ $hScore }}/100</span>
+                            </div>
+
+                            {{-- Right side --}}
+                            <div class="flex-1 min-w-0 pt-0.5">
+                                <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                                    <span class="text-sm font-bold font-body dark:text-white text-gray-900">{{ $rHealth['status'] }}</span>
+
+                                    {{-- Confidence badge --}}
+                                    @if($hConfidence === 'insufficient')
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold font-body bg-red-500/10 text-red-500">
+                                            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                            Insufficient data
+                                        </span>
+                                    @elseif($hConfidence === 'low')
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold font-body bg-amber-500/10 text-amber-500">
+                                            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                                            Low data · {{ $rHealth['entryCount'] }} entries
+                                        </span>
+                                    @elseif($hConfidence === 'moderate')
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold font-body dark:bg-slate-700 bg-gray-100 dark:text-slate-400 text-gray-500">
+                                            {{ $rHealth['entryCount'] }} entries
+                                        </span>
+                                    @endif
+
+                                    {{-- Previous period comparison --}}
+                                    @if($hPrevGrade)
+                                    @php
+                                        $gradeOrder = ['F'=>0,'D'=>1,'C'=>2,'B'=>3,'A'=>4,'A+'=>5];
+                                        $curr = $gradeOrder[$hGrade] ?? 0;
+                                        $prev = $gradeOrder[$hPrevGrade['grade']] ?? 0;
+                                        $delta = $curr - $prev;
+                                    @endphp
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold font-body
+                                            {{ $delta > 0 ? 'bg-emerald-500/10 text-emerald-500' : ($delta < 0 ? 'bg-red-500/10 text-red-500' : 'dark:bg-slate-700 bg-gray-100 dark:text-slate-400 text-gray-500') }}">
+                                            @if($delta > 0) ↑ @elseif($delta < 0) ↓ @else → @endif
+                                            {{ $delta !== 0 ? 'from '.$hPrevGrade['grade'] : 'Same as' }}
+                                            {{ $hPrevGrade['bookName'] }}
+                                        </span>
+                                    @endif
+                                </div>
+                                <p class="text-xs font-body dark:text-slate-400 text-gray-500 leading-relaxed">{{ $rHealth['headline'] }}</p>
                             </div>
                         </div>
 
-                        @if(count($rTrend) >= 2)
-                            @php
-                                $maxTrend = max(1, max(
-                                    collect($rTrend)->max('in'),
-                                    collect($rTrend)->max('out')
-                                ));
-                            @endphp
+                        {{-- Score bar --}}
+                        <div class="px-5 pb-4">
+                            <div class="h-1.5 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-700 {{ $hBar }}"
+                                     style="width: {{ $hScore }}%"></div>
+                            </div>
+                        </div>
 
-                            <div class="flex items-end gap-0.5 sm:gap-1 h-32 sm:h-48">
-                                @foreach($rTrend as $i => $period)
-                                    @php
-                                        $inPct  = ($period['in'] / $maxTrend) * 100;
-                                        $outPct = ($period['out'] / $maxTrend) * 100;
-                                    @endphp
-                                    <div class="flex-1 flex items-end gap-px h-full group relative">
-                                        {{-- In bar --}}
-                                        <div class="flex-1 rounded-t-sm bg-emerald-500/50 group-hover:bg-emerald-400 transition-colors duration-150"
-                                             style="height: {{ max(2, $inPct) }}%"></div>
-                                        {{-- Out bar --}}
-                                        <div class="flex-1 rounded-t-sm bg-red-500/50 group-hover:bg-red-400 transition-colors duration-150"
-                                             style="height: {{ max(2, $outPct) }}%"></div>
+                        {{-- Component breakdown — click any column to expand plain-English explanation --}}
+                        <div class="border-t dark:border-slate-800 border-gray-100 grid grid-cols-3 divide-x dark:divide-slate-800 divide-gray-100">
 
-                                        {{-- Tooltip --}}
-                                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded-lg
-                                                    dark:bg-slate-800 bg-gray-800 text-white text-[10px] font-body whitespace-nowrap
-                                                    opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-10 shadow-lg">
-                                            <p class="font-semibold mb-0.5">{{ $period['label'] }}</p>
-                                            <p class="text-emerald-300">In: {{ $rCurr }}{{ number_format($period['in'], 0) }}</p>
-                                            <p class="text-red-300">Out: {{ $rCurr }}{{ number_format($period['out'], 0) }}</p>
-                                        </div>
+                            {{-- Profitability --}}
+                            <button type="button"
+                                    @click="scoreInfo = scoreInfo === 'profitability' ? null : 'profitability'"
+                                    class="px-4 py-3 text-left w-full transition-colors duration-150
+                                           hover:dark:bg-slate-800/40 hover:bg-gray-50
+                                           focus:outline-none group"
+                                    :class="scoreInfo === 'profitability' ? 'dark:bg-primary/[0.06] bg-primary/[0.03]' : ''">
+                                <div class="flex items-center justify-between mb-1">
+                                    <p class="text-[10px] font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 font-body">Profitability</p>
+                                    <svg class="w-3 h-3 transition-colors duration-150 flex-shrink-0"
+                                         :class="scoreInfo === 'profitability' ? 'text-primary' : 'dark:text-slate-600 text-gray-300 group-hover:dark:text-slate-400 group-hover:text-gray-400'"
+                                         fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="font-mono font-bold text-base dark:text-white text-gray-900">{{ $rHealth['ratioScore'] }}</span>
+                                    <span class="text-[10px] dark:text-slate-600 text-gray-400 font-mono">/45</span>
+                                </div>
+                                <p class="text-[10px] dark:text-slate-500 text-gray-400 font-body mt-0.5">
+                                    {{ $hRatio >= 99 ? 'No expenses' : $hRatio.'× ratio' }}
+                                </p>
+                            </button>
+
+                            {{-- Trend --}}
+                            <button type="button"
+                                    @click="scoreInfo = scoreInfo === 'trend' ? null : 'trend'"
+                                    class="px-4 py-3 text-left w-full transition-colors duration-150
+                                           hover:dark:bg-slate-800/40 hover:bg-gray-50
+                                           focus:outline-none group"
+                                    :class="scoreInfo === 'trend' ? 'dark:bg-primary/[0.06] bg-primary/[0.03]' : ''">
+                                <div class="flex items-center justify-between mb-1">
+                                    <p class="text-[10px] font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 font-body">Trend</p>
+                                    <svg class="w-3 h-3 transition-colors duration-150 flex-shrink-0"
+                                         :class="scoreInfo === 'trend' ? 'text-primary' : 'dark:text-slate-600 text-gray-300 group-hover:dark:text-slate-400 group-hover:text-gray-400'"
+                                         fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="font-mono font-bold text-base dark:text-white text-gray-900">{{ $rHealth['trendScore'] }}</span>
+                                    <span class="text-[10px] dark:text-slate-600 text-gray-400 font-mono">/30</span>
+                                </div>
+                                <p class="text-[10px] dark:text-slate-500 text-gray-400 font-body mt-0.5">
+                                    @if($rHealth['entryCount'] < 6)
+                                        Not enough data
+                                    @elseif($hTrendChange > 0)
+                                        ↑ +{{ $hTrendChange }}%
+                                    @elseif($hTrendChange < 0)
+                                        ↓ {{ $hTrendChange }}%
+                                    @else
+                                        Flat
+                                    @endif
+                                </p>
+                            </button>
+
+                            {{-- Consistency --}}
+                            <button type="button"
+                                    @click="scoreInfo = scoreInfo === 'consistency' ? null : 'consistency'"
+                                    class="px-4 py-3 text-left w-full transition-colors duration-150
+                                           hover:dark:bg-slate-800/40 hover:bg-gray-50
+                                           focus:outline-none group"
+                                    :class="scoreInfo === 'consistency' ? 'dark:bg-primary/[0.06] bg-primary/[0.03]' : ''">
+                                <div class="flex items-center justify-between mb-1">
+                                    <p class="text-[10px] font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 font-body">Consistency</p>
+                                    <svg class="w-3 h-3 transition-colors duration-150 flex-shrink-0"
+                                         :class="scoreInfo === 'consistency' ? 'text-primary' : 'dark:text-slate-600 text-gray-300 group-hover:dark:text-slate-400 group-hover:text-gray-400'"
+                                         fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="font-mono font-bold text-base dark:text-white text-gray-900">{{ $rHealth['consistencyScore'] }}</span>
+                                    <span class="text-[10px] dark:text-slate-600 text-gray-400 font-mono">/25</span>
+                                </div>
+                                <p class="text-[10px] dark:text-slate-500 text-gray-400 font-body mt-0.5">
+                                    @if($hCv === null) No income data
+                                    @elseif($hCv <= 0.4) Very consistent
+                                    @elseif($hCv <= 0.8) Moderate
+                                    @elseif($hCv <= 1.5) Variable
+                                    @else Irregular
+                                    @endif
+                                </p>
+                            </button>
+                        </div>
+
+                        {{-- Expandable plain-English explanation panel --}}
+                        <div x-show="scoreInfo !== null"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 -translate-y-1"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             x-transition:leave="transition ease-in duration-150"
+                             x-transition:leave-start="opacity-100 translate-y-0"
+                             x-transition:leave-end="opacity-0 -translate-y-1"
+                             class="border-t dark:border-slate-800 border-gray-100">
+
+                            {{-- Profitability explanation --}}
+                            <div x-show="scoreInfo === 'profitability'" class="px-5 py-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mt-0.5">
+                                        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
                                     </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-semibold font-body dark:text-white text-gray-900 mb-1">Are you earning more than you're spending?</p>
+                                        <p class="text-xs font-body dark:text-slate-400 text-gray-500 leading-relaxed mb-3">
+                                            For every rupee you spend, how many rupees are you earning? If your total income is
+                                            <span class="font-semibold dark:text-slate-300 text-gray-700">Rs 10,000</span> and your total expenses are
+                                            <span class="font-semibold dark:text-slate-300 text-gray-700">Rs 5,000</span>, your ratio is <span class="font-mono font-bold text-emerald-500">2.0×</span> — you earned twice what you spent.
+                                            The closer this ratio is to 1.0×, the more carefully you need to watch your spending.
+                                        </p>
+                                        <div class="flex flex-wrap gap-3 text-[11px] font-body">
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-emerald-500">45/45</span> = earning much more than spending
+                                            </span>
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-amber-500">~22/45</span> = just breaking even
+                                            </span>
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-red-500">0/45</span> = spending more than earning
+                                            </span>
+                                        </div>
+                                        <p class="text-[11px] font-body dark:text-slate-500 text-gray-400 mt-2.5 pt-2.5 border-t dark:border-slate-800 border-gray-100">
+                                            <span class="font-semibold dark:text-slate-400 text-gray-600">To improve:</span> Reduce recurring expenses, or focus on bringing in more income this period.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Trend explanation --}}
+                            <div x-show="scoreInfo === 'trend'" class="px-5 py-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mt-0.5">
+                                        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-semibold font-body dark:text-white text-gray-900 mb-1">Is your business getting better or worse?</p>
+                                        <p class="text-xs font-body dark:text-slate-400 text-gray-500 leading-relaxed mb-3">
+                                            We compare the <span class="font-semibold dark:text-slate-300 text-gray-700">first few weeks</span> of this period against the
+                                            <span class="font-semibold dark:text-slate-300 text-gray-700">last few weeks</span>.
+                                            If you're earning more (or spending less) towards the end of the period, your trend is positive — things are moving in the right direction.
+                                            Think of it as your business's <span class="font-semibold dark:text-slate-300 text-gray-700">momentum</span>.
+                                        </p>
+                                        <div class="flex flex-wrap gap-3 text-[11px] font-body">
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-emerald-500">30/30</span> = strong improvement
+                                            </span>
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-blue-400">15/30</span> = flat (not much change)
+                                            </span>
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-red-500">0/30</span> = declining
+                                            </span>
+                                        </div>
+                                        <p class="text-[11px] font-body dark:text-slate-500 text-gray-400 mt-2.5 pt-2.5 border-t dark:border-slate-800 border-gray-100">
+                                            <span class="font-semibold dark:text-slate-400 text-gray-600">To improve:</span> Focus on increasing income or reducing expenses in the second half of the period. Even small consistent gains add up.
+                                        </p>
+                                        <p class="text-[11px] font-body dark:text-amber-500/80 text-amber-600 mt-1">
+                                            Needs at least 6 entries and a 7-day period to calculate accurately.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Consistency explanation --}}
+                            <div x-show="scoreInfo === 'consistency'" class="px-5 py-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mt-0.5">
+                                        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-semibold font-body dark:text-white text-gray-900 mb-1">How predictable is your income?</p>
+                                        <p class="text-xs font-body dark:text-slate-400 text-gray-500 leading-relaxed mb-3">
+                                            This looks at how <span class="font-semibold dark:text-slate-300 text-gray-700">similar your income entries are</span> to each other.
+                                            If you receive roughly the same amount every week or month — like a salary or regular client payment — that's consistent.
+                                            If one payment is Rs 1,000 and the next is Rs 80,000, that's irregular and harder to plan around.
+                                            Predictable income = you can budget with confidence.
+                                        </p>
+                                        <div class="flex flex-wrap gap-3 text-[11px] font-body">
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-emerald-500">25/25</span> = very predictable
+                                            </span>
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-amber-500">~12/25</span> = mixed amounts
+                                            </span>
+                                            <span class="dark:text-slate-500 text-gray-400">
+                                                <span class="font-mono font-semibold text-red-500">0/25</span> = highly irregular
+                                            </span>
+                                        </div>
+                                        <p class="text-[11px] font-body dark:text-slate-500 text-gray-400 mt-2.5 pt-2.5 border-t dark:border-slate-800 border-gray-100">
+                                            <span class="font-semibold dark:text-slate-400 text-gray-600">To improve:</span> Build more predictable income sources — regular customers, repeat orders, or fixed monthly arrangements all help. The more your income arrives in similar amounts on a regular schedule, the higher this score.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+                    @endif
+
+                    {{-- ===== 2. RUNNING BALANCE TIMELINE ===== --}}
+                    @if(!empty($rTimeline['svg']['polyline']))
+                    @php
+                        $svg    = $rTimeline['svg'];
+                        $tPts   = $rTimeline['points'];
+                        $tHigh  = $tPts[$rTimeline['highIdx']] ?? null;
+                        $tLow   = $tPts[$rTimeline['lowIdx']]  ?? null;
+                        $tFirst = $tPts[0]                     ?? null;
+                        $tLast  = $tPts[count($tPts) - 1]     ?? null;
+                        $hiCoord = $svg['coords'][$rTimeline['highIdx']] ?? null;
+                        $loCoord = $svg['coords'][$rTimeline['lowIdx']]  ?? null;
+                    @endphp
+                    <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Balance Trajectory</h3>
+                                <p class="text-[11px] dark:text-slate-500 text-gray-400 font-body mt-0.5">Running balance across the full period</p>
+                            </div>
+                            <div class="flex items-center gap-3 text-[10px] font-body">
+                                @if($tHigh)
+                                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><span class="dark:text-slate-400 text-gray-500">Peak {{ $rCurr }}{{ number_format($tHigh['balance'], 0) }}</span></span>
+                                @endif
+                                @if($tLow)
+                                    <span class="flex items-center gap-1 hidden sm:flex"><span class="w-2 h-2 rounded-full bg-red-400"></span><span class="dark:text-slate-400 text-gray-500">Low {{ $rCurr }}{{ number_format($tLow['balance'], 0) }}</span></span>
+                                @endif
+                            </div>
+                        </div>
+
+                        {{-- SVG Chart --}}
+                        <div class="relative w-full overflow-hidden rounded-xl">
+                            <svg viewBox="0 0 {{ $svg['vw'] }} {{ $svg['vh'] }}"
+                                 preserveAspectRatio="none"
+                                 class="w-full h-36 sm:h-48"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="balFill-{{ $book->id }}" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#22c55e" stop-opacity="0.25"/>
+                                        <stop offset="100%" stop-color="#22c55e" stop-opacity="0.02"/>
+                                    </linearGradient>
+                                </defs>
+
+                                {{-- Area fill --}}
+                                <path d="{{ $svg['areaPath'] }}" fill="url(#balFill-{{ $book->id }})"/>
+
+                                {{-- Zero line --}}
+                                @if($svg['zeroY'] !== null)
+                                    <line x1="0" y1="{{ $svg['zeroY'] }}" x2="{{ $svg['vw'] }}" y2="{{ $svg['zeroY'] }}"
+                                          stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.5"/>
+                                @endif
+
+                                {{-- Opening balance reference --}}
+                                @if($svg['openingY'] !== null)
+                                    <line x1="0" y1="{{ $svg['openingY'] }}" x2="{{ $svg['vw'] }}" y2="{{ $svg['openingY'] }}"
+                                          stroke="#64748b" stroke-width="1" stroke-dasharray="4,6" opacity="0.4"/>
+                                @endif
+
+                                {{-- The line --}}
+                                <polyline points="{{ $svg['polyline'] }}"
+                                          fill="none"
+                                          stroke="#22c55e"
+                                          stroke-width="2.5"
+                                          stroke-linejoin="round"
+                                          stroke-linecap="round"/>
+
+                                {{-- High point dot --}}
+                                @if($hiCoord)
+                                    @php [$hx, $hy] = explode(',', $hiCoord); @endphp
+                                    <circle cx="{{ $hx }}" cy="{{ $hy }}" r="5" fill="#22c55e" stroke="white" stroke-width="2"/>
+                                @endif
+
+                                {{-- Low point dot --}}
+                                @if($loCoord)
+                                    @php [$lx, $ly] = explode(',', $loCoord); @endphp
+                                    <circle cx="{{ $lx }}" cy="{{ $ly }}" r="5" fill="#ef4444" stroke="white" stroke-width="2"/>
+                                @endif
+                            </svg>
+                        </div>
+
+                        {{-- X-axis --}}
+                        <div class="flex justify-between mt-2 text-[9px] dark:text-slate-600 text-gray-400 font-body">
+                            <span>{{ $tFirst['label'] ?? '' }}</span>
+                            <span>{{ $tLast['label'] ?? '' }}</span>
+                        </div>
+                    </div>
+                    @endif
+
+                    {{-- ===== 3. BURN RATE + INCOME RELIABILITY (2-col) ===== --}}
+                    @if(!empty($rBurn) || !empty($rReliability))
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                        {{-- Burn Rate / Gain Rate --}}
+                        @if(!empty($rBurn))
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">
+                                    {{ $rBurn['isBurning'] ? 'Burn Rate' : 'Daily Gain' }}
+                                </h3>
+                                <span class="text-[10px] font-semibold font-body px-2 py-0.5 rounded-full
+                                             {{ $rBurn['isBurning'] ? 'dark:bg-red-500/15 bg-red-50 text-red-500' : 'dark:bg-emerald-500/15 bg-emerald-50 text-emerald-600' }}">
+                                    {{ $rBurn['isBurning'] ? 'Burning' : 'Profitable' }}
+                                </span>
+                            </div>
+
+                            {{-- Daily net hero --}}
+                            <p class="font-mono font-extrabold text-2xl sm:text-3xl leading-none mb-1
+                                       {{ $rBurn['isBurning'] ? 'text-red-400' : 'dark:text-blue-light text-primary' }}">
+                                @if($rBurn['isBurning'])−@endif{{ $rCurr }}{{ number_format(abs($rBurn['dailyNet']), 2) }}
+                            </p>
+                            <p class="text-xs dark:text-slate-500 text-gray-400 font-body mb-4">net per day</p>
+
+                            {{-- Stats grid --}}
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="dark:bg-slate-800/60 bg-gray-50 rounded-xl p-3">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-1">Avg In / day</p>
+                                    <p class="font-mono text-sm font-bold text-emerald-400">{{ $rCurr }}{{ number_format($rBurn['dailyIn'], 2) }}</p>
+                                </div>
+                                <div class="dark:bg-slate-800/60 bg-gray-50 rounded-xl p-3">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-1">Avg Out / day</p>
+                                    <p class="font-mono text-sm font-bold text-red-400">{{ $rCurr }}{{ number_format($rBurn['dailyOut'], 2) }}</p>
+                                </div>
+                                <div class="dark:bg-slate-800/60 bg-gray-50 rounded-xl p-3">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-1">Efficiency</p>
+                                    <p class="font-mono text-sm font-bold {{ $rBurn['efficiency'] > 100 ? 'text-red-400' : ($rBurn['efficiency'] > 80 ? 'text-amber-400' : 'text-emerald-400') }}">
+                                        {{ $rBurn['efficiency'] }}%
+                                    </p>
+                                    <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body">of income spent</p>
+                                </div>
+                                @if($rBurn['runway'] !== null)
+                                <div class="dark:bg-red-500/10 bg-red-50 border dark:border-red-500/20 border-red-100 rounded-xl p-3">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider text-red-400 font-body mb-1">Runway</p>
+                                    <p class="font-mono text-sm font-bold text-red-400">{{ number_format($rBurn['runway']) }} days</p>
+                                    <p class="text-[9px] text-red-400/70 font-body">at current burn</p>
+                                </div>
+                                @else
+                                <div class="dark:bg-emerald-500/10 bg-emerald-50 border dark:border-emerald-500/20 border-emerald-100 rounded-xl p-3">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-500 font-body mb-1">Status</p>
+                                    <p class="text-sm font-bold text-emerald-500">Cash positive</p>
+                                    <p class="text-[9px] text-emerald-600/70 dark:text-emerald-400/60 font-body">earning more than spending</p>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- Income Reliability --}}
+                        @if(!empty($rReliability) && isset($rReliability['label']))
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5">
+                            <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-4">Income Reliability</h3>
+
+                            {{-- Consistency badge --}}
+                            <div class="flex items-center gap-3 mb-4 p-3 rounded-xl dark:bg-slate-800/60 bg-gray-50">
+                                @php
+                                    $rColor = $rReliability['color'] ?? 'slate';
+                                    [$rBadgeBg, $rBadgeText] = match($rColor) {
+                                        'emerald' => ['dark:bg-emerald-500/15 bg-emerald-100', 'text-emerald-500'],
+                                        'blue'    => ['dark:bg-blue-500/15 bg-blue-100',    'dark:text-blue-light text-primary'],
+                                        'amber'   => ['dark:bg-amber-500/15 bg-amber-100',  'text-amber-500'],
+                                        default   => ['dark:bg-red-500/15 bg-red-100',      'text-red-500'],
+                                    };
+                                @endphp
+                                <div class="w-10 h-10 rounded-xl {{ $rBadgeBg }} flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-5 h-5 {{ $rBadgeText }}" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold font-body dark:text-white text-gray-900">{{ $rReliability['label'] }}</p>
+                                    <p class="text-[11px] dark:text-slate-500 text-gray-400 font-body">income stream consistency</p>
+                                </div>
+                            </div>
+
+                            {{-- Concentration --}}
+                            <div class="mb-3">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-xs font-semibold font-body dark:text-slate-400 text-gray-500">Income Concentration</span>
+                                    @php
+                                        $cColor = $rReliability['concentrationColor'] ?? 'slate';
+                                        $cText = match($cColor) { 'emerald' => 'text-emerald-500', 'amber' => 'text-amber-500', default => 'text-red-500' };
+                                    @endphp
+                                    <span class="text-xs font-bold font-body {{ $cText }}">{{ $rReliability['concentrationLabel'] ?? '' }}</span>
+                                </div>
+                                <div class="h-2 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full {{ match($cColor) { 'emerald' => 'bg-emerald-500', 'amber' => 'bg-amber-500', default => 'bg-red-500' } }}"
+                                         style="width: {{ $rReliability['topPct'] ?? 0 }}%"></div>
+                                </div>
+                                <p class="text-[10px] dark:text-slate-600 text-gray-400 font-body mt-1">
+                                    Top 2 transactions = {{ $rReliability['topPct'] ?? 0 }}% of total income
+                                </p>
+                            </div>
+
+                            @if(($rReliability['topPct'] ?? 0) > 60)
+                                <div class="flex items-start gap-2 p-3 rounded-xl dark:bg-amber-500/10 bg-amber-50 border dark:border-amber-500/20 border-amber-100">
+                                    <svg class="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                                    </svg>
+                                    <p class="text-[11px] text-amber-600 dark:text-amber-400 font-body">High concentration risk — most income comes from very few sources.</p>
+                                </div>
+                            @endif
+                        </div>
+                        @endif
+
+                    </div>
+                    @endif
+
+                    {{-- ===== 4. TOP ENTRIES (2-col) ===== --}}
+                    @if($rTopOut->isNotEmpty() || $rTopIn->isNotEmpty())
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                        {{-- Top Cash Out --}}
+                        @if($rTopOut->isNotEmpty())
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl overflow-hidden">
+                            <div class="flex items-center gap-2.5 px-5 py-3.5 border-b dark:border-slate-700 border-gray-100">
+                                <span class="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>
+                                <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Largest Expenses</h3>
+                            </div>
+                            <div class="divide-y dark:divide-slate-700/40 divide-gray-100">
+                                @foreach($rTopOut as $i => $entry)
+                                <div class="flex items-center gap-3 px-5 py-3">
+                                    <span class="w-5 h-5 rounded-full dark:bg-slate-800 bg-gray-100 flex items-center justify-center text-[10px] font-bold font-mono dark:text-slate-500 text-gray-400 flex-shrink-0">{{ $i + 1 }}</span>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-body dark:text-slate-300 text-gray-700 truncate">{{ $entry->description }}</p>
+                                        <p class="text-[10px] dark:text-slate-600 text-gray-400 font-body">{{ $entry->date->format('d M Y') }}{{ $entry->category ? ' · ' . $entry->category : '' }}</p>
+                                    </div>
+                                    <span class="font-mono text-sm font-bold text-red-400 flex-shrink-0">−{{ $rCurr }}{{ number_format((float)$entry->amount, 2) }}</span>
+                                </div>
                                 @endforeach
                             </div>
-
-                            {{-- X-axis labels --}}
-                            <div class="flex justify-between mt-2 text-[9px] dark:text-slate-600 text-gray-400 font-body">
-                                <span>{{ $rTrend[0]['label'] }}</span>
-                                @if(count($rTrend) > 2)
-                                    <span class="hidden sm:inline">{{ $rTrend[intval(count($rTrend) / 2)]['label'] }}</span>
-                                @endif
-                                <span>{{ $rTrend[count($rTrend) - 1]['label'] }}</span>
-                            </div>
-                        @else
-                            <div class="flex flex-col items-center justify-center py-12 text-center">
-                                <svg class="w-8 h-8 dark:text-slate-700 text-gray-300 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/>
-                                </svg>
-                                <p class="text-sm dark:text-slate-500 text-gray-400 font-body">Add more entries to see cash flow trends</p>
-                            </div>
+                        </div>
                         @endif
-                    </div>
 
-                    {{-- Category Breakdown --}}
-                    <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-5"
-                         x-data="{ catView: 'out' }">
+                        {{-- Top Cash In --}}
+                        @if($rTopIn->isNotEmpty())
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl overflow-hidden">
+                            <div class="flex items-center gap-2.5 px-5 py-3.5 border-b dark:border-slate-700 border-gray-100">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></span>
+                                <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Largest Income</h3>
+                            </div>
+                            <div class="divide-y dark:divide-slate-700/40 divide-gray-100">
+                                @foreach($rTopIn as $i => $entry)
+                                <div class="flex items-center gap-3 px-5 py-3">
+                                    <span class="w-5 h-5 rounded-full dark:bg-slate-800 bg-gray-100 flex items-center justify-center text-[10px] font-bold font-mono dark:text-slate-500 text-gray-400 flex-shrink-0">{{ $i + 1 }}</span>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-body dark:text-slate-300 text-gray-700 truncate">{{ $entry->description }}</p>
+                                        <p class="text-[10px] dark:text-slate-600 text-gray-400 font-body">{{ $entry->date->format('d M Y') }}{{ $entry->category ? ' · ' . $entry->category : '' }}</p>
+                                    </div>
+                                    <span class="font-mono text-sm font-bold text-emerald-400 flex-shrink-0">+{{ $rCurr }}{{ number_format((float)$entry->amount, 2) }}</span>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+
+                    </div>
+                    @endif
+
+                    {{-- ===== 5. CASH FLOW TREND CHART ===== --}}
+                    @if(count($rTrend) >= 2)
+                    @php
+                        $maxTrend = max(1, max(collect($rTrend)->max('in'), collect($rTrend)->max('out')));
+                    @endphp
+                    <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">By Category</h3>
-                            <div class="flex items-center gap-1 dark:bg-slate-800 bg-gray-100 rounded-lg p-0.5">
-                                <button @click="catView = 'in'"
-                                        :class="catView === 'in' ? 'dark:bg-slate-700 bg-white shadow-sm dark:text-white text-gray-900' : 'dark:text-slate-500 text-gray-400'"
-                                        class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider font-body transition-all duration-150">
-                                    Cash In
-                                </button>
-                                <button @click="catView = 'out'"
-                                        :class="catView === 'out' ? 'dark:bg-slate-700 bg-white shadow-sm dark:text-white text-gray-900' : 'dark:text-slate-500 text-gray-400'"
-                                        class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider font-body transition-all duration-150">
-                                    Cash Out
-                                </button>
+                            <div>
+                                <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Cash Flow Trend</h3>
+                                <p class="text-[11px] dark:text-slate-500 text-gray-400 font-body mt-0.5">Income vs expenses over time</p>
+                            </div>
+                            <div class="flex items-center gap-3 text-[10px] font-body flex-shrink-0">
+                                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-400/70"></span><span class="dark:text-slate-400 text-gray-500">In</span></span>
+                                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-red-400/70"></span><span class="dark:text-slate-400 text-gray-500">Out</span></span>
+                            </div>
+                        </div>
+                        <div class="flex items-end gap-0.5 sm:gap-1 h-36 sm:h-52">
+                            @foreach($rTrend as $period)
+                                @php
+                                    $inPct  = ($period['in']  / $maxTrend) * 100;
+                                    $outPct = ($period['out'] / $maxTrend) * 100;
+                                @endphp
+                                <div class="flex-1 flex items-end gap-px h-full group relative">
+                                    <div class="flex-1 rounded-t bg-emerald-500/40 group-hover:bg-emerald-400 transition-colors duration-150"
+                                         style="height: {{ max(1, $inPct) }}%"></div>
+                                    <div class="flex-1 rounded-t bg-red-500/40 group-hover:bg-red-400 transition-colors duration-150"
+                                         style="height: {{ max(1, $outPct) }}%"></div>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-2 rounded-xl
+                                                dark:bg-slate-900 bg-gray-900 text-white text-[10px] font-body whitespace-nowrap
+                                                opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-10 shadow-xl">
+                                        <p class="font-semibold text-slate-300 mb-1">{{ $period['label'] }}</p>
+                                        <p class="text-emerald-400">↑ {{ $rCurr }}{{ number_format($period['in'], 2) }}</p>
+                                        <p class="text-red-400">↓ {{ $rCurr }}{{ number_format($period['out'], 2) }}</p>
+                                        @php $pNet = $period['in'] - $period['out']; @endphp
+                                        <p class="border-t border-slate-700 mt-1 pt-1 {{ $pNet >= 0 ? 'text-blue-300' : 'text-red-400' }}">
+                                            Net {{ $pNet >= 0 ? '+' : '−' }}{{ $rCurr }}{{ number_format(abs($pNet), 2) }}
+                                        </p>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="flex justify-between mt-2 text-[9px] dark:text-slate-600 text-gray-400 font-body">
+                            <span>{{ $rTrend[0]['label'] }}</span>
+                            @if(count($rTrend) > 2)
+                                <span class="hidden sm:inline">{{ $rTrend[(int)(count($rTrend) / 2)]['label'] }}</span>
+                            @endif
+                            <span>{{ $rTrend[count($rTrend) - 1]['label'] }}</span>
+                        </div>
+                    </div>
+                    @endif
+
+                    {{-- ===== 6. CATEGORY + SPEND CONCENTRATION (2-col) ===== --}}
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                        {{-- Category Breakdown --}}
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5"
+                             x-data="{ catView: 'out' }">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">By Category</h3>
+                                <div class="flex items-center gap-0.5 dark:bg-slate-800/60 bg-gray-100 rounded-lg p-0.5">
+                                    <button @click="catView = 'out'"
+                                            :class="catView === 'out' ? 'dark:bg-slate-700 bg-white shadow-sm dark:text-white text-gray-900' : 'dark:text-slate-500 text-gray-400'"
+                                            class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider font-body transition-all duration-150">Out</button>
+                                    <button @click="catView = 'in'"
+                                            :class="catView === 'in' ? 'dark:bg-slate-700 bg-white shadow-sm dark:text-white text-gray-900' : 'dark:text-slate-500 text-gray-400'"
+                                            class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider font-body transition-all duration-150">In</button>
+                                </div>
+                            </div>
+
+                            <div x-show="catView === 'in'" x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                                @if(!empty($rCategories['in']))
+                                    <div class="space-y-3">
+                                        @foreach($rCategories['in'] as $cat)
+                                        <div>
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-body dark:text-slate-300 text-gray-700 truncate mr-3">{{ $cat['name'] }}</span>
+                                                <div class="flex items-center gap-2 flex-shrink-0">
+                                                    <span class="text-[10px] font-body dark:text-slate-500 text-gray-400">{{ $cat['pct'] }}%</span>
+                                                    <span class="font-mono text-xs font-semibold dark:text-slate-300 text-gray-700">{{ $rCurr }}{{ number_format($cat['total'], 2) }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="h-1.5 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full rounded-full bg-emerald-500/70" style="width: {{ max(2, $cat['barPct']) }}%"></div>
+                                            </div>
+                                        </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="text-sm dark:text-slate-600 text-gray-400 font-body py-6 text-center">No Cash In entries with categories</p>
+                                @endif
+                            </div>
+
+                            <div x-show="catView === 'out'" x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                                @if(!empty($rCategories['out']))
+                                    <div class="space-y-3">
+                                        @foreach($rCategories['out'] as $cat)
+                                        <div>
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-body dark:text-slate-300 text-gray-700 truncate mr-3">{{ $cat['name'] }}</span>
+                                                <div class="flex items-center gap-2 flex-shrink-0">
+                                                    <span class="text-[10px] font-body dark:text-slate-500 text-gray-400">{{ $cat['pct'] }}%</span>
+                                                    <span class="font-mono text-xs font-semibold dark:text-slate-300 text-gray-700">{{ $rCurr }}{{ number_format($cat['total'], 2) }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="h-1.5 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full rounded-full bg-red-500/70" style="width: {{ max(2, $cat['barPct']) }}%"></div>
+                                            </div>
+                                        </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="text-sm dark:text-slate-600 text-gray-400 font-body py-6 text-center">No Cash Out entries with categories</p>
+                                @endif
                             </div>
                         </div>
 
-                        {{-- Cash In categories --}}
-                        <div x-show="catView === 'in'" x-transition.opacity>
-                            @if(!empty($rCategories['in']))
-                                <div class="space-y-3">
-                                    @foreach($rCategories['in'] as $cat)
-                                        <div>
-                                            <div class="flex items-center justify-between mb-1">
-                                                <span class="text-sm font-body dark:text-slate-300 text-gray-700 truncate mr-3">{{ $cat['name'] }}</span>
-                                                <span class="font-mono text-sm dark:text-slate-400 text-gray-500 flex-shrink-0">{{ $rCurr }}{{ number_format($cat['total'], 0) }}</span>
-                                            </div>
-                                            <div class="h-2 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
-                                                <div class="h-full rounded-full bg-emerald-500/60" style="width: {{ max(2, $cat['percent']) }}%"></div>
-                                            </div>
+                        {{-- Spend Concentration --}}
+                        @if(!empty($rConcentration))
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5">
+                            <div class="flex items-center justify-between mb-1">
+                                <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Spend Concentration</h3>
+                                @if($rConcentration['isConcentrated'])
+                                    <span class="text-[10px] font-semibold font-body px-2 py-0.5 rounded-full dark:bg-amber-500/15 bg-amber-50 text-amber-500">High risk</span>
+                                @else
+                                    <span class="text-[10px] font-semibold font-body px-2 py-0.5 rounded-full dark:bg-emerald-500/15 bg-emerald-50 text-emerald-500">Diversified</span>
+                                @endif
+                            </div>
+                            <p class="text-[11px] dark:text-slate-500 text-gray-400 font-body mb-4">
+                                Top 3 categories = <span class="font-semibold dark:text-slate-300 text-gray-700">{{ $rConcentration['top3Pct'] }}%</span> of total spend
+                            </p>
+                            <div class="space-y-4">
+                                @foreach($rConcentration['items'] as $i => $item)
+                                <div>
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="w-1.5 h-1.5 rounded-full flex-shrink-0
+                                                         {{ $i === 0 ? 'bg-red-400' : ($i === 1 ? 'bg-amber-400' : 'bg-slate-400') }}"></span>
+                                            <span class="text-xs font-body dark:text-slate-300 text-gray-700 truncate">{{ $item['name'] }}</span>
                                         </div>
-                                    @endforeach
+                                        <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+                                            <span class="font-mono text-xs font-bold dark:text-slate-200 text-gray-800">{{ $rCurr }}{{ number_format($item['total'], 2) }}</span>
+                                            <span class="text-[10px] font-semibold font-body w-9 text-right
+                                                         {{ $i === 0 ? 'text-red-400' : ($i === 1 ? 'text-amber-400' : 'dark:text-slate-500 text-gray-400') }}">
+                                                {{ $item['pct'] }}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="h-2 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full {{ $i === 0 ? 'bg-red-400' : ($i === 1 ? 'bg-amber-400' : 'bg-slate-400') }}"
+                                             style="width: {{ $item['pct'] }}%"></div>
+                                    </div>
                                 </div>
-                            @else
-                                <p class="text-sm dark:text-slate-600 text-gray-400 font-body py-6 text-center">No Cash In entries with categories</p>
+                                @endforeach
+                            </div>
+                            @if($rConcentration['isConcentrated'])
+                                <div class="mt-4 flex items-start gap-2 p-3 rounded-xl dark:bg-amber-500/10 bg-amber-50 border dark:border-amber-500/20 border-amber-100">
+                                    <svg class="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                                    </svg>
+                                    <p class="text-[11px] text-amber-600 dark:text-amber-400 font-body">
+                                        <strong>{{ $rConcentration['items'][0]['name'] ?? '' }}</strong> accounts for {{ $rConcentration['highestPct'] }}% of expenses — a spike here will significantly impact your cash flow.
+                                    </p>
+                                </div>
                             @endif
                         </div>
-
-                        {{-- Cash Out categories --}}
-                        <div x-show="catView === 'out'" x-transition.opacity>
-                            @if(!empty($rCategories['out']))
+                        @else
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5">
+                            <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-4">By Payment Mode</h3>
+                            @if(!empty($rPayModes))
                                 <div class="space-y-3">
-                                    @foreach($rCategories['out'] as $cat)
-                                        <div>
-                                            <div class="flex items-center justify-between mb-1">
-                                                <span class="text-sm font-body dark:text-slate-300 text-gray-700 truncate mr-3">{{ $cat['name'] }}</span>
-                                                <span class="font-mono text-sm dark:text-slate-400 text-gray-500 flex-shrink-0">{{ $rCurr }}{{ number_format($cat['total'], 0) }}</span>
-                                            </div>
-                                            <div class="h-2 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
-                                                <div class="h-full rounded-full bg-red-500/60" style="width: {{ max(2, $cat['percent']) }}%"></div>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @else
-                                <p class="text-sm dark:text-slate-600 text-gray-400 font-body py-6 text-center">No Cash Out entries with categories</p>
-                            @endif
-                        </div>
-                    </div>
-
-                    {{-- Payment Mode Breakdown --}}
-                    <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-xl p-5">
-                        <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-4">By Payment Mode</h3>
-
-                        @if(!empty($rPayModes))
-                            <div class="space-y-3">
-                                @foreach($rPayModes as $mode)
+                                    @foreach($rPayModes as $mode)
                                     <div>
                                         <div class="flex items-center justify-between mb-1">
-                                            <span class="text-sm font-body dark:text-slate-300 text-gray-700 truncate mr-3">{{ $mode['name'] }}</span>
-                                            <span class="font-mono text-sm dark:text-slate-400 text-gray-500 flex-shrink-0">{{ $rCurr }}{{ number_format($mode['total'], 0) }}</span>
+                                            <span class="text-xs font-body dark:text-slate-300 text-gray-700 truncate mr-3">{{ $mode['name'] }}</span>
+                                            <span class="font-mono text-xs font-semibold dark:text-slate-300 text-gray-700 flex-shrink-0">{{ $rCurr }}{{ number_format($mode['total'], 2) }}</span>
                                         </div>
-                                        <div class="h-2 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
-                                            <div class="h-full rounded-full bg-accent/60" style="width: {{ max(2, $mode['percent']) }}%"></div>
+                                        <div class="h-1.5 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
+                                            <div class="h-full rounded-full bg-accent/60" style="width: {{ max(2, $mode['barPct']) }}%"></div>
                                         </div>
                                     </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="text-sm dark:text-slate-600 text-gray-400 font-body py-6 text-center">No entries with payment modes</p>
+                            @endif
+                        </div>
+                        @endif
+
+                    </div>
+
+                    {{-- ===== 7. SPENDING VELOCITY + PAYMENT MODE (2-col) ===== --}}
+                    @if(!empty($rVelocity) || !empty($rPayModes))
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                        {{-- Spending Velocity --}}
+                        @if(!empty($rVelocity))
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5">
+                            <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Spending Velocity</h3>
+                            <p class="text-[11px] dark:text-slate-500 text-gray-400 font-body mb-4">First half vs second half of the period</p>
+
+                            <div class="space-y-3">
+                                {{-- Cash In comparison --}}
+                                <div class="dark:bg-slate-800/60 bg-gray-50 rounded-xl p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body">Cash In</span>
+                                        @php $iChange = $rVelocity['inChange']; @endphp
+                                        <span class="text-[10px] font-bold font-body {{ $iChange >= 0 ? 'text-emerald-400' : 'text-red-400' }}">
+                                            {{ $iChange >= 0 ? '↑' : '↓' }} {{ abs($iChange) }}%
+                                        </span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body">First half</p>
+                                            <p class="font-mono text-xs font-bold text-emerald-400">{{ $rCurr }}{{ number_format($rVelocity['first']['in'], 2) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body">Second half</p>
+                                            <p class="font-mono text-xs font-bold text-emerald-400">{{ $rCurr }}{{ number_format($rVelocity['second']['in'], 2) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Cash Out comparison --}}
+                                <div class="dark:bg-slate-800/60 bg-gray-50 rounded-xl p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body">Cash Out</span>
+                                        @php $oChange = $rVelocity['outChange']; @endphp
+                                        <span class="text-[10px] font-bold font-body {{ $oChange <= 0 ? 'text-emerald-400' : 'text-red-400' }}">
+                                            {{ $oChange >= 0 ? '↑' : '↓' }} {{ abs($oChange) }}%
+                                        </span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body">First half</p>
+                                            <p class="font-mono text-xs font-bold text-red-400">{{ $rCurr }}{{ number_format($rVelocity['first']['out'], 2) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body">Second half</p>
+                                            <p class="font-mono text-xs font-bold text-red-400">{{ $rCurr }}{{ number_format($rVelocity['second']['out'], 2) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Net comparison --}}
+                                @php
+                                    $fNet = $rVelocity['first']['net'];
+                                    $sNet = $rVelocity['second']['net'];
+                                @endphp
+                                <div class="dark:bg-slate-800/60 bg-gray-50 rounded-xl p-3">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-400 font-body mb-2">Net</p>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body">First half</p>
+                                            <p class="font-mono text-xs font-bold {{ $fNet >= 0 ? 'dark:text-blue-light text-primary' : 'text-red-400' }}">
+                                                @if($fNet < 0)−@endif{{ $rCurr }}{{ number_format(abs($fNet), 2) }}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[9px] dark:text-slate-600 text-gray-400 font-body">Second half</p>
+                                            <p class="font-mono text-xs font-bold {{ $sNet >= 0 ? 'dark:text-blue-light text-primary' : 'text-red-400' }}">
+                                                @if($sNet < 0)−@endif{{ $rCurr }}{{ number_format(abs($sNet), 2) }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- Payment Mode Breakdown --}}
+                        @if(!empty($rPayModes) && !empty($rConcentration))
+                        <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl p-5">
+                            <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-4">By Payment Mode</h3>
+                            <div class="space-y-3">
+                                @foreach($rPayModes as $mode)
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-body dark:text-slate-300 text-gray-700 truncate mr-3">{{ $mode['name'] }}</span>
+                                        <div class="flex items-center gap-2 flex-shrink-0">
+                                            <span class="text-[10px] font-body dark:text-slate-500 text-gray-400">{{ $mode['count'] }} entries</span>
+                                            <span class="font-mono text-xs font-semibold dark:text-slate-300 text-gray-700">{{ $rCurr }}{{ number_format($mode['total'], 2) }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="h-1.5 dark:bg-slate-800 bg-gray-100 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full bg-accent/60" style="width: {{ max(2, $mode['barPct']) }}%"></div>
+                                    </div>
+                                    {{-- In / Out split bar --}}
+                                    @if($mode['total'] > 0)
+                                    @php $mInPct = round(($mode['in'] / $mode['total']) * 100); @endphp
+                                    <div class="flex h-1 mt-0.5 rounded-full overflow-hidden">
+                                        <div class="bg-emerald-500/50" style="width: {{ $mInPct }}%"></div>
+                                        <div class="bg-red-500/50" style="width: {{ 100 - $mInPct }}%"></div>
+                                    </div>
+                                    @endif
+                                </div>
                                 @endforeach
                             </div>
-                        @else
-                            <p class="text-sm dark:text-slate-600 text-gray-400 font-body py-6 text-center">No entries with payment modes</p>
+                        </div>
                         @endif
+
                     </div>
+                    @endif
 
                 </div>
 
@@ -2449,30 +3175,130 @@
                 {{-- ===== ACTIVITY TAB ===== --}}
                 <div class="dark:bg-dark bg-white dark:border dark:border-slate-700 border border-gray-200 rounded-2xl overflow-hidden">
 
-                    {{-- Header --}}
+                    {{-- Header + Filters --}}
                     <div class="px-5 py-4 border-b dark:border-slate-700 border-gray-100">
-                        <div class="flex items-start justify-between gap-4">
+                        {{-- Title row --}}
+                        <div class="flex items-center justify-between gap-4 mb-3">
                             <div>
                                 <h3 class="font-heading font-bold text-base dark:text-white text-gray-900">Activity Log</h3>
-                                <p class="text-xs font-body dark:text-slate-500 text-gray-400 mt-0.5">All changes made to entries in this book</p>
+                                <p class="text-xs font-body dark:text-slate-500 text-gray-400 mt-0.5">
+                                    {{ number_format($activityTotal) }} {{ $activityTotal === 1 ? 'action' : 'actions' }} recorded
+                                </p>
                             </div>
-                            <div class="w-8 h-8 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-4 h-4 text-primary dark:text-blue-light" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
-                                </svg>
+                            {{-- Colour legend --}}
+                            <div class="hidden sm:flex items-center gap-3 flex-shrink-0">
+                                <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
+                                    <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>Added
+                                </span>
+                                <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>Modified
+                                </span>
+                                <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
+                                    <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>Deleted
+                                </span>
                             </div>
                         </div>
-                        {{-- Colour legend --}}
-                        <div class="flex items-center gap-4 mt-3">
-                            <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
-                                <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>Added
-                            </span>
-                            <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
-                                <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>Modified
-                            </span>
-                            <span class="flex items-center gap-1.5 text-[11px] font-body dark:text-slate-500 text-gray-400">
-                                <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>Deleted
-                            </span>
+
+                        {{-- Filter bar --}}
+                        <div class="flex flex-wrap items-center gap-2">
+
+                            {{-- Member filter --}}
+                            @if($activityMembers->count() > 1)
+                            @php
+                                $selectedMemberName = $activityFilterUserId
+                                    ? ($activityMembers->firstWhere('id', $activityFilterUserId)?->name ?? 'Unknown')
+                                    : 'All members';
+                                if ($activityFilterUserId === auth()->id()) $selectedMemberName = 'You';
+                            @endphp
+                            <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                                <button type="button" @click="open = !open"
+                                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-body
+                                               dark:bg-slate-800 bg-white border dark:border-slate-700 border-gray-200
+                                               dark:text-slate-300 text-gray-700 transition-colors duration-150
+                                               hover:dark:border-slate-600 hover:border-gray-300 cursor-pointer">
+                                    <span>{{ $selectedMemberName }}</span>
+                                    <svg class="w-3 h-3 dark:text-slate-500 text-gray-400 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </button>
+                                <div x-show="open"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
+                                     class="absolute top-full left-0 mt-1 z-30 min-w-[160px]
+                                            dark:bg-slate-800 bg-white border dark:border-slate-700 border-gray-200
+                                            rounded-xl shadow-lg overflow-hidden">
+                                    <button type="button"
+                                            wire:click="$set('activityFilterUserId', '')"
+                                            @click="open = false"
+                                            class="w-full text-left px-3 py-2 text-xs font-body dark:text-slate-300 text-gray-700
+                                                   hover:dark:bg-slate-700 hover:bg-gray-50 transition-colors duration-100
+                                                   {{ $activityFilterUserId === '' ? 'font-semibold text-primary dark:text-primary' : '' }}">
+                                        All members
+                                    </button>
+                                    @foreach($activityMembers as $member)
+                                    <button type="button"
+                                            wire:click="$set('activityFilterUserId', '{{ $member->id }}')"
+                                            @click="open = false"
+                                            class="w-full text-left px-3 py-2 text-xs font-body dark:text-slate-300 text-gray-700
+                                                   hover:dark:bg-slate-700 hover:bg-gray-50 transition-colors duration-100
+                                                   {{ $activityFilterUserId === $member->id ? 'font-semibold text-primary dark:text-primary' : '' }}">
+                                        {{ $member->id === auth()->id() ? 'You ('.$member->name.')' : $member->name }}
+                                    </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+
+                            {{-- Action type filter --}}
+                            @php
+                                $actionLabels = ['' => 'All actions', 'entry_created' => 'Added entries', 'entry_updated' => 'Edited entries', 'entry_deleted' => 'Deleted entries', 'bulk' => 'Bulk actions', 'comment' => 'Comments', 'attachment' => 'Attachments', 'recurring' => 'Recurring'];
+                                $selectedActionLabel = $actionLabels[$activityFilterAction] ?? 'All actions';
+                            @endphp
+                            <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                                <button type="button" @click="open = !open"
+                                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-body
+                                               dark:bg-slate-800 bg-white border dark:border-slate-700 border-gray-200
+                                               dark:text-slate-300 text-gray-700 transition-colors duration-150
+                                               hover:dark:border-slate-600 hover:border-gray-300 cursor-pointer">
+                                    <span>{{ $selectedActionLabel }}</span>
+                                    <svg class="w-3 h-3 dark:text-slate-500 text-gray-400 transition-transform duration-150" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </button>
+                                <div x-show="open"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
+                                     class="absolute top-full left-0 mt-1 z-30 min-w-[160px]
+                                            dark:bg-slate-800 bg-white border dark:border-slate-700 border-gray-200
+                                            rounded-xl shadow-lg overflow-hidden">
+                                    @foreach($actionLabels as $val => $label)
+                                    <button type="button"
+                                            wire:click="$set('activityFilterAction', '{{ $val }}')"
+                                            @click="open = false"
+                                            class="w-full text-left px-3 py-2 text-xs font-body dark:text-slate-300 text-gray-700
+                                                   hover:dark:bg-slate-700 hover:bg-gray-50 transition-colors duration-100
+                                                   {{ $activityFilterAction === $val ? 'font-semibold text-primary dark:text-primary' : '' }}">
+                                        {{ $label }}
+                                    </button>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            {{-- Clear filters --}}
+                            @if($activityFilterUserId !== '' || $activityFilterAction !== '')
+                                <button wire:click="$set('activityFilterUserId', ''); $set('activityFilterAction', '')"
+                                        class="text-[11px] font-body text-primary hover:text-accent transition-colors duration-150 px-1">
+                                    Clear filters
+                                </button>
+                            @endif
                         </div>
                     </div>
 
@@ -2500,7 +3326,10 @@
                                     $amount      = isset($meta['amount']) ? number_format((float) $meta['amount'], 2) : null;
                                     $description = $meta['description'] ?? null;
                                 @endphp
-                                <div class="flex items-start gap-3 px-5 py-3.5 dark:hover:bg-slate-800 hover:bg-gray-50 transition-colors duration-100">
+                                <div x-data="{ shown: false }"
+                                     x-init="setTimeout(() => shown = true, {{ $loop->index * 30 }})"
+                                     :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'"
+                                     class="flex items-start gap-3 px-5 py-3.5 dark:hover:bg-slate-800 hover:bg-gray-50 transition-all duration-300">
 
                                     {{-- Avatar --}}
                                     <div class="flex-shrink-0 mt-0.5">
@@ -2557,11 +3386,23 @@
                             @endforeach
                         </div>
 
-                        @if($activityLog->count() >= 100)
-                            <div class="px-5 py-3 border-t dark:border-slate-800 border-gray-100 text-center">
-                                <p class="font-body text-xs dark:text-slate-500 text-gray-400">Showing the 100 most recent actions.</p>
-                            </div>
-                        @endif
+                        {{-- Load more / progress footer --}}
+                        <div class="px-5 py-3 border-t dark:border-slate-800 border-gray-100 flex items-center justify-between gap-4">
+                            <p class="text-[11px] font-body dark:text-slate-500 text-gray-400">
+                                Showing {{ $activityLog->count() }} of {{ number_format($activityTotal) }}
+                            </p>
+                            @if($activityLog->count() < $activityTotal)
+                                <button wire:click="loadMoreActivity"
+                                        wire:loading.attr="disabled"
+                                        class="inline-flex items-center gap-1.5 text-xs font-semibold font-body text-primary hover:text-accent transition-colors duration-150 disabled:opacity-50">
+                                    <span wire:loading.remove wire:target="loadMoreActivity">Load more</span>
+                                    <span wire:loading wire:target="loadMoreActivity">Loading…</span>
+                                    <svg wire:loading.remove wire:target="loadMoreActivity" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </button>
+                            @endif
+                        </div>
                     @endif
 
                 </div>

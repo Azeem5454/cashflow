@@ -17,7 +17,7 @@ class Create extends Component
         return [
             'name'        => 'required|string|max:100',
             'description' => 'nullable|string|max:500',
-            'currency'    => 'required|string|max:3',
+            'currency'    => ['required', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
         ];
     }
 

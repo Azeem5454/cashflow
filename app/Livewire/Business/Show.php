@@ -30,6 +30,12 @@ class Show extends Component
     public string  $editBookPeriodStartsAt = '';
     public string  $editBookPeriodEndsAt   = '';
 
+    // ── Delete book modal ──────────────────────────────────────
+    public bool   $showDeleteBook    = false;
+    public string $deletingBookId    = '';
+    public string $deletingBookName  = '';
+    public string $deleteConfirmName = '';
+
     // ── Duplicate book modal ───────────────────────────────────
     public bool    $showDuplicateBook        = false;
     public string  $duplicatingBookId        = '';
@@ -186,6 +192,42 @@ class Show extends Component
 
         $this->showDuplicateBook = false;
         $this->dispatch('book-saved', message: 'Book duplicated successfully.');
+    }
+
+    // ── Delete ─────────────────────────────────────────────────
+
+    public function openDeleteBook(string $bookId): void
+    {
+        if ($this->userRole === 'viewer') return;
+
+        $book = $this->business->books()->findOrFail($bookId);
+
+        $this->deletingBookId    = $bookId;
+        $this->deletingBookName  = $book->name;
+        $this->deleteConfirmName = '';
+        $this->resetErrorBag();
+        $this->showDeleteBook    = true;
+    }
+
+    public function deleteBook(): void
+    {
+        if ($this->userRole === 'viewer') return;
+
+        $this->validate([
+            'deleteConfirmName' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    if (trim($value) !== trim($this->deletingBookName)) {
+                        $fail('Book name does not match.');
+                    }
+                },
+            ],
+        ]);
+
+        $this->business->books()->where('id', $this->deletingBookId)->delete();
+
+        $this->showDeleteBook = false;
+        $this->dispatch('book-saved', message: 'Book deleted.');
     }
 
     // ── Kept for backward compat (inline rename, if still used) ─

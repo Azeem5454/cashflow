@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
       x-data="{
-          darkMode: (localStorage.getItem('cashflow_theme') ?? 'dark') === 'dark',
+          darkMode: (localStorage.getItem('cashflow_theme') ?? 'light') === 'dark',
           toggleTheme() {
               this.darkMode = !this.darkMode;
               localStorage.setItem('cashflow_theme', this.darkMode ? 'dark' : 'light');
@@ -16,8 +16,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {{-- Prevent dark mode flash --}}
-    <script>if ((localStorage.getItem('cashflow_theme') ?? 'dark') === 'dark') { document.documentElement.classList.add('dark'); }</script>
-    <script>document.addEventListener('livewire:navigated', function() { document.documentElement.classList.toggle('dark', (localStorage.getItem('cashflow_theme') ?? 'dark') === 'dark'); });</script>
+    <script>if ((localStorage.getItem('cashflow_theme') ?? 'light') === 'dark') { document.documentElement.classList.add('dark'); }</script>
+    <script>document.addEventListener('livewire:navigated', function() { document.documentElement.classList.toggle('dark', (localStorage.getItem('cashflow_theme') ?? 'light') === 'dark'); });</script>
 
     <title>Admin · {{ config('app.name', 'CashFlow') }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}?v={{ @filemtime(public_path('favicon.png')) }}">

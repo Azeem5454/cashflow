@@ -7,11 +7,11 @@
         <span class="text-slate-400">Profile</span>
     </div>
 
-    <h1 class="font-display font-extrabold text-2xl text-white tracking-tight mb-8">Profile Settings</h1>
+    <h1 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 tracking-tight mb-8">Profile Settings</h1>
 
     {{-- ── Edit Name ─────────────────────────────────────────── --}}
     <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6 mb-5">
-        <h2 class="font-heading font-bold text-sm text-white mb-4">Display Name</h2>
+        <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-4">Display Name</h2>
 
         <div class="space-y-4">
             <div>
@@ -42,7 +42,7 @@
 
     {{-- ── Change Password ───────────────────────────────────── --}}
     <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6 mb-5">
-        <h2 class="font-heading font-bold text-sm text-white mb-4">Change Password</h2>
+        <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-4">Change Password</h2>
 
         <div class="space-y-4">
             <div>
@@ -97,7 +97,7 @@
 
     {{-- ── Change Email ──────────────────────────────────────── --}}
     <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6">
-        <h2 class="font-heading font-bold text-sm text-white mb-1">Change Email</h2>
+        <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Change Email</h2>
         <p class="text-xs text-slate-500 font-body mb-4">
             Current: <span class="font-mono text-slate-400">{{ auth()->user()->email }}</span>
         </p>

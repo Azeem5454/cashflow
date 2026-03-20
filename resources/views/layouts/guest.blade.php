@@ -9,10 +9,10 @@
 
     <link rel="icon" type="image/png" href="/favicon.png">
 
-    <!-- Brand Fonts — same URL as landing page -->
+    <!-- Brand Fonts — loaded from admin appearance settings -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap') }}" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @if(file_exists(public_path('brand/theme.css')))
@@ -23,10 +23,10 @@
     <script>if((localStorage.getItem('cashflow_theme')||'light')==='dark'){document.documentElement.classList.add('dark');}</script>
 
     <style>
-        /* ── Explicit font declarations (bypass CSS variable fallback issues) ── */
-        .guest-display { font-family: 'Bricolage Grotesque', sans-serif !important; }
-        .guest-body    { font-family: 'Outfit', sans-serif !important; }
-        .guest-mono    { font-family: 'Geist Mono', monospace !important; }
+        /* ── Guest font declarations — use CSS variables from theme.css, fall back to defaults ── */
+        .guest-display { font-family: var(--font-display, 'Bricolage Grotesque'), sans-serif !important; }
+        .guest-body    { font-family: var(--font-body, 'Outfit'), sans-serif !important; }
+        .guest-mono    { font-family: var(--font-mono, 'Geist Mono'), monospace !important; }
 
         .guest-dot-grid {
             background-image: radial-gradient(circle, rgba(26,86,219,0.13) 1px, transparent 1px);
@@ -144,7 +144,7 @@
 
         /* ── Auth inputs — light default, dark override ── */
         .auth-input {
-            font-family: 'Outfit', sans-serif;
+            font-family: var(--font-body, 'Outfit'), sans-serif;
             background: #ffffff;
             border: 1px solid #e2e8f0;
             color: #0f172a;

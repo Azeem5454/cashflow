@@ -1,4 +1,4 @@
-<div class="p-8 dark:text-white text-gray-900">
+<div class="p-4 sm:p-8 dark:text-white text-gray-900">
 
     {{-- Breadcrumb --}}
     <div class="flex items-center gap-2 text-xs text-slate-600 font-body mb-6">
@@ -103,11 +103,37 @@
                     <label class="block text-xs font-bold uppercase tracking-wider dark:text-slate-400 text-gray-500 font-body mb-2">
                         Expires At <span class="font-normal normal-case dark:text-slate-600 text-gray-400">(optional)</span>
                     </label>
-                    <input type="datetime-local"
-                           wire:model="expiresAt"
-                           class="w-full max-w-xs px-4 py-2.5 text-sm font-body dark:bg-slate-800 bg-white border dark:border-slate-700 border-gray-300 dark:text-white text-gray-900 rounded-xl
-                                  focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-150
-                                  dark:[color-scheme:dark]">
+                    <div x-data="{
+                            initPicker() {
+                                flatpickr(this.$refs.expiry, {
+                                    dateFormat: 'Y-m-d',
+                                    allowInput: true,
+                                    minDate: 'today',
+                                    onChange: (dates, dateStr) => {
+                                        @this.set('expiresAt', dateStr);
+                                    }
+                                });
+                            }
+                        }"
+                        x-init="initPicker()"
+                        class="relative max-w-xs">
+                        <input type="text"
+                               x-ref="expiry"
+                               value="{{ $expiresAt }}"
+                               placeholder="Pick expiry date…"
+                               readonly
+                               class="w-full px-4 py-2.5 text-sm font-body dark:bg-slate-800 bg-white border dark:border-slate-700 border-gray-300 dark:text-white text-gray-900 rounded-xl
+                                      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-150 cursor-pointer">
+                        @if($expiresAt)
+                            <button type="button"
+                                    wire:click="$set('expiresAt', '')"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 dark:text-slate-500 text-gray-400 hover:text-red-400 transition-colors">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        @endif
+                    </div>
                     @error('expiresAt')
                         <p class="mt-1.5 text-xs text-red-400 font-body">{{ $message }}</p>
                     @enderror

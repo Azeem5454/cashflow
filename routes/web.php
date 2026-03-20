@@ -7,16 +7,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('landing-v2');
+    return view('landing-v3');
 })->name('home');
 
-Route::get('/home', function () {
-    return view('landing');
-})->name('landing-v2');
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified', 'redirect_admin'])->name('dashboard');
+Route::get('/dashboard', \App\Livewire\Dashboard::class)
+    ->middleware(['auth', 'verified', 'redirect_admin'])
+    ->name('dashboard');
 
 Route::middleware(['auth', 'verified', 'redirect_admin'])->group(function () {
     Route::get('/businesses/create', function () {
@@ -103,6 +100,7 @@ Route::post('/admin/stop-impersonating', function () {
     $admin = User::findOrFail($adminId);
     session()->forget('impersonating_admin_id');
     Auth::login($admin);
+    session()->regenerate();
 
     return redirect()->route('admin.dashboard');
 })->middleware('auth')->name('admin.stop-impersonating');

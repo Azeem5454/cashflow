@@ -1,4 +1,4 @@
-<div class="p-8 dark:text-white text-gray-900">
+<div class="p-4 sm:p-8 dark:text-white text-gray-900">
 
     {{-- Breadcrumb --}}
     <div class="flex items-center gap-2 text-xs text-slate-600 font-body mb-6">
@@ -31,7 +31,8 @@
 
     {{-- Table --}}
     <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden">
-        <table class="w-full text-sm">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[640px]">
             <thead>
                 <tr class="border-b border-gray-200 dark:border-slate-800">
                     <th class="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 font-body w-5"></th>
@@ -153,6 +154,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
 
         @if($businesses->hasPages())
             <div class="px-5 py-3 border-t border-gray-200 dark:border-slate-800">

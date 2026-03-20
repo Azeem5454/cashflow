@@ -1,4 +1,4 @@
-<div class="p-8 dark:text-white text-gray-900">
+<div class="p-4 sm:p-8 dark:text-white text-gray-900">
 
     {{-- Breadcrumb --}}
     <div class="flex items-center gap-2 text-xs text-slate-600 font-body mb-6">
@@ -21,7 +21,7 @@
                         {{ strtoupper(substr($user->name, 0, 1)) }}
                     </div>
                     <div class="min-w-0">
-                        <p class="font-heading font-bold text-white">{{ $user->name }}</p>
+                        <p class="font-heading font-bold dark:text-white text-gray-900">{{ $user->name }}</p>
                         <p class="text-xs text-slate-500 font-body truncate">{{ $user->email }}</p>
                     </div>
                 </div>
@@ -30,7 +30,7 @@
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 font-body">Plan</span>
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide
-                                     {{ $user->plan === 'pro' ? 'bg-amber-400/10 text-amber-400' : 'bg-slate-800 text-slate-500' }}">
+                                     {{ $user->plan === 'pro' ? 'bg-amber-400/10 text-amber-400' : 'dark:bg-slate-800 dark:text-slate-400 bg-gray-100 text-gray-500' }}">
                             {{ $user->plan }}
                         </span>
                     </div>
@@ -60,12 +60,12 @@
             {{-- Subscription card --}}
             @if($subscription)
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-5">
-                    <h3 class="font-heading font-bold text-sm text-white mb-3">Subscription</h3>
+                    <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-3">Subscription</h3>
                     <div class="space-y-2 text-sm">
                         <div class="flex items-center justify-between">
                             <span class="text-slate-500 font-body">Status</span>
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide
-                                         {{ $subscription->stripe_status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500' }}">
+                                         {{ $subscription->stripe_status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'dark:bg-slate-800 dark:text-slate-400 bg-gray-100 text-gray-500' }}">
                                 {{ $subscription->stripe_status }}
                             </span>
                         </div>
@@ -87,7 +87,7 @@
 
             {{-- Actions --}}
             <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-5">
-                <h3 class="font-heading font-bold text-sm text-white mb-3">Actions</h3>
+                <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-3">Actions</h3>
                 <div class="space-y-2">
                     @if($user->plan !== 'pro')
                         <button wire:click="forcePro"
@@ -96,7 +96,7 @@
                         </button>
                     @else
                         <button wire:click="forceFree"
-                                class="w-full py-2 text-sm font-semibold font-body bg-slate-800 text-slate-400 hover:bg-slate-700 rounded-xl transition-colors">
+                                class="w-full py-2 text-sm font-semibold font-body dark:bg-slate-800 bg-gray-100 dark:text-slate-400 text-gray-600 dark:hover:bg-slate-700 hover:bg-gray-200 rounded-xl transition-colors">
                             Force Free Plan
                         </button>
                     @endif
@@ -129,7 +129,7 @@
             {{-- Businesses --}}
             <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-800">
-                    <h3 class="font-heading font-bold text-sm text-white">Businesses</h3>
+                    <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Businesses</h3>
                 </div>
                 @forelse($businesses as $biz)
                     <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-slate-800/60 last:border-0">
@@ -141,7 +141,7 @@
                             </p>
                         </div>
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ml-3
-                                     {{ $biz->pivot->role === 'owner' ? 'bg-primary/10 text-blue-light' : 'bg-slate-800 text-slate-500' }}">
+                                     {{ $biz->pivot->role === 'owner' ? 'bg-primary/10 text-blue-light' : 'dark:bg-slate-800 dark:text-slate-400 bg-gray-100 text-gray-500' }}">
                             {{ $biz->pivot->role }}
                         </span>
                     </div>
@@ -153,7 +153,7 @@
             {{-- Invitations --}}
             <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-800">
-                    <h3 class="font-heading font-bold text-sm text-white">Invitations Sent</h3>
+                    <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Invitations Sent</h3>
                 </div>
                 @forelse($invitations as $inv)
                     @php

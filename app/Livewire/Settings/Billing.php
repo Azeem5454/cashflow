@@ -30,7 +30,7 @@ class Billing extends Component
         $priceId = config('services.stripe.pro_price_id');
 
         if (! $priceId) {
-            $this->addError('stripe', 'Stripe price ID is not configured. Set STRIPE_PRO_PRICE_ID in .env.');
+            $this->addError('stripe', 'Payment processing is temporarily unavailable. Please try again later.');
             return;
         }
 

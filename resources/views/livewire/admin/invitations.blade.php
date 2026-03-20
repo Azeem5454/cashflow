@@ -1,4 +1,4 @@
-<div class="p-8 dark:text-white text-gray-900">
+<div class="p-4 sm:p-8 dark:text-white text-gray-900">
 
     {{-- Breadcrumb --}}
     <div class="flex items-center gap-2 text-xs text-slate-600 font-body mb-6">
@@ -8,7 +8,7 @@
     </div>
 
     <div class="flex items-center justify-between mb-6">
-        <h1 class="font-display font-extrabold text-2xl text-white tracking-tight">Invitations</h1>
+        <h1 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 tracking-tight">Invitations</h1>
         <span class="text-xs text-slate-500 font-body">{{ $invitations->total() }} total</span>
     </div>
 
@@ -25,7 +25,8 @@
 
     {{-- Table --}}
     <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden">
-        <table class="w-full text-sm">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[560px]">
             <thead>
                 <tr class="border-b border-gray-200 dark:border-slate-800">
                     <th class="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 font-body">Email</th>
@@ -51,7 +52,7 @@
                         <td class="px-5 py-3.5 dark:text-white text-gray-900 font-body">{{ $inv->email }}</td>
                         <td class="px-5 py-3.5 text-slate-400 font-body">{{ $inv->business?->name ?? '—' }}</td>
                         <td class="px-5 py-3.5">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-800 text-slate-400">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide dark:bg-slate-800 dark:text-slate-400 bg-gray-100 text-gray-500">
                                 {{ $inv->role }}
                             </span>
                         </td>
@@ -88,6 +89,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
 
         @if($invitations->hasPages())
             <div class="px-5 py-3 border-t border-gray-200 dark:border-slate-800">
