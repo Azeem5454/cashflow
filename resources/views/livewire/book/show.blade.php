@@ -238,6 +238,19 @@
                             Duplicate Book
                         </button>
 
+                        <button @click="$wire.openEmailReportModal(); open = false"
+                                class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
+                                       dark:text-slate-300 text-gray-700
+                                       dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors">
+                            <svg class="w-4 h-4 dark:text-slate-500 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"/>
+                            </svg>
+                            Email Reports
+                            @if(!$business->isPro())
+                                <span class="ml-auto text-[10px] font-bold uppercase tracking-wider text-amber-400">Pro</span>
+                            @endif
+                        </button>
+
                         <div class="my-1 dark:border-t dark:border-slate-700 border-t border-gray-100"></div>
                         <button @click="$wire.openDeleteBook(); open = false"
                                 class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
@@ -680,6 +693,187 @@
                 </div>
             </div>
         </div>
+    @endif
+
+    {{-- ===== EMAIL REPORT SETTINGS MODAL ===== --}}
+    @if($showEmailReportModal)
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4"
+         x-data="{ shown: false }"
+         x-init="requestAnimationFrame(() => shown = true)"
+         @keydown.escape.window="$wire.set('showEmailReportModal', false)">
+
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" wire:click="$set('showEmailReportModal', false)"></div>
+
+        <div class="relative w-full max-w-md dark:bg-dark bg-white rounded-2xl shadow-2xl
+                    dark:border dark:border-slate-700 border border-gray-200 overflow-hidden"
+             :class="shown ? 'opacity-100 scale-100' : 'opacity-0 scale-95'"
+             style="transition: opacity 200ms ease, transform 200ms ease;">
+
+            {{-- Header --}}
+            <div class="flex items-center justify-between px-6 py-4
+                        dark:border-b dark:border-slate-700 border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-heading font-bold text-lg dark:text-white text-gray-900">Email Reports</h3>
+                </div>
+                <button @click="$wire.set('showEmailReportModal', false)"
+                        class="p-2 rounded-xl dark:text-slate-500 text-gray-400
+                               dark:hover:bg-slate-700 hover:bg-gray-100 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Body --}}
+            <div class="px-6 py-5 space-y-5">
+
+                {{-- Enable/disable toggle --}}
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold font-body dark:text-white text-gray-900">Enable email reports</p>
+                        <p class="text-xs dark:text-slate-500 text-gray-400 mt-0.5">Automatically send summaries for this book</p>
+                    </div>
+                    <button wire:click="$toggle('emailReportActive')"
+                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200
+                                   {{ $emailReportActive ? 'bg-primary' : 'dark:bg-slate-600 bg-gray-300' }}">
+                        <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200
+                                     {{ $emailReportActive ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                    </button>
+                </div>
+
+                {{-- Frequency --}}
+                <div>
+                    <label class="block text-sm font-medium font-body dark:text-slate-300 text-gray-700 mb-2">Frequency</label>
+                    <div class="flex gap-2">
+                        <button wire:click="$set('emailReportFrequency', 'weekly')"
+                                class="flex-1 px-4 py-2.5 text-sm font-semibold font-body rounded-xl border transition-all duration-150
+                                       {{ $emailReportFrequency === 'weekly'
+                                          ? 'bg-primary/10 border-primary text-primary dark:bg-primary/15 dark:border-primary dark:text-blue-light'
+                                          : 'dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 dark:text-slate-400 text-gray-500 hover:border-primary/50' }}">
+                            <svg class="w-4 h-4 mx-auto mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/>
+                            </svg>
+                            Weekly
+                            <p class="text-[10px] mt-0.5 font-normal dark:text-slate-500 text-gray-400">Every Monday</p>
+                        </button>
+                        <button wire:click="$set('emailReportFrequency', 'monthly')"
+                                class="flex-1 px-4 py-2.5 text-sm font-semibold font-body rounded-xl border transition-all duration-150
+                                       {{ $emailReportFrequency === 'monthly'
+                                          ? 'bg-primary/10 border-primary text-primary dark:bg-primary/15 dark:border-primary dark:text-blue-light'
+                                          : 'dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 dark:text-slate-400 text-gray-500 hover:border-primary/50' }}">
+                            <svg class="w-4 h-4 mx-auto mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-8.25h.008v.008H12V11.25Z"/>
+                            </svg>
+                            Monthly
+                            <p class="text-[10px] mt-0.5 font-normal dark:text-slate-500 text-gray-400">1st of month</p>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Recipients --}}
+                <div>
+                    <label class="block text-sm font-medium font-body dark:text-slate-300 text-gray-700 mb-2">Recipients</label>
+                    <textarea wire:model="emailReportRecipients"
+                              rows="2"
+                              placeholder="email@example.com, teammate@example.com"
+                              class="w-full px-4 py-2.5 rounded-xl text-sm font-body resize-none
+                                     dark:bg-slate-800 bg-white
+                                     dark:border-slate-700 border-gray-300 border
+                                     dark:text-white text-gray-900
+                                     dark:placeholder-slate-500 placeholder-gray-400
+                                     focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
+                                     transition-all duration-150"></textarea>
+                    <p class="text-[11px] dark:text-slate-500 text-gray-400 mt-1.5">Comma-separated. Max 10 recipients.</p>
+                    @error('emailReportRecipients')
+                        <p class="text-xs text-red-400 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Last sent + Send test --}}
+                @if($hasExistingSchedule)
+                <div class="flex items-center justify-between p-3 rounded-xl dark:bg-slate-800/50 bg-gray-50 border dark:border-slate-700 border-gray-200">
+                    <div>
+                        <p class="text-[11px] font-medium dark:text-slate-500 text-gray-400 uppercase tracking-wider">Last sent</p>
+                        <p class="text-sm font-body dark:text-slate-300 text-gray-700 mt-0.5">
+                            {{ $emailReportLastSent ?: 'Never' }}
+                        </p>
+                    </div>
+                    <button wire:click="sendTestReport"
+                            wire:loading.attr="disabled"
+                            wire:target="sendTestReport"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold font-body rounded-lg
+                                   dark:bg-slate-700 bg-white dark:text-slate-300 text-gray-600
+                                   border dark:border-slate-600 border-gray-300
+                                   dark:hover:bg-slate-600 hover:bg-gray-100
+                                   disabled:opacity-50 transition-all duration-150">
+                        <span wire:loading.remove wire:target="sendTestReport">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+                            </svg>
+                        </span>
+                        <span wire:loading wire:target="sendTestReport">
+                            <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                        </span>
+                        <span wire:loading.remove wire:target="sendTestReport">Send Test</span>
+                        <span wire:loading wire:target="sendTestReport">Sending...</span>
+                    </button>
+                </div>
+                @endif
+
+                {{-- Info note --}}
+                <div class="flex items-start gap-2.5 p-3 rounded-xl dark:bg-slate-800/50 bg-blue-50 border dark:border-slate-700 border-blue-100">
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0 dark:text-blue-light text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/>
+                    </svg>
+                    <p class="text-xs dark:text-slate-400 text-gray-600 leading-relaxed">
+                        Reports include period totals, top spending categories, and 10 most recent entries. Sent {{ $emailReportFrequency === 'weekly' ? 'every Monday' : 'on the 1st of each month' }} at 9:00 AM UTC.
+                        @if(!$hasExistingSchedule)
+                            Your first report will be sent immediately when you enable.
+                        @endif
+                    </p>
+                </div>
+            </div>
+
+            {{-- Footer --}}
+            <div class="px-6 py-4 dark:border-t dark:border-slate-700 border-t border-gray-200
+                        flex items-center {{ $hasExistingSchedule ? 'justify-between' : 'justify-end' }} gap-3">
+                @if($hasExistingSchedule)
+                    <button wire:click="deleteEmailReport"
+                            class="text-sm font-body text-red-400 hover:text-red-300 transition-colors">
+                        Remove schedule
+                    </button>
+                @endif
+                <div class="flex items-center gap-3">
+                    <button wire:click="$set('showEmailReportModal', false)"
+                            class="px-4 py-2.5 text-sm font-medium font-body rounded-xl
+                                   dark:text-slate-400 text-gray-500
+                                   dark:hover:bg-slate-700 hover:bg-gray-100
+                                   transition-all duration-150">
+                        Cancel
+                    </button>
+                    <button wire:click="saveEmailReport"
+                            class="inline-flex items-center gap-2 px-5 py-2.5
+                                   bg-primary hover:bg-accent text-white
+                                   text-sm font-semibold font-body rounded-xl
+                                   shadow-lg shadow-primary/25 hover:shadow-accent/30
+                                   transition-all duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                        </svg>
+                        {{ $hasExistingSchedule ? 'Update Schedule' : 'Enable Reports' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     @endif
 
     {{-- ===== UPGRADE MODAL ===== --}}

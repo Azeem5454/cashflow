@@ -17,15 +17,17 @@ class TeamInvitation extends Mailable
 
     public function envelope(): Envelope
     {
+        $appName = config('app.name', 'CashFlow');
+
         return new Envelope(
-            subject: "You've been invited to join {$this->invitation->business->name} on CashFlow",
+            subject: "You've been invited to join {$this->invitation->business->name} on {$appName}",
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.team-invitation',
+            view: 'emails.team-invitation',
         );
     }
 }

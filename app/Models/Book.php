@@ -58,6 +58,11 @@ class Book extends Model
         return $this->hasMany(BookPaymentMode::class)->orderBy('name');
     }
 
+    public function reportSchedule(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ReportSchedule::class);
+    }
+
     public function totalIn(): string
     {
         return $this->entries()->where('type', 'in')->sum('amount');

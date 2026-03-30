@@ -1,36 +1,39 @@
 @props([
     'show'         => false,
-    'feature'      => 'business',   // 'business' | 'team' | 'export' | 'recurring' | 'ai' | 'comments' | 'daterange'
+    'feature'      => 'business',   // 'business' | 'team' | 'export' | 'recurring' | 'ai' | 'comments' | 'daterange' | 'emailreports'
     'isOwner'      => true,
     'businessName' => null,
     'dismissHref'  => null,
 ])
 
 @php
-    $isExport    = $feature === 'export';
-    $isTeam      = $feature === 'team';
-    $isRecurring = $feature === 'recurring';
-    $isAi        = $feature === 'ai';
-    $isComments  = $feature === 'comments';
-    $isDaterange = $feature === 'daterange';
+    $isExport       = $feature === 'export';
+    $isTeam         = $feature === 'team';
+    $isRecurring    = $feature === 'recurring';
+    $isAi           = $feature === 'ai';
+    $isComments     = $feature === 'comments';
+    $isDaterange    = $feature === 'daterange';
+    $isEmailReports = $feature === 'emailreports';
 
     $heading = match($feature) {
-        'export'    => 'Export is a Pro feature',
-        'recurring' => 'Recurring entries is a Pro feature',
-        'ai'        => 'AI features are Pro-only',
-        'comments'  => 'Comments are a Pro feature',
-        'daterange' => 'Date range filtering is Pro',
-        default     => 'Upgrade to Pro',
+        'export'       => 'Export is a Pro feature',
+        'recurring'    => 'Recurring entries is a Pro feature',
+        'ai'           => 'AI features are Pro-only',
+        'comments'     => 'Comments are a Pro feature',
+        'daterange'    => 'Date range filtering is Pro',
+        'emailreports' => 'Email reports are a Pro feature',
+        default        => 'Upgrade to Pro',
     };
 
     $features = match($feature) {
-        'business'  => ['Unlimited businesses', 'Unlimited team members', 'PDF & CSV export', 'Priority support'],
-        'export'    => ['PDF export with professional layout', 'CSV export for Excel / Google Sheets', 'Unlimited businesses', 'Unlimited team members'],
-        'recurring' => ['Auto-create entries on a daily, weekly, monthly, or yearly schedule', 'Pause or delete rules anytime', 'All Pro features included'],
-        'ai'        => ['AI receipt scanning — photo a receipt, fields fill themselves', 'AI auto-categorization on description', 'AI cash flow insights on the Reports tab', '200 OCR scans/month included'],
-        'comments'  => ['Comment on any entry and @mention teammates', 'In-app notification bell for mentions', 'Full comment history per entry'],
-        'daterange' => ['Filter entries by any custom date range', 'Compare two periods side-by-side (this month vs last month)', 'See % change in Cash In, Cash Out, and Net'],
-        default     => [],
+        'business'     => ['Unlimited businesses', 'Unlimited team members', 'PDF & CSV export', 'Priority support'],
+        'export'       => ['PDF export with professional layout', 'CSV export for Excel / Google Sheets', 'Unlimited businesses', 'Unlimited team members'],
+        'recurring'    => ['Auto-create entries on a daily, weekly, monthly, or yearly schedule', 'Pause or delete rules anytime', 'All Pro features included'],
+        'ai'           => ['AI receipt scanning — photo a receipt, fields fill themselves', 'AI auto-categorization on description', 'AI cash flow insights on the Reports tab', '200 OCR scans/month included'],
+        'comments'     => ['Comment on any entry and @mention teammates', 'In-app notification bell for mentions', 'Full comment history per entry'],
+        'daterange'    => ['Filter entries by any custom date range', 'Compare two periods side-by-side (this month vs last month)', 'See % change in Cash In, Cash Out, and Net'],
+        'emailreports' => ['Automated weekly or monthly summary emails', 'Period totals, top categories, recent entries', 'Send to up to 10 recipients per book', 'Branded HTML email with direct book link'],
+        default        => [],
     };
 
     $ctaLabel = $isTeam ? 'View Plans' : 'Upgrade to Pro — $5/mo';
@@ -81,6 +84,10 @@
                     <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/>
                     </svg>
+                @elseif($isEmailReports)
+                    <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"/>
+                    </svg>
                 @else
                     <svg class="w-8 h-8 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/>
@@ -128,6 +135,11 @@
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
                     Filter by any custom date range and compare two periods side-by-side.
                     See exactly how your cash flow changed — <strong class="dark:text-white text-gray-900">this month vs last month</strong>, this quarter vs previous, any range you choose.
+                </p>
+            @elseif($isEmailReports)
+                <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
+                    Get automated <strong class="dark:text-white text-gray-900">weekly or monthly</strong> cash flow
+                    summaries delivered straight to your inbox — totals, top categories, and recent entries at a glance.
                 </p>
             @else
                 <p class="text-sm dark:text-slate-400 text-gray-500 mb-1 leading-relaxed">

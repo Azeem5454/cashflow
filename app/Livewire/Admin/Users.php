@@ -34,7 +34,7 @@ class Users extends Component
         $user = User::findOrFail($userId);
         $user->update(['plan' => 'free']);
 
-        // Pause all recurring entries in books owned by this user
+        // Pause all recurring entries and email report schedules in books owned by this user
         $businessIds = $user->ownedBusinesses()->pluck('id');
 
         if ($businessIds->isNotEmpty()) {
@@ -43,6 +43,10 @@ class Users extends Component
                 RecurringEntry::whereIn('book_id', $bookIds)
                     ->where('status', 'active')
                     ->update(['status' => 'paused']);
+
+                \App\Models\ReportSchedule::whereIn('book_id', $bookIds)
+                    ->where('is_active', true)
+                    ->update(['is_active' => false]);
             }
         }
     }

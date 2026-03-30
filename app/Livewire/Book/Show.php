@@ -148,6 +148,15 @@ class Show extends Component
     public string $entryEndsAt     = '';
     public bool   $entryRunForever = false;
 
+    // ── Email report settings modal ─────────────────────────────────
+    public bool   $showEmailReportModal     = false;
+    public string $emailReportFrequency     = 'weekly';
+    public string $emailReportRecipients    = ''; // comma-separated emails
+    public bool   $emailReportActive        = false;
+    public bool   $hasExistingSchedule      = false;
+    public string $emailReportLastSent      = ''; // human-readable "Last sent: ..."
+    public bool   $sendingTestReport        = false;
+
     // ── Comments panel ────────────────────────────────────────────
     public bool   $showCommentPanel       = false;
     public string $commentingEntryId      = '';
@@ -1317,9 +1326,168 @@ class Show extends Component
         $this->book->entries()->delete();
         $this->book->categories()->delete();
         $this->book->paymentModes()->delete();
+        $this->book->reportSchedule?->delete();
         $this->book->delete();
 
         $this->redirect(route('businesses.show', $businessId));
+    }
+
+    // ── Email report settings ────────────────────────────────────────────
+
+    public function openEmailReportModal(): void
+    {
+        $this->guardEditor();
+
+        if (! $this->business->isPro()) {
+            $this->upgradeModalFeature = 'emailreports';
+            return;
+        }
+
+        $schedule = $this->book->reportSchedule;
+
+        if ($schedule) {
+            $this->emailReportFrequency  = $schedule->frequency;
+            $this->emailReportRecipients = implode(', ', $schedule->recipients ?? []);
+            $this->emailReportActive     = $schedule->is_active;
+            $this->hasExistingSchedule   = true;
+            $this->emailReportLastSent   = $schedule->last_sent_at
+                ? $schedule->last_sent_at->diffForHumans()
+                : '';
+        } else {
+            $this->emailReportFrequency  = 'weekly';
+            $this->emailReportRecipients = auth()->user()->email;
+            $this->emailReportActive     = true;
+            $this->hasExistingSchedule   = false;
+            $this->emailReportLastSent   = '';
+        }
+
+        $this->sendingTestReport    = false;
+        $this->showEmailReportModal = true;
+    }
+
+    public function saveEmailReport(): void
+    {
+        $this->guardEditor();
+
+        if (! $this->business->isPro()) {
+            return;
+        }
+
+        $validated = $this->validate([
+            'emailReportFrequency'  => ['required', 'in:weekly,monthly'],
+            'emailReportRecipients' => ['required', 'string', 'max:500'],
+        ]);
+
+        // Parse and validate each email
+        $emails = array_filter(array_map(
+            fn ($e) => strtolower(trim($e)),
+            explode(',', $this->emailReportRecipients)
+        ));
+
+        if (empty($emails)) {
+            $this->addError('emailReportRecipients', 'At least one recipient email is required.');
+            return;
+        }
+
+        foreach ($emails as $email) {
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->addError('emailReportRecipients', "Invalid email address: {$email}");
+                return;
+            }
+        }
+
+        if (count($emails) > 10) {
+            $this->addError('emailReportRecipients', 'Maximum 10 recipient emails allowed.');
+            return;
+        }
+
+        $schedule  = $this->book->reportSchedule;
+        $isNewSchedule = ! $schedule;
+
+        if ($schedule) {
+            $schedule->update([
+                'frequency'  => $this->emailReportFrequency,
+                'recipients' => array_values($emails),
+                'is_active'  => $this->emailReportActive,
+            ]);
+        } else {
+            $schedule = $this->book->reportSchedule()->create([
+                'frequency'  => $this->emailReportFrequency,
+                'recipients' => array_values($emails),
+                'is_active'  => $this->emailReportActive,
+            ]);
+        }
+
+        // Auto-send the first report immediately on new schedule creation
+        if ($isNewSchedule && $this->emailReportActive) {
+            try {
+                $reportData = $schedule->buildReportData();
+                foreach ($schedule->recipients as $recipientEmail) {
+                    \Illuminate\Support\Facades\Mail::to($recipientEmail)->queue(
+                        new \App\Mail\BookEmailReport($this->book, $reportData, $schedule->frequency)
+                    );
+                }
+                $schedule->update(['last_sent_at' => now()]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('First email report send failed', [
+                    'book_id' => $this->book->id,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $this->showEmailReportModal = false;
+        $message = $this->emailReportActive
+            ? "Email reports enabled — {$this->emailReportFrequency} to " . count($emails) . " recipient(s)."
+            : 'Email reports paused.';
+        if ($isNewSchedule && $this->emailReportActive) {
+            $message = "Email reports enabled. First report sent to " . count($emails) . " recipient(s).";
+        }
+        $this->dispatch('entry-saved', message: $message);
+    }
+
+    public function sendTestReport(): void
+    {
+        $this->guardEditor();
+
+        if (! $this->business->isPro()) {
+            return;
+        }
+
+        $this->sendingTestReport = true;
+
+        try {
+            // Build report data using a temporary schedule object (doesn't need to be saved)
+            $tempSchedule = $this->book->reportSchedule ?? new \App\Models\ReportSchedule(['book_id' => $this->book->id]);
+            $tempSchedule->setRelation('book', $this->book);
+            $reportData = $tempSchedule->buildReportData();
+
+            $frequency = $this->emailReportFrequency ?: 'weekly';
+
+            \Illuminate\Support\Facades\Mail::to(auth()->user()->email)->queue(
+                new \App\Mail\BookEmailReport($this->book, $reportData, $frequency)
+            );
+
+            $this->sendingTestReport = false;
+            $this->dispatch('entry-saved', message: 'Test report sent to ' . auth()->user()->email);
+        } catch (\Throwable $e) {
+            $this->sendingTestReport = false;
+            $this->dispatch('entry-saved', message: 'Failed to send test report. Please try again.');
+        }
+    }
+
+    public function deleteEmailReport(): void
+    {
+        $this->guardEditor();
+
+        $schedule = $this->book->reportSchedule;
+        if ($schedule) {
+            $schedule->delete();
+        }
+
+        $this->hasExistingSchedule   = false;
+        $this->showEmailReportModal  = false;
+        $this->dispatch('entry-saved', message: 'Email reports removed.');
     }
 
     // ── AI auto-categorization ─────────────────────

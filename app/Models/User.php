@@ -11,12 +11,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, HasUuids, Billable, HasRoles;
+    use HasFactory, Notifiable, HasUuids, Billable, HasRoles, HasApiTokens;
 
     protected $fillable = [
         'name',
@@ -68,5 +69,15 @@ class User extends Authenticatable implements MustVerifyEmail
     public function unreadNotificationsCount(): int
     {
         return $this->unreadNotifications()->count();
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new \App\Notifications\CustomVerifyEmail);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\CustomResetPassword($token));
     }
 }

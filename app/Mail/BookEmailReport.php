@@ -2,34 +2,36 @@
 
 namespace App\Mail;
 
+use App\Models\Book;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class AdminEmailVerification extends Mailable
+class BookEmailReport extends Mailable
 {
     use Queueable, SerializesModels;
 
     public function __construct(
-        public readonly string $otp,
-        public readonly string $adminName,
+        public readonly Book $book,
+        public readonly array $reportData,
+        public readonly string $frequency,
     ) {}
 
     public function envelope(): Envelope
     {
-        $appName = config('app.name', 'CashFlow');
+        $period = $this->frequency === 'weekly' ? 'Weekly' : 'Monthly';
 
         return new Envelope(
-            subject: "Verify your new email address — {$appName} Admin",
+            subject: "{$period} Report — {$this->book->name} | {$this->book->business->name}",
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            view: 'emails.admin-email-verification',
+            view: 'emails.book-email-report',
         );
     }
 }

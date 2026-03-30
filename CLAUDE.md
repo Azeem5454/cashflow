@@ -552,9 +552,9 @@ database/
 ### Pending App Features (Priority Order)
 
 #### Pro Tier
-- [ ] **Email reports** — `report_schedules` table (book_id, frequency: weekly/monthly, recipients JSON, is_active, last_sent_at); per-book toggle in book settings; queued Laravel Mail job; branded HTML email with period summary, top categories, recent entries
+- [x] **Email reports** — `report_schedules` table (book_id, frequency: weekly/monthly, recipients JSON, is_active, last_sent_at); "Email Reports" option in book settings gear dropdown; modal with enable/disable toggle, frequency pills (Weekly/Monthly), comma-separated recipients (max 10, validated); `BookEmailReport` mailable with branded custom HTML template (dark-luxe design: summary cards, category progress bars, entry list, CTA button); shared email layout partial (`emails.partials.layout`) with dynamic logo + app name; `SendEmailReports` artisan command (`reports:send`) scheduled daily at 09:00 UTC; `ReportSchedule::isDue()` + `buildReportData()` on model; "Send Test" button in modal (queues one email to current user); "Last sent" timestamp display; auto-sends first report immediately on enable; report schedules paused on Pro downgrade (webhook + admin force-free); cleaned up on book delete; Pro gate with `emailreports` upgrade modal feature
 - [x] **Date range filtering & comparison** — Flatpickr date pickers in custom date modal (Pro gate); two comparison modes (Previous Period / Same Period Last Year); 3-row comparison card between filter bar and balance strip with ↑↓% change badges; `buildComparisonData()` in `Book\Show`; `upgradeModalFeature = 'daterange'` gate
-- [ ] **Entry notes/comments** — `entry_comments` table (entry_id, user_id, body, created_at); comment icon on entry rows showing count; thread opens in slide-over; free users see upgrade modal
+- [x] **Entry notes/comments** — `entry_comments` table (entry_id, user_id, body, created_at); comment icon on entry rows showing count; thread opens in slide-over; delete confirmation modal; activity log integration; free users see upgrade modal
 
 #### AI Features (Pro — ship with $5/month price update)
 - [x] **AI receipt OCR** — built and live. Claude claude-haiku-4-5 vision API, currency auto-detection + conversion, 200/month + 5/min rate limits, `ai_usage_logs` table, `AiService.php`
@@ -667,7 +667,48 @@ Core screens mirror the web app:
 
 ---
 
-## Session Notes (last updated 2026-03-25)
+## Session Notes (last updated 2026-03-26)
+
+### Completed this session (2026-03-26)
+
+- **Email reports (Pro)** — full feature build:
+  - `database/migrations/2026_03_25_000001_create_report_schedules_table.php` — UUID PK, book_id FK cascadeOnDelete, frequency (weekly/monthly), recipients JSON, is_active, last_sent_at
+  - `app/Models/ReportSchedule.php` — `isDue()` (frequency-aware interval check), `buildReportData()` (period summary, top 5 categories, 10 recent entries — reused by command + Livewire)
+  - `app/Models/Book.php` — added `reportSchedule()` HasOne relationship
+  - `app/Mail/BookEmailReport.php` — queued mailable with custom HTML view (not markdown)
+  - `app/Console/Commands/SendEmailReports.php` — `reports:send` scheduled daily at 09:00 UTC; iterates active schedules, checks `isDue()` + Pro gate, queues emails, updates `last_sent_at`
+  - `routes/console.php` — added `Schedule::command('reports:send')->dailyAt('09:00')`
+  - `app/Livewire/Book/Show.php` — 8 new properties + `openEmailReportModal()`, `saveEmailReport()`, `deleteEmailReport()`, `sendTestReport()` methods
+  - `resources/views/livewire/book/show.blade.php` — "Email Reports" in settings gear dropdown (Pro badge for free users); full modal with enable/disable toggle, weekly/monthly frequency pills, recipients textarea, "Last sent" timestamp + "Send Test" button, info note with first-report notice
+  - `resources/views/components/upgrade-modal.blade.php` — added `emailreports` feature type with envelope icon, body copy, 4-item feature list
+  - **Send Test** — `sendTestReport()` queues one email to current user only; loading spinner on button
+  - **Last sent** — shows `diffForHumans()` timestamp in modal when schedule exists
+  - **Auto-send on first enable** — `saveEmailReport()` immediately queues the first report when creating a new active schedule
+  - **Downgrade pausing** — `ReportSchedule::update(['is_active' => false])` added to: Stripe webhook (AppServiceProvider), admin force-free (UserDetail + Users)
+  - **Book delete cleanup** — `deleteBook()` now calls `$this->book->reportSchedule?->delete()`
+
+- **Unified branded email system** — all emails now share a common dark-luxe design:
+  - `resources/views/emails/partials/layout.blade.php` — shared HTML layout with dynamic logo (`brand/logo-dark.png` or text fallback), dynamic app name (`config('app.name')`), blue gradient accent bar, `@media` mobile responsive queries, badge slot, footer slot
+  - `resources/views/emails/book-email-report.blade.php` — rewritten from markdown to custom HTML; 3 summary cards (Cash In/Out/Net), category progress bars, entry list with type dots, CTA button; mobile: cards stack vertically, padding reduces, amounts scale down
+  - `resources/views/emails/team-invitation.blade.php` — rewritten from markdown to branded layout; invitation details card with business name + role badge, permissions checklist, CTA button, expiry note
+  - `resources/views/emails/admin-email-verification.blade.php` — rewritten from markdown to branded layout; large monospace OTP code in dark card, amber expiry warning, numbered instructions
+  - `resources/views/emails/verify-email.blade.php` — new branded signup verification email; verify button + fallback URL link + 60-minute expiry
+  - `resources/views/emails/reset-password.blade.php` — new branded password reset email; security note card with lock icon, reset button + fallback URL link + 60-minute expiry
+  - `app/Notifications/CustomVerifyEmail.php` — overrides Laravel's `VerifyEmail` to use branded view
+  - `app/Notifications/CustomResetPassword.php` — overrides Laravel's `ResetPassword` to use branded view
+  - `app/Models/User.php` — `sendEmailVerificationNotification()` and `sendPasswordResetNotification()` overridden to use custom notifications
+  - `app/Mail/TeamInvitation.php` — changed from `markdown:` to `view:`, subject uses dynamic app name
+  - `app/Mail/AdminEmailVerification.php` — changed from `markdown:` to `view:`, subject uses dynamic app name
+  - `app/Mail/BookEmailReport.php` — changed from `markdown:` to `view:`
+
+- **Custom error pages** — branded animated error pages for all common HTTP errors:
+  - `resources/views/errors/layout.blade.php` — standalone HTML layout (no Vite/Livewire dependency); animated gradient error code with shimmer, 3 floating background orbs with drift animation, pulsing icon, fade-up entrance; dark/light mode via `cashflow_theme` localStorage; brand fonts loaded via Google Fonts CDN; fully responsive with `clamp()` typography
+  - `resources/views/errors/403.blade.php` — "Access Denied" with lock icon (red); explains wrong account or insufficient role; Dashboard + Go Back buttons
+  - `resources/views/errors/404.blade.php` — "Page Not Found" with search icon (blue); explains page doesn't exist or moved; Dashboard + Go Back buttons
+  - `resources/views/errors/419.blade.php` — "Session Expired" with clock icon (amber); explains timeout; Refresh + Sign In Again buttons
+  - `resources/views/errors/429.blade.php` — "Slow Down" with warning icon (amber); rate limit explanation; Try Again + Go Back buttons
+  - `resources/views/errors/500.blade.php` — "Something Went Wrong" with wrench icon (red); team notified; Try Again + Dashboard buttons
+  - `resources/views/errors/503.blade.php` — "We'll Be Right Back" with wrench icon (blue); maintenance message; Check Again button
 
 ### Completed this session (2026-03-25)
 
