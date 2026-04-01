@@ -91,4 +91,22 @@ class AuthController extends Controller
     {
         return new UserResource($request->user());
     }
+
+    /**
+     * POST /api/v1/auth/forgot-password
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'string', 'email'],
+        ]);
+
+        $status = \Illuminate\Support\Facades\Password::sendResetLink(
+            $request->only('email')
+        );
+
+        return response()->json([
+            'message' => 'If an account exists with that email, a reset link has been sent.',
+        ]);
+    }
 }

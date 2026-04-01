@@ -149,6 +149,70 @@ class EntryController extends Controller
     }
 
     /**
+     * GET /api/v1/entries/{id}/comments
+     */
+    public function comments(Request $request, string $id): JsonResponse
+    {
+        $entry = $this->findAuthorizedEntry($request, $id);
+
+        $comments = $entry->comments()
+            ->with('user:id,name,email')
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn ($c) => [
+                'id'        => $c->id,
+                'body'      => $c->body,
+                'user'      => ['id' => $c->user->id, 'name' => $c->user->name],
+                'isMine'    => $c->user_id === $request->user()->id,
+                'createdAt' => $c->created_at->toIso8601String(),
+                'timeAgo'   => $c->created_at->diffForHumans(),
+            ]);
+
+        return response()->json(['data' => $comments]);
+    }
+
+    /**
+     * POST /api/v1/entries/{id}/comments
+     */
+    public function addComment(Request $request, string $id): JsonResponse
+    {
+        $entry = $this->findAuthorizedEntry($request, $id, requireEditor: true);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $comment = $entry->comments()->create([
+            'user_id' => $request->user()->id,
+            'body'    => $validated['body'],
+        ]);
+
+        return response()->json([
+            'id'        => $comment->id,
+            'body'      => $comment->body,
+            'user'      => ['id' => $request->user()->id, 'name' => $request->user()->name],
+            'isMine'    => true,
+            'createdAt' => $comment->created_at->toIso8601String(),
+            'timeAgo'   => 'just now',
+        ], 201);
+    }
+
+    /**
+     * DELETE /api/v1/comments/{id}
+     */
+    public function deleteComment(Request $request, string $id): JsonResponse
+    {
+        $comment = \App\Models\EntryComment::findOrFail($id);
+
+        // Only comment author can delete
+        abort_unless($comment->user_id === $request->user()->id, 403, 'You can only delete your own comments.');
+
+        $comment->delete();
+
+        return response()->json(['message' => 'Comment deleted.']);
+    }
+
+    /**
      * Find a book the user has access to.
      */
     private function findAuthorizedBook(Request $request, string $bookId, bool $requireEditor = false): Book

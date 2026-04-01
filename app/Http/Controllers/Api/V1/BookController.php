@@ -218,6 +218,162 @@ class BookController extends Controller
     }
 
     /**
+     * GET /api/v1/books/{id}/activity
+     */
+    public function activity(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+
+        $logs = \App\Models\BookActivityLog::where('book_id', $book->id)
+            ->with('user:id,name,email')
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get()
+            ->map(fn ($log) => [
+                'id'          => $log->id,
+                'action'      => $log->action,
+                'description' => $log->describe(),
+                'iconType'    => $log->iconType(),
+                'user'        => $log->user ? [
+                    'id'   => $log->user->id,
+                    'name' => $log->user->name,
+                ] : null,
+                'meta'        => $log->meta,
+                'createdAt'   => $log->created_at->toIso8601String(),
+                'timeAgo'     => $log->created_at->diffForHumans(),
+            ]);
+
+        return response()->json(['data' => $logs]);
+    }
+
+    /**
+     * GET /api/v1/books/{id}/recurring
+     */
+    public function recurringEntries(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+
+        $entries = $book->recurringEntries()
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($r) => [
+                'id'          => $r->id,
+                'type'        => $r->type,
+                'amount'      => $r->amount,
+                'description' => $r->description,
+                'category'    => $r->category,
+                'paymentMode' => $r->payment_mode,
+                'frequency'   => $r->frequency,
+                'status'      => $r->status,
+                'nextRunAt'   => $r->next_run_at?->toDateString(),
+                'endsAt'      => $r->ends_at?->toDateString(),
+                'createdAt'   => $r->created_at->toIso8601String(),
+            ]);
+
+        return response()->json(['data' => $entries]);
+    }
+
+    /**
+     * PUT /api/v1/recurring/{id}/toggle
+     */
+    public function toggleRecurring(Request $request, string $id): JsonResponse
+    {
+        $recurring = \App\Models\RecurringEntry::findOrFail($id);
+        $book = $this->findAuthorizedBook($request, $recurring->book_id);
+
+        $newStatus = $recurring->status === 'active' ? 'paused' : 'active';
+        $recurring->update(['status' => $newStatus]);
+
+        return response()->json(['status' => $newStatus]);
+    }
+
+    /**
+     * DELETE /api/v1/recurring/{id}
+     */
+    public function deleteRecurring(Request $request, string $id): JsonResponse
+    {
+        $recurring = \App\Models\RecurringEntry::findOrFail($id);
+        $book = $this->findAuthorizedBook($request, $recurring->book_id);
+
+        $recurring->delete();
+
+        return response()->json(['message' => 'Recurring entry deleted.']);
+    }
+
+    /**
+     * GET /api/v1/books/{id}/insights
+     */
+    public function aiInsights(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+
+        if (! $book->business->isPro()) {
+            return response()->json(['message' => 'Pro subscription required.'], 403);
+        }
+
+        // Return cached insights if fresh (< 24h)
+        if ($book->ai_insights_cache && $book->ai_insights_generated_at?->diffInHours(now()) < 24) {
+            return response()->json(json_decode($book->ai_insights_cache, true));
+        }
+
+        // Generate new insights
+        $entryCount = $book->entries()->count();
+        if ($entryCount < 3) {
+            return response()->json(['status' => 'not_enough_data', 'message' => 'Add at least 3 entries to generate insights.']);
+        }
+
+        try {
+            $totalIn  = (float) $book->totalIn();
+            $totalOut = (float) $book->totalOut();
+            $net      = $totalIn - $totalOut + (float) $book->opening_balance;
+
+            $topCategories = $book->entries()
+                ->whereNotNull('category')
+                ->selectRaw("category, type, sum(amount) as total")
+                ->groupBy('category', 'type')
+                ->orderByDesc('total')
+                ->limit(10)
+                ->get();
+
+            $result = app(\App\Services\AiService::class)->generateInsights([
+                'totalIn'        => $totalIn,
+                'totalOut'       => $totalOut,
+                'netBalance'     => $net,
+                'entryCount'     => $entryCount,
+                'topCategories'  => $topCategories->toArray(),
+                'currency'       => $book->business->currency,
+            ]);
+
+            $book->update([
+                'ai_insights_cache'        => json_encode($result),
+                'ai_insights_generated_at' => now(),
+            ]);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => 'Failed to generate insights.'], 500);
+        }
+    }
+
+    /**
+     * GET /api/v1/books/{id}/export/{format}
+     */
+    public function export(Request $request, string $id, string $format): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+
+        if (! $book->business->isPro()) {
+            return response()->json(['message' => 'Pro subscription required for exports.'], 403);
+        }
+
+        // Return the web URL for downloading (user opens in browser)
+        $business = $book->business;
+        $url = url("/businesses/{$business->id}/books/{$book->id}/export/{$format}");
+
+        return response()->json(['url' => $url, 'format' => $format]);
+    }
+
+    /**
      * Finds a book that belongs to a business the user is a member of.
      */
     private function findAuthorizedBook(Request $request, string $bookId)

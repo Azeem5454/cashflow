@@ -59,4 +59,25 @@ class BusinessController extends Controller
 
         return BookResource::collection($books);
     }
+
+    /**
+     * GET /api/v1/businesses/{id}/members
+     */
+    public function members(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $business = $request->user()
+            ->businesses()
+            ->findOrFail($id);
+
+        $members = $business->members()
+            ->get()
+            ->map(fn ($m) => [
+                'id'    => $m->id,
+                'name'  => $m->name,
+                'email' => $m->email,
+                'role'  => $m->pivot->role,
+            ]);
+
+        return response()->json(['data' => $members]);
+    }
 }
