@@ -61,6 +61,45 @@ class BusinessController extends Controller
     }
 
     /**
+     * POST /api/v1/businesses/{id}/books
+     */
+    public function createBook(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $business = $request->user()
+            ->businesses()
+            ->findOrFail($id);
+
+        // Must be owner or editor
+        $role = \Illuminate\Support\Facades\DB::table('business_user')
+            ->where('business_id', $business->id)
+            ->where('user_id', $request->user()->id)
+            ->value('role');
+
+        abort_unless($role && $role !== 'viewer', 403, 'You do not have permission to create books.');
+
+        $validated = $request->validate([
+            'name'           => ['required', 'string', 'max:255'],
+            'description'    => ['nullable', 'string', 'max:1000'],
+            'openingBalance' => ['nullable', 'numeric', 'min:0'],
+            'periodStartsAt' => ['nullable', 'date'],
+            'periodEndsAt'   => ['nullable', 'date', 'after_or_equal:periodStartsAt'],
+        ]);
+
+        $book = $business->books()->create([
+            'name'             => $validated['name'],
+            'description'      => $validated['description'] ?? null,
+            'opening_balance'  => $validated['openingBalance'] ?? 0,
+            'period_starts_at' => $validated['periodStartsAt'] ?? null,
+            'period_ends_at'   => $validated['periodEndsAt'] ?? null,
+        ]);
+
+        return response()->json([
+            'id'   => $book->id,
+            'name' => $book->name,
+        ], 201);
+    }
+
+    /**
      * GET /api/v1/businesses/{id}/members
      */
     public function members(Request $request, string $id): \Illuminate\Http\JsonResponse

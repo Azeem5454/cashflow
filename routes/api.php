@@ -40,6 +40,7 @@ Route::prefix('v1')->group(function () {
         Route::get('businesses/{id}', [BusinessController::class, 'show']);
         Route::get('businesses/{id}/books', [BusinessController::class, 'books']);
         Route::get('businesses/{id}/members', [BusinessController::class, 'members']);
+        Route::post('businesses/{id}/books', [BusinessController::class, 'createBook']);
 
         // Books
         Route::get('books/recent', [BookController::class, 'recentBooks']);
