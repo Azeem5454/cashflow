@@ -17,9 +17,11 @@ class BookResource extends JsonResource
             'openingBalance' => $this->opening_balance,
             'periodStartsAt' => $this->period_starts_at?->toDateString(),
             'periodEndsAt'   => $this->period_ends_at?->toDateString(),
-            'totalIn'        => $this->whenAppended('total_in', fn () => $this->total_in),
-            'totalOut'       => $this->whenAppended('total_out', fn () => $this->total_out),
-            'balance'        => $this->whenAppended('balance', fn () => $this->balance),
+            // Totals are populated dynamically by BusinessController@books / BookController@show.
+            // Cast to string for the mobile client which expects strings.
+            'totalIn'        => isset($this->total_in)  ? (string) $this->total_in  : null,
+            'totalOut'       => isset($this->total_out) ? (string) $this->total_out : null,
+            'balance'        => isset($this->balance)   ? (string) $this->balance   : null,
             'entriesCount'   => $this->whenCounted('entries'),
             'createdAt'      => $this->created_at->toIso8601String(),
         ];
