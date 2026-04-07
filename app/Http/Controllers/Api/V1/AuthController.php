@@ -101,12 +101,112 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'email'],
         ]);
 
-        $status = \Illuminate\Support\Facades\Password::sendResetLink(
+        \Illuminate\Support\Facades\Password::sendResetLink(
             $request->only('email')
         );
 
         return response()->json([
             'message' => 'If an account exists with that email, a reset link has been sent.',
         ]);
+    }
+
+    /**
+     * PUT /api/v1/profile — update name / email
+     */
+    public function updateProfile(Request $request): UserResource
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name'  => ['sometimes', 'string', 'max:255'],
+            'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+        ]);
+
+        $emailChanged = isset($validated['email']) && $validated['email'] !== $user->email;
+
+        $user->update($validated);
+
+        if ($emailChanged) {
+            $user->email_verified_at = null;
+            $user->save();
+            $user->sendEmailVerificationNotification();
+        }
+
+        return new UserResource($user->fresh());
+    }
+
+    /**
+     * PUT /api/v1/profile/password — change password
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'currentPassword' => ['required', 'string'],
+            'password'        => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        if (! Hash::check($request->input('currentPassword'), $user->password)) {
+            return response()->json([
+                'message' => 'Current password is incorrect.',
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->input('password')),
+        ]);
+
+        // Revoke all OTHER tokens (keep current session alive)
+        $currentTokenId = $request->user()->currentAccessToken()->id;
+        $user->tokens()->where('id', '!=', $currentTokenId)->delete();
+
+        return response()->json(['message' => 'Password updated.']);
+    }
+
+    /**
+     * POST /api/v1/auth/email/resend — resend verification email
+     */
+    public function resendVerification(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email already verified.'], 200);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return response()->json(['message' => 'Verification email sent.']);
+    }
+
+    /**
+     * DELETE /api/v1/profile — delete account
+     */
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        if (! Hash::check($request->input('password'), $user->password)) {
+            return response()->json(['message' => 'Password is incorrect.'], 422);
+        }
+
+        // Cancel any active subscription before deleting
+        if ($user->subscribed('default')) {
+            try {
+                $user->subscription('default')->cancelNow();
+            } catch (\Throwable) {
+                // ignore
+            }
+        }
+
+        $user->tokens()->delete();
+        $user->delete();
+
+        return response()->json(['message' => 'Account deleted.']);
     }
 }

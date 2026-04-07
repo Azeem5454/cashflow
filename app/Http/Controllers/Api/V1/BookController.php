@@ -374,6 +374,239 @@ class BookController extends Controller
     }
 
     /**
+     * PUT /api/v1/books/{id} — update book metadata
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+        $this->ensureEditor($request, $book);
+
+        $validated = $request->validate([
+            'name'           => ['sometimes', 'string', 'max:255'],
+            'description'    => ['nullable', 'string', 'max:1000'],
+            'openingBalance' => ['sometimes', 'numeric', 'min:0'],
+            'periodStartsAt' => ['nullable', 'date'],
+            'periodEndsAt'   => ['nullable', 'date', 'after_or_equal:periodStartsAt'],
+        ]);
+
+        $book->update([
+            'name'             => $validated['name']             ?? $book->name,
+            'description'      => array_key_exists('description', $validated)    ? $validated['description']    : $book->description,
+            'opening_balance'  => $validated['openingBalance']  ?? $book->opening_balance,
+            'period_starts_at' => array_key_exists('periodStartsAt', $validated) ? $validated['periodStartsAt'] : $book->period_starts_at,
+            'period_ends_at'   => array_key_exists('periodEndsAt', $validated)   ? $validated['periodEndsAt']   : $book->period_ends_at,
+        ]);
+
+        return response()->json(['message' => 'Book updated.']);
+    }
+
+    /**
+     * DELETE /api/v1/books/{id}
+     */
+    public function destroy(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+        $this->ensureEditor($request, $book);
+
+        $book->delete();
+
+        return response()->json(['message' => 'Book deleted.']);
+    }
+
+    /**
+     * POST /api/v1/books/{id}/duplicate — duplicate book with options
+     */
+    public function duplicate(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+        $this->ensureEditor($request, $book);
+
+        $validated = $request->validate([
+            'name'              => ['required', 'string', 'max:255'],
+            'periodStartsAt'    => ['nullable', 'date'],
+            'periodEndsAt'      => ['nullable', 'date', 'after_or_equal:periodStartsAt'],
+            'copyCategories'    => ['boolean'],
+            'copyPaymentModes'  => ['boolean'],
+            'copyEntries'       => ['boolean'],
+        ]);
+
+        $newBook = $book->business->books()->create([
+            'name'             => $validated['name'],
+            'description'      => $book->description,
+            'opening_balance'  => $book->opening_balance,
+            'period_starts_at' => $validated['periodStartsAt'] ?? null,
+            'period_ends_at'   => $validated['periodEndsAt']   ?? null,
+        ]);
+
+        if (! empty($validated['copyCategories'])) {
+            foreach ($book->categories as $cat) {
+                $newBook->categories()->create(['name' => $cat->name]);
+            }
+        }
+        if (! empty($validated['copyPaymentModes'])) {
+            foreach ($book->paymentModes as $pm) {
+                $newBook->paymentModes()->create(['name' => $pm->name]);
+            }
+        }
+        if (! empty($validated['copyEntries'])) {
+            foreach ($book->entries as $entry) {
+                $newBook->entries()->create([
+                    'type'         => $entry->type,
+                    'amount'       => $entry->amount,
+                    'description'  => $entry->description,
+                    'date'         => $entry->date,
+                    'category'     => $entry->category,
+                    'payment_mode' => $entry->payment_mode,
+                    'reference'    => $entry->reference,
+                    'created_by'   => $request->user()->id,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'id'   => $newBook->id,
+            'name' => $newBook->name,
+        ], 201);
+    }
+
+    /**
+     * GET /api/v1/books/{id}/report-data — full report data for charts
+     */
+    public function reportData(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+
+        if (! $book->business->isPro()) {
+            return response()->json(['message' => 'Pro subscription required.'], 403);
+        }
+
+        $entries = $book->entries()->orderBy('date')->get();
+        $totalIn  = (float) $book->totalIn();
+        $totalOut = (float) $book->totalOut();
+        $netBalance = $totalIn - $totalOut + (float) $book->opening_balance;
+
+        // Trend buckets — by day if <60 entries, week if <180, else month
+        $bucketBy = $entries->count() < 60 ? 'day' : ($entries->count() < 180 ? 'week' : 'month');
+        $trend = [];
+        foreach ($entries as $e) {
+            $key = match ($bucketBy) {
+                'day'   => $e->date->format('Y-m-d'),
+                'week'  => $e->date->format('Y-\WW'),
+                'month' => $e->date->format('Y-m'),
+            };
+            if (! isset($trend[$key])) $trend[$key] = ['label' => $key, 'in' => 0.0, 'out' => 0.0];
+            $trend[$key][$e->type] += (float) $e->amount;
+        }
+        $trend = array_values($trend);
+
+        // Category breakdown
+        $byCategoryOut = [];
+        $byCategoryIn  = [];
+        foreach ($entries as $e) {
+            $cat = $e->category ?: 'Uncategorized';
+            if ($e->type === 'in') {
+                $byCategoryIn[$cat] = ($byCategoryIn[$cat] ?? 0) + (float) $e->amount;
+            } else {
+                $byCategoryOut[$cat] = ($byCategoryOut[$cat] ?? 0) + (float) $e->amount;
+            }
+        }
+        arsort($byCategoryOut);
+        arsort($byCategoryIn);
+
+        // Payment mode breakdown
+        $byPaymentMode = [];
+        foreach ($entries as $e) {
+            $mode = $e->payment_mode ?: 'Unspecified';
+            $byPaymentMode[$mode] = ($byPaymentMode[$mode] ?? 0) + (float) $e->amount;
+        }
+        arsort($byPaymentMode);
+
+        return response()->json([
+            'periodSummary' => [
+                'totalIn'      => $totalIn,
+                'totalOut'     => $totalOut,
+                'netBalance'   => $netBalance,
+                'entryCount'   => $entries->count(),
+                'inCount'      => $entries->where('type', 'in')->count(),
+                'outCount'     => $entries->where('type', 'out')->count(),
+            ],
+            'trend'         => $trend,
+            'bucketBy'      => $bucketBy,
+            'byCategoryOut' => array_map(fn ($k, $v) => ['name' => $k, 'total' => $v], array_keys($byCategoryOut), $byCategoryOut),
+            'byCategoryIn'  => array_map(fn ($k, $v) => ['name' => $k, 'total' => $v], array_keys($byCategoryIn), $byCategoryIn),
+            'byPaymentMode' => array_map(fn ($k, $v) => ['name' => $k, 'total' => $v], array_keys($byPaymentMode), $byPaymentMode),
+            'currencySymbol' => $book->business->currencySymbol(),
+        ]);
+    }
+
+    /**
+     * GET /api/v1/books/{id}/report-schedule
+     */
+    public function reportSchedule(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+        $this->ensureEditor($request, $book);
+
+        $schedule = \App\Models\ReportSchedule::where('book_id', $book->id)->first();
+
+        if (! $schedule) {
+            return response()->json(['data' => null]);
+        }
+
+        return response()->json(['data' => [
+            'id'         => $schedule->id,
+            'frequency'  => $schedule->frequency,
+            'recipients' => $schedule->recipients,
+            'isActive'   => $schedule->is_active,
+            'lastSentAt' => $schedule->last_sent_at?->toIso8601String(),
+        ]]);
+    }
+
+    /**
+     * PUT /api/v1/books/{id}/report-schedule — create or update schedule
+     */
+    public function saveReportSchedule(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+        $this->ensureEditor($request, $book);
+
+        if (! $book->business->isPro()) {
+            return response()->json(['message' => 'Pro subscription required.'], 403);
+        }
+
+        $validated = $request->validate([
+            'frequency'  => ['required', 'in:weekly,monthly'],
+            'recipients' => ['required', 'array', 'min:1', 'max:10'],
+            'recipients.*' => ['required', 'string', 'email', 'max:255'],
+            'isActive'   => ['boolean'],
+        ]);
+
+        $schedule = \App\Models\ReportSchedule::updateOrCreate(
+            ['book_id' => $book->id],
+            [
+                'frequency'  => $validated['frequency'],
+                'recipients' => $validated['recipients'],
+                'is_active'  => $validated['isActive'] ?? true,
+            ]
+        );
+
+        return response()->json(['message' => 'Report schedule saved.', 'id' => $schedule->id]);
+    }
+
+    /**
+     * DELETE /api/v1/books/{id}/report-schedule
+     */
+    public function deleteReportSchedule(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+        $this->ensureEditor($request, $book);
+
+        \App\Models\ReportSchedule::where('book_id', $book->id)->delete();
+
+        return response()->json(['message' => 'Report schedule deleted.']);
+    }
+
+    /**
      * Finds a book that belongs to a business the user is a member of.
      */
     private function findAuthorizedBook(Request $request, string $bookId)
@@ -382,5 +615,15 @@ class BookController extends Controller
 
         return \App\Models\Book::whereIn('business_id', $businessIds)
             ->findOrFail($bookId);
+    }
+
+    private function ensureEditor(Request $request, \App\Models\Book $book): void
+    {
+        $role = \Illuminate\Support\Facades\DB::table('business_user')
+            ->where('business_id', $book->business_id)
+            ->where('user_id', $request->user()->id)
+            ->value('role');
+
+        abort_unless($role && $role !== 'viewer', 403, 'Editor or owner role required.');
     }
 }

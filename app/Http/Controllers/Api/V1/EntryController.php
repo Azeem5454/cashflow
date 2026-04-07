@@ -213,6 +213,206 @@ class EntryController extends Controller
     }
 
     /**
+     * POST /api/v1/books/{id}/entries/bulk-delete
+     */
+    public function bulkDelete(Request $request, string $bookId): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $bookId, requireEditor: true);
+        $ids = $this->validatedBulkIds($request, $book);
+
+        $deleted = $book->entries()->whereIn('id', $ids)->get();
+        foreach ($deleted as $entry) {
+            if ($entry->attachment_path) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($entry->attachment_path);
+            }
+        }
+
+        $count = $book->entries()->whereIn('id', $ids)->delete();
+        $book->touch();
+
+        return response()->json(['message' => "Deleted {$count} entries.", 'count' => $count]);
+    }
+
+    /**
+     * POST /api/v1/books/{id}/entries/bulk-update
+     */
+    public function bulkUpdate(Request $request, string $bookId): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $bookId, requireEditor: true);
+        $ids = $this->validatedBulkIds($request, $book);
+
+        $request->validate([
+            'category'    => ['sometimes', 'nullable', 'string', 'max:100'],
+            'paymentMode' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'flipType'    => ['sometimes', 'boolean'],
+        ]);
+
+        $updates = [];
+        if ($request->has('category'))    $updates['category']     = $request->input('category');
+        if ($request->has('paymentMode')) $updates['payment_mode'] = $request->input('paymentMode');
+
+        if (! empty($updates)) {
+            $book->entries()->whereIn('id', $ids)->update($updates);
+        }
+
+        if ($request->boolean('flipType')) {
+            // Flip in↔out for each entry
+            $book->entries()->whereIn('id', $ids)->where('type', 'in')->update(['type' => '__tmp__']);
+            $book->entries()->whereIn('id', $ids)->where('type', 'out')->update(['type' => 'in']);
+            $book->entries()->whereIn('id', $ids)->where('type', '__tmp__')->update(['type' => 'out']);
+        }
+
+        $book->touch();
+
+        return response()->json(['message' => 'Entries updated.', 'count' => count($ids)]);
+    }
+
+    /**
+     * POST /api/v1/books/{id}/entries/bulk-move — move to another book
+     */
+    public function bulkMove(Request $request, string $bookId): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $bookId, requireEditor: true);
+        $ids = $this->validatedBulkIds($request, $book);
+
+        $request->validate([
+            'targetBookId' => ['required', 'string'],
+            'copy'         => ['sometimes', 'boolean'],
+        ]);
+
+        $targetBook = $this->findAuthorizedBook($request, $request->input('targetBookId'), requireEditor: true);
+
+        // Both books must be in the same business (currency must match)
+        if ($targetBook->business_id !== $book->business_id) {
+            return response()->json(['message' => 'Target book must be in the same business.'], 422);
+        }
+
+        $entries = $book->entries()->whereIn('id', $ids)->get();
+
+        if ($request->boolean('copy')) {
+            foreach ($entries as $entry) {
+                $targetBook->entries()->create([
+                    'type'         => $entry->type,
+                    'amount'       => $entry->amount,
+                    'description'  => $entry->description,
+                    'date'         => $entry->date,
+                    'category'     => $entry->category,
+                    'payment_mode' => $entry->payment_mode,
+                    'reference'    => $entry->reference,
+                    'created_by'   => $request->user()->id,
+                ]);
+            }
+        } else {
+            $book->entries()->whereIn('id', $ids)->update(['book_id' => $targetBook->id]);
+        }
+
+        $book->touch();
+        $targetBook->touch();
+
+        return response()->json([
+            'message' => $request->boolean('copy') ? 'Entries copied.' : 'Entries moved.',
+            'count'   => count($ids),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/entries/{id}/attachment — upload attachment
+     */
+    public function uploadAttachment(Request $request, string $id): JsonResponse
+    {
+        $entry = $this->findAuthorizedEntry($request, $id, requireEditor: true);
+
+        $request->validate([
+            'file' => ['required', 'file', 'max:2048', 'mimes:png,jpg,jpeg,pdf', 'mimetypes:image/png,image/jpeg,application/pdf'],
+        ]);
+
+        // Delete existing attachment if any
+        if ($entry->attachment_path) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($entry->attachment_path);
+        }
+
+        $path = $request->file('file')->store(
+            "attachments/{$entry->book->business_id}/{$entry->book_id}",
+            'local'
+        );
+
+        $entry->update(['attachment_path' => $path]);
+        $entry->book->touch();
+
+        return response()->json([
+            'message' => 'Attachment uploaded.',
+            'url'     => url("/api/v1/entries/{$entry->id}/attachment"),
+        ]);
+    }
+
+    /**
+     * GET /api/v1/entries/{id}/attachment — fetch the file
+     */
+    public function getAttachment(Request $request, string $id)
+    {
+        $entry = $this->findAuthorizedEntry($request, $id);
+
+        if (! $entry->attachment_path) {
+            abort(404);
+        }
+
+        if (! \Illuminate\Support\Facades\Storage::disk('local')->exists($entry->attachment_path)) {
+            abort(404);
+        }
+
+        $mimeType = \Illuminate\Support\Facades\Storage::disk('local')->mimeType($entry->attachment_path);
+
+        // MIME whitelist
+        if (! in_array($mimeType, ['image/png', 'image/jpeg', 'application/pdf'], true)) {
+            abort(403);
+        }
+
+        return response()->file(
+            \Illuminate\Support\Facades\Storage::disk('local')->path($entry->attachment_path),
+            [
+                'Content-Type'           => $mimeType,
+                'X-Content-Type-Options' => 'nosniff',
+            ]
+        );
+    }
+
+    /**
+     * DELETE /api/v1/entries/{id}/attachment
+     */
+    public function deleteAttachment(Request $request, string $id): JsonResponse
+    {
+        $entry = $this->findAuthorizedEntry($request, $id, requireEditor: true);
+
+        if ($entry->attachment_path) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($entry->attachment_path);
+            $entry->update(['attachment_path' => null]);
+            $entry->book->touch();
+        }
+
+        return response()->json(['message' => 'Attachment removed.']);
+    }
+
+    /**
+     * Validate that all provided IDs belong to the given book.
+     */
+    private function validatedBulkIds(Request $request, Book $book): array
+    {
+        $request->validate([
+            'ids'   => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['required', 'string'],
+        ]);
+
+        $ids = $request->input('ids');
+        $validIds = $book->entries()->whereIn('id', $ids)->pluck('id')->toArray();
+
+        if (count($validIds) !== count($ids)) {
+            abort(403, 'Some entries do not belong to this book.');
+        }
+
+        return $validIds;
+    }
+
+    /**
      * Find a book the user has access to.
      */
     private function findAuthorizedBook(Request $request, string $bookId, bool $requireEditor = false): Book
