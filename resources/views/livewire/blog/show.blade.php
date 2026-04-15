@@ -105,25 +105,44 @@
     @if($related->count() > 0)
         <section class="max-w-6xl mx-auto px-4 sm:px-6 mt-20">
             <h2 class="fd font-bold text-xl sm:text-2xl mb-8" style="color:#f8fafc;letter-spacing:-0.01em">More in {{ $post->category?->name ?: 'the blog' }}</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-7">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-7">
                 @foreach($related as $r)
-                    <a href="{{ route('blog.show', $r->slug) }}" class="group block">
-                        <div class="aspect-[16/10] rounded-xl overflow-hidden mb-4" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)">
+                    <a href="{{ route('blog.show', $r->slug) }}"
+                       class="blog-card group flex flex-col rounded-2xl overflow-hidden transition-all duration-300"
+                       style="background:#0d1526;border:1px solid rgba(255,255,255,0.07)">
+                        <div class="aspect-[16/10] overflow-hidden" style="background:rgba(255,255,255,0.02)">
                             @if($r->featuredImageUrl())
                                 <img src="{{ $r->featuredImageUrl() }}" alt="{{ $r->featured_image_alt ?: $r->title }}"
-                                     class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]">
+                                     class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]">
                             @else
-                                <div class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,rgba(26,86,219,0.15),rgba(59,130,246,0.03))"></div>
+                                <div class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,rgba(26,86,219,0.18),rgba(59,130,246,0.04))"></div>
                             @endif
                         </div>
-                        @if($r->category)
-                            <span class="inline-block text-[11px] font-semibold uppercase tracking-widest mb-2" style="color:{{ $r->category->color }}">{{ $r->category->name }}</span>
-                        @endif
-                        <h3 class="fd font-bold text-base mb-2" style="color:#f8fafc;line-height:1.3">{{ $r->title }}</h3>
-                        <p class="text-[11px]" style="color:rgba(255,255,255,0.4)">{{ $r->published_at?->format('M j, Y') }} · {{ $r->reading_time }} min read</p>
+                        <div class="p-5 flex-1 flex flex-col">
+                            <div class="flex items-center gap-3 mb-3">
+                                @if($r->category)
+                                    <span class="inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full"
+                                          style="background:{{ $r->category->color }}22;color:{{ $r->category->color }};border:1px solid {{ $r->category->color }}33">
+                                        {{ $r->category->name }}
+                                    </span>
+                                @endif
+                                <span class="text-[11px]" style="color:rgba(255,255,255,0.38)">{{ $r->published_at?->format('M j, Y') }}</span>
+                            </div>
+                            <h3 class="fd font-extrabold text-base mb-2 line-clamp-2" style="color:#f8fafc;line-height:1.3">{{ $r->title }}</h3>
+                            <p class="text-[11px] mt-auto pt-3" style="color:rgba(255,255,255,0.4);border-top:1px solid rgba(255,255,255,0.05)">{{ $r->reading_time }} min read</p>
+                        </div>
                     </a>
                 @endforeach
             </div>
+
+            <style>
+                .blog-card:hover {
+                    border-color: rgba(59,130,246,0.35) !important;
+                    background: #111a30 !important;
+                    transform: translateY(-3px);
+                    box-shadow: 0 14px 36px rgba(0,0,0,0.35), 0 0 0 1px rgba(59,130,246,0.08);
+                }
+            </style>
         </section>
     @endif
 
