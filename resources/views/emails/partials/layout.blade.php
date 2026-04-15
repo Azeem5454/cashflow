@@ -1,9 +1,11 @@
 @php
     $appName = config('app.name', 'CashFlow');
-    $appUrl = config('app.url', 'https://cashflow.app');
-    $hasLogo = file_exists(public_path('brand/logo-dark.png'));
+    $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
+    // Use absolute URL — emails are rendered far from a request context,
+    // and the route helper can't emit relative URLs to image src anyway.
+    $hasLogo = \App\Models\UploadedAsset::has('logo-dark');
     $logoUrl = $hasLogo
-        ? asset('brand/logo-dark.png') . '?v=' . filemtime(public_path('brand/logo-dark.png'))
+        ? $appUrl . route('brand-asset', 'logo-dark', false) . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-dark')
         : null;
 @endphp
 <!DOCTYPE html>

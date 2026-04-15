@@ -13,6 +13,11 @@ Route::get('/', function () {
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 
+// Admin-uploaded brand assets — served from DB so they survive redeploys.
+Route::get('/brand-asset/{key}', [\App\Http\Controllers\BrandAssetController::class, 'show'])
+    ->where('key', '[a-z0-9_-]+')
+    ->name('brand-asset');
+
 
 Route::get('/dashboard', \App\Livewire\Dashboard::class)
     ->middleware(['auth', 'verified', 'redirect_admin'])

@@ -12,10 +12,10 @@
 
         $ogImage = $appUrl . '/brand/cashflow_logo.png';
         try {
-            if (file_exists(public_path('brand/og-image.png'))) {
-                $ogImage = $appUrl . '/brand/og-image.png?v=' . filemtime(public_path('brand/og-image.png'));
-            } elseif (file_exists(public_path('brand/logo-dark.png'))) {
-                $ogImage = $appUrl . '/brand/logo-dark.png?v=' . filemtime(public_path('brand/logo-dark.png'));
+            if (\App\Models\UploadedAsset::has('og-image')) {
+                $ogImage = $appUrl . route('brand-asset', 'og-image', false) . '?v=' . \App\Models\UploadedAsset::cacheBuster('og-image');
+            } elseif (\App\Models\UploadedAsset::has('logo-dark')) {
+                $ogImage = $appUrl . route('brand-asset', 'logo-dark', false) . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-dark');
             }
         } catch (\Throwable $e) {
             // keep default
@@ -39,9 +39,9 @@
     <meta name="twitter:description" content="{{ $ogDesc }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
 
-    <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/favicon.png">
+    @php $faviconSrc = \App\Models\UploadedAsset::has('favicon') ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon') : asset('favicon.png'); @endphp
+    <link rel="icon" type="image/png" href="{{ $faviconSrc }}">
+    <link rel="apple-touch-icon" href="{{ $faviconSrc }}">
 
     <!-- Brand Fonts — loaded from admin appearance settings -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -224,16 +224,21 @@
 
         <div class="relative z-10 flex flex-col h-full p-10 xl:p-12">
 
-            {{-- Logo --}}
+            {{-- Logo (DB-backed; see App\Models\UploadedAsset) --}}
+            @php
+                $gHasDark  = \App\Models\UploadedAsset::has('logo-dark');
+                $gHasLight = \App\Models\UploadedAsset::has('logo-light');
+                $gDarkUrl  = $gHasDark  ? route('brand-asset', 'logo-dark')  . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-dark')  : null;
+                $gLightUrl = $gHasLight ? route('brand-asset', 'logo-light') . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-light') : null;
+            @endphp
             <a href="/" class="flex-shrink-0 flex items-center gap-3 mb-10">
-                @if(file_exists(public_path('brand/logo-dark.png')) && file_exists(public_path('brand/logo-light.png')))
-                    <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
-                         alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto hidden dark:block">
-                    <img src="{{ asset('brand/logo-light.png') }}?v={{ filemtime(public_path('brand/logo-light.png')) }}"
-                         alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto dark:hidden">
-                @elseif(file_exists(public_path('brand/logo-dark.png')))
-                    <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
-                         alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto">
+                @if($gHasDark && $gHasLight)
+                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto hidden dark:block">
+                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto dark:hidden">
+                @elseif($gHasDark)
+                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto">
+                @elseif($gHasLight)
+                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto">
                 @else
                     <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}"
                          class="h-9 w-9 rounded-xl">
@@ -402,17 +407,13 @@
         {{-- Mobile logo --}}
         <div class="lg:hidden mb-8 self-start">
             <a href="/" class="flex items-center gap-2.5">
-                @if(file_exists(public_path('brand/logo-dark.png')) && file_exists(public_path('brand/logo-light.png')))
-                    <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
-                         alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto hidden dark:block">
-                    <img src="{{ asset('brand/logo-light.png') }}?v={{ filemtime(public_path('brand/logo-light.png')) }}"
-                         alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto dark:hidden">
-                @elseif(file_exists(public_path('brand/logo-dark.png')))
-                    <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
-                         alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
-                @elseif(file_exists(public_path('brand/logo-light.png')))
-                    <img src="{{ asset('brand/logo-light.png') }}?v={{ filemtime(public_path('brand/logo-light.png')) }}"
-                         alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
+                @if($gHasDark && $gHasLight)
+                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto hidden dark:block">
+                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto dark:hidden">
+                @elseif($gHasDark)
+                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
+                @elseif($gHasLight)
+                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
                 @else
                     <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}"
                          class="h-8 w-8 rounded-lg">

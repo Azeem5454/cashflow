@@ -43,10 +43,10 @@
     {{-- Glow orb --}}
     <div class="glow-orb fixed top-0 left-1/2 -translate-x-1/2 w-[700px] h-[500px] pointer-events-none opacity-50"></div>
 
-    {{-- Logo --}}
+    {{-- Logo (DB-backed) --}}
     <a href="/" class="anim-fade-up relative z-10 mb-12">
-        @if(file_exists(public_path('brand/logo-dark.png')))
-            <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
+        @if(\App\Models\UploadedAsset::has('logo-dark'))
+            <img src="{{ route('brand-asset', 'logo-dark') }}?v={{ \App\Models\UploadedAsset::cacheBuster('logo-dark') }}"
                  alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto object-contain">
         @else
             <img src="/brand/cashflow_logo_horizontal.png" alt="{{ config('app.name', 'CashFlow') }}" class="h-9">

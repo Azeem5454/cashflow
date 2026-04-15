@@ -8,13 +8,13 @@
     ];
     $s = $sizes[$size] ?? $sizes['md'];
 
-    $darkPath  = public_path('brand/logo-dark.png');
-    $lightPath = public_path('brand/logo-light.png');
-    $hasDark   = file_exists($darkPath);
-    $hasLight  = file_exists($lightPath);
+    // Logos are stored in the DB (see uploaded_assets) so they survive redeploys
+    // on hosts with ephemeral filesystems. Served via BrandAssetController.
+    $hasDark  = \App\Models\UploadedAsset::has('logo-dark');
+    $hasLight = \App\Models\UploadedAsset::has('logo-light');
 
-    $darkUrl  = $hasDark  ? asset('brand/logo-dark.png')  . '?v=' . filemtime($darkPath)  : null;
-    $lightUrl = $hasLight ? asset('brand/logo-light.png') . '?v=' . filemtime($lightPath) : null;
+    $darkUrl  = $hasDark  ? route('brand-asset', 'logo-dark')  . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-dark')  : null;
+    $lightUrl = $hasLight ? route('brand-asset', 'logo-light') . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-light') : null;
 @endphp
 
 <div {{ $attributes->merge(['class' => 'flex items-center gap-3']) }}>

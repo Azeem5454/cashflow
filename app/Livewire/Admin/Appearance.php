@@ -134,45 +134,47 @@ class Appearance extends Component
     }
 
     // ── Logo Uploads ──
+    //
+    // Uploaded bytes go into the `uploaded_assets` table (served by
+    // BrandAssetController at /brand-asset/{key}). Storing in the DB
+    // means admin-uploaded logos survive container redeploys on hosts
+    // with ephemeral filesystems (Railway, Heroku, serverless).
+
     public function uploadLogoDark(): void
     {
-        $this->validate(['logoDark' => ['required', 'image', 'mimes:png', 'max:1024']]);
-        $this->logoDark->storeAs('', 'logo-dark.png', 'brand');
-        $this->logoDark = null;
+        $this->validate(['logoDark' => ['required', 'image', 'mimes:png', 'mimetypes:image/png', 'max:1024']]);
+        \App\Models\UploadedAsset::put('logo-dark', file_get_contents($this->logoDark->getRealPath()), 'image/png');
+        $this->logoDark    = null;
         $this->logoSuccess = 'Dark logo uploaded.';
     }
 
     public function uploadLogoLight(): void
     {
-        $this->validate(['logoLight' => ['required', 'image', 'mimes:png', 'max:1024']]);
-        $this->logoLight->storeAs('', 'logo-light.png', 'brand');
-        $this->logoLight = null;
+        $this->validate(['logoLight' => ['required', 'image', 'mimes:png', 'mimetypes:image/png', 'max:1024']]);
+        \App\Models\UploadedAsset::put('logo-light', file_get_contents($this->logoLight->getRealPath()), 'image/png');
+        $this->logoLight   = null;
         $this->logoSuccess = 'Light logo uploaded.';
     }
 
     public function uploadFavicon(): void
     {
-        $this->validate(['favicon' => ['required', 'image', 'mimes:png', 'max:1024']]);
-        $this->favicon->storeAs('', 'favicon.png', 'brand');
-
-        // Also copy to public root for browser tab
-        copy(public_path('brand/favicon.png'), public_path('favicon.png'));
-
-        $this->favicon = null;
+        $this->validate(['favicon' => ['required', 'image', 'mimes:png', 'mimetypes:image/png', 'max:1024']]);
+        \App\Models\UploadedAsset::put('favicon', file_get_contents($this->favicon->getRealPath()), 'image/png');
+        $this->favicon     = null;
         $this->logoSuccess = 'Favicon uploaded.';
     }
 
     public function revertLogo(string $type): void
     {
         $map = [
-            'dark'    => 'brand/logo-dark.png',
-            'light'   => 'brand/logo-light.png',
-            'favicon' => 'brand/favicon.png',
+            'dark'    => 'logo-dark',
+            'light'   => 'logo-light',
+            'favicon' => 'favicon',
         ];
 
-        $path = public_path($map[$type] ?? '');
-        if (file_exists($path)) {
-            unlink($path);
+        $key = $map[$type] ?? null;
+        if ($key) {
+            \App\Models\UploadedAsset::forgetKey($key);
         }
 
         $this->logoSuccess = ucfirst($type) . ' logo reverted to default.';

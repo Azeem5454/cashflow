@@ -27,9 +27,9 @@
     <meta name="description" content="{{ config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights.' }}">
     <meta name="robots" content="noindex,nofollow">
     <meta name="theme-color" content="#0a0f1e">
-    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
-    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
-    <link rel="apple-touch-icon" href="{{ asset('favicon.png') }}">
+    @php $appFaviconSrc = \App\Models\UploadedAsset::has('favicon') ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon') : asset('favicon.png'); @endphp
+    <link rel="icon" type="image/png" href="{{ $appFaviconSrc }}">
+    <link rel="apple-touch-icon" href="{{ $appFaviconSrc }}">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

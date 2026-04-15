@@ -119,8 +119,8 @@
                     <div class="flex items-start gap-6">
                         {{-- Preview --}}
                         <div class="w-24 h-24 rounded-xl bg-navy border border-slate-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            @if(file_exists(public_path('brand/logo-dark.png')))
-                                <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}" alt="Dark logo" class="max-w-full max-h-full object-contain p-2">
+                            @if(\App\Models\UploadedAsset::has('logo-dark'))
+                                <img src="{{ route('brand-asset', 'logo-dark') }}?v={{ \App\Models\UploadedAsset::cacheBuster('logo-dark') }}" alt="Dark logo" class="max-w-full max-h-full object-contain p-2">
                             @else
                                 <span class="text-xs text-slate-600 font-body">No logo</span>
                             @endif
@@ -138,7 +138,7 @@
                                                transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
                                     Upload
                                 </button>
-                                @if(file_exists(public_path('brand/logo-dark.png')))
+                                @if(\App\Models\UploadedAsset::has('logo-dark'))
                                     <button wire:click="revertLogo('dark')" wire:confirm="Remove the custom dark logo?"
                                             class="px-4 py-2 border dark:border-slate-700 border-gray-300 dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900 text-xs font-medium font-body rounded-lg transition-all duration-150">
                                         Revert to Default
@@ -156,8 +156,8 @@
 
                     <div class="flex items-start gap-6">
                         <div class="w-24 h-24 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            @if(file_exists(public_path('brand/logo-light.png')))
-                                <img src="{{ asset('brand/logo-light.png') }}?v={{ filemtime(public_path('brand/logo-light.png')) }}" alt="Light logo" class="max-w-full max-h-full object-contain p-2">
+                            @if(\App\Models\UploadedAsset::has('logo-light'))
+                                <img src="{{ route('brand-asset', 'logo-light') }}?v={{ \App\Models\UploadedAsset::cacheBuster('logo-light') }}" alt="Light logo" class="max-w-full max-h-full object-contain p-2">
                             @else
                                 <span class="text-xs text-slate-400 font-body">No logo</span>
                             @endif
@@ -175,7 +175,7 @@
                                                transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
                                     Upload
                                 </button>
-                                @if(file_exists(public_path('brand/logo-light.png')))
+                                @if(\App\Models\UploadedAsset::has('logo-light'))
                                     <button wire:click="revertLogo('light')" wire:confirm="Remove the custom light logo?"
                                             class="px-4 py-2 border dark:border-slate-700 border-gray-300 dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900 text-xs font-medium font-body rounded-lg transition-all duration-150">
                                         Revert to Default
@@ -193,7 +193,11 @@
 
                     <div class="flex items-start gap-6">
                         <div class="w-16 h-16 rounded-xl bg-navy border border-slate-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            <img src="{{ asset('favicon.png') }}?v={{ @filemtime(public_path('favicon.png')) }}" alt="Favicon" class="max-w-full max-h-full object-contain p-1">
+                            @if(\App\Models\UploadedAsset::has('favicon'))
+                                <img src="{{ route('brand-asset', 'favicon') }}?v={{ \App\Models\UploadedAsset::cacheBuster('favicon') }}" alt="Favicon" class="max-w-full max-h-full object-contain p-1">
+                            @else
+                                <img src="{{ asset('favicon.png') }}" alt="Favicon" class="max-w-full max-h-full object-contain p-1">
+                            @endif
                         </div>
 
                         <div class="flex-1 space-y-3">

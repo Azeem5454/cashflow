@@ -10,12 +10,17 @@
         $ogTitle = $appName . ' — Your business balance. Live. Always.';
         $ogDesc  = config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights. The smartest cash book for small businesses worldwide.';
 
+        // Logo/OG image URLs come from the DB-backed BrandAssetController,
+        // so admin-uploaded logos persist across container redeploys.
+        $lHasDark = \App\Models\UploadedAsset::has('logo-dark');
+        $lDarkUrl = $lHasDark ? route('brand-asset', 'logo-dark') . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-dark') : null;
+
         $ogImage = $appUrl . '/brand/cashflow_logo.png';
         try {
-            if (file_exists(public_path('brand/og-image.png'))) {
-                $ogImage = $appUrl . '/brand/og-image.png?v=' . filemtime(public_path('brand/og-image.png'));
-            } elseif (file_exists(public_path('brand/logo-dark.png'))) {
-                $ogImage = $appUrl . '/brand/logo-dark.png?v=' . filemtime(public_path('brand/logo-dark.png'));
+            if (\App\Models\UploadedAsset::has('og-image')) {
+                $ogImage = $appUrl . route('brand-asset', 'og-image', false) . '?v=' . \App\Models\UploadedAsset::cacheBuster('og-image');
+            } elseif ($lHasDark) {
+                $ogImage = $appUrl . route('brand-asset', 'logo-dark', false) . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-dark');
             }
         } catch (\Throwable $e) {
             // keep default og image
@@ -212,9 +217,8 @@
 <div id="nav-wrapper" class="sticky top-0 z-50" x-data="{ mobileOpen: false }" x-on:keydown.escape.window="mobileOpen = false">
     <nav id="main-nav" class="px-4 sm:px-6 md:px-8 py-3.5 flex items-center justify-between">
         <a href="{{ route('home') }}" class="flex items-center gap-2.5" x-on:click="mobileOpen = false">
-            @if(file_exists(public_path('brand/logo-dark.png')))
-                <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
-                     alt="{{ config('app.name', 'CashFlow') }}" class="h-7 w-auto object-contain">
+            @if($lHasDark)
+                <img src="{{ $lDarkUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-7 w-auto object-contain">
             @else
                 <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--primary)">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -861,12 +865,12 @@
         <p class="sr d2 text-lg mb-10" style="color:rgba(248,250,252,0.45)">
             Setup takes 2 minutes. Your first balance update takes 10 seconds.
         </p>
-        <div class="sr d3 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="{{ route('register') }}" class="font-bold text-base px-8 py-4 rounded-full btn-primary">
-                Create your free account →
+        <div class="sr d3 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-sm sm:max-w-none mx-auto">
+            <a href="{{ route('register') }}" class="w-full sm:w-auto text-center font-bold text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 rounded-full btn-primary whitespace-nowrap">
+                Create free account →
             </a>
-            <a href="{{ route('login') }}" class="text-base px-8 py-4 rounded-full btn-ghost">
-                Already have an account
+            <a href="{{ route('login') }}" class="w-full sm:w-auto text-center text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 rounded-full btn-ghost whitespace-nowrap">
+                I have an account
             </a>
         </div>
         <p class="sr d4 mt-5 text-xs" style="color:rgba(248,250,252,0.25)">No credit card required · Free plan available · Pro at $5/month</p>
@@ -882,9 +886,8 @@
         </div>
         <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6" style="border-top:1px solid rgba(255,255,255,0.07)">
             <div class="flex items-center gap-2">
-                @if(file_exists(public_path('brand/logo-dark.png')))
-                    <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
-                         alt="{{ config('app.name', 'CashFlow') }}" class="h-6 w-auto object-contain opacity-60">
+                @if($lHasDark)
+                    <img src="{{ $lDarkUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-6 w-auto object-contain opacity-60">
                 @else
                     <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:var(--primary)">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -892,11 +895,11 @@
                     <span class="fd font-bold text-sm" style="color:rgba(255,255,255,0.45)">{{ config('app.name', 'CashFlow') }}</span>
                 @endif
             </div>
-            <div class="flex items-center gap-6">
-                @foreach([['#how','How it works'],['#features','Features'],['#pricing','Pricing'],['terms','Terms'],['privacy','Privacy'],['login','Sign in'],['register','Register']] as [$r,$l])
-                <a href="{{ str_starts_with($r,'#') ? $r : route($r) }}" class="text-xs transition-colors"
-                   style="color:rgba(255,255,255,0.55)" onmouseover="this.style.color='rgba(255,255,255,0.95)'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">{{ $l }}</a>
-                @endforeach
+            <div class="flex items-center gap-5 sm:gap-6">
+                <a href="{{ route('terms') }}" class="text-xs transition-colors"
+                   style="color:rgba(255,255,255,0.55)" onmouseover="this.style.color='rgba(255,255,255,0.95)'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">Terms</a>
+                <a href="{{ route('privacy') }}" class="text-xs transition-colors"
+                   style="color:rgba(255,255,255,0.55)" onmouseover="this.style.color='rgba(255,255,255,0.95)'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">Privacy</a>
             </div>
             <p class="text-xs" style="color:rgba(255,255,255,0.42)">© {{ date('Y') }} {{ config('app.name', 'CashFlow') }}</p>
         </div>
