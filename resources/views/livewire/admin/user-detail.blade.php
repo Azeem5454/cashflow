@@ -100,6 +100,26 @@
                             Force Free Plan
                         </button>
                     @endif
+
+                    <button wire:click="resyncStripe"
+                            wire:loading.attr="disabled"
+                            wire:target="resyncStripe"
+                            wire:confirm="Resync this user's Stripe customer against current keys? This will clear any stale test customer IDs."
+                            class="w-full py-2 text-sm font-semibold font-body bg-primary/10 text-blue-light hover:bg-primary/20 rounded-xl transition-colors disabled:opacity-50">
+                        <span wire:loading.remove wire:target="resyncStripe">Resync Stripe Customer</span>
+                        <span wire:loading wire:target="resyncStripe">Syncing with Stripe…</span>
+                    </button>
+
+                    @if($resyncMessage)
+                        <div class="mt-2 px-3 py-2 text-xs font-body rounded-lg
+                                    @if(str_starts_with($resyncMessage, 'Error'))
+                                        bg-red-500/10 text-red-400 border border-red-500/20
+                                    @else
+                                        bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                                    @endif">
+                            {{ $resyncMessage }}
+                        </div>
+                    @endif
                 </div>
             </div>
 

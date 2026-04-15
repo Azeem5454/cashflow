@@ -59,6 +59,78 @@ class UserDetail extends Component
         $this->user->refresh();
     }
 
+    /**
+     * Resync this user's Stripe customer + subscription state against the
+     * current Stripe keys. Fixes stale test customer IDs left over from
+     * switching between Stripe test/live modes.
+     */
+    public string $resyncMessage = '';
+
+    public function resyncStripe(): void
+    {
+        abort_unless(auth()->check() && auth()->user()->is_admin, 403);
+
+        try {
+            $stripe = $this->user->stripe();
+
+            $customers = $stripe->customers->all([
+                'email' => $this->user->email,
+                'limit' => 10,
+            ]);
+
+            if (empty($customers->data)) {
+                // No customer in this mode — clear stale ID and reset to free.
+                $this->user->subscriptions()->delete();
+                $this->user->update([
+                    'stripe_id'     => null,
+                    'pm_type'       => null,
+                    'pm_last_four'  => null,
+                    'trial_ends_at' => null,
+                    'plan'          => 'free',
+                ]);
+                $this->user->refresh();
+                $this->resyncMessage = "No Stripe customer found — cleared stale ID, plan reset to Free. User can now subscribe fresh.";
+                return;
+            }
+
+            // Newest customer wins
+            $customer = collect($customers->data)->sortByDesc('created')->first();
+
+            $subs = $stripe->subscriptions->all([
+                'customer' => $customer->id,
+                'status'   => 'all',
+                'limit'    => 5,
+            ]);
+
+            $activeSub = collect($subs->data)->first(
+                fn ($s) => in_array($s->status, ['active', 'trialing', 'past_due'])
+            );
+
+            $this->user->update([
+                'stripe_id' => $customer->id,
+                'plan'      => $activeSub ? 'pro' : 'free',
+            ]);
+
+            // Drop cashier subscription rows that don't match the current active sub
+            $this->user->subscriptions()
+                ->where('stripe_id', '!=', $activeSub?->id)
+                ->delete();
+
+            $this->user->refresh();
+
+            $this->resyncMessage = $activeSub
+                ? "Synced → customer {$customer->id}, active subscription {$activeSub->id} (status: {$activeSub->status}). Plan: Pro."
+                : "Synced → customer {$customer->id}, no active subscription. Plan: Free.";
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admin stripe resync failed', [
+                'admin_id'  => auth()->id(),
+                'target_id' => $this->user->id,
+                'message'   => $e->getMessage(),
+            ]);
+            $this->resyncMessage = "Error: " . $e->getMessage();
+        }
+    }
+
     public function deleteUser(): void
     {
         if ($this->user->is_admin) {
