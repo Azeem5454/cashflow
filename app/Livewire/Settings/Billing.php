@@ -86,7 +86,14 @@ class Billing extends Component
 
             $this->redirect($checkout->url);
         } catch (\Exception $e) {
-            $this->addError('stripe', 'Could not start checkout. Please try again.');
+            \Illuminate\Support\Facades\Log::error('Stripe checkout start failed', [
+                'user_id'   => $user->id,
+                'stripe_id' => $user->stripe_id,
+                'price_id'  => $priceId,
+                'message'   => $e->getMessage(),
+                'class'     => get_class($e),
+            ]);
+            $this->addError('stripe', 'Could not start checkout: ' . $e->getMessage());
         }
     }
 
