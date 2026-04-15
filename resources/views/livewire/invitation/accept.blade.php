@@ -91,7 +91,7 @@
                 <p class="font-body text-sm text-slate-400 leading-relaxed">
                     Join
                     <span class="font-semibold text-white">{{ $invitation->business->name }}</span>
-                    on {{ config('app.name', 'CashFlow') }} as a
+                    on {{ config('app.name', 'TheCashFox') }} as a
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
                                  bg-primary/20 text-blue-light border border-primary/30">
                         {{ ucfirst($invitation->role) }}

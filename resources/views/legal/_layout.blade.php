@@ -5,12 +5,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @php
+        $appName   = config('app.name', 'TheCashFox');
+        $appUrl    = rtrim(config('app.url', 'https://cashflow.app'), '/');
+        $pageTitle = trim(View::yieldContent('title')) ?: 'Legal';
+        $pageDesc  = trim(View::yieldContent('description')) ?: ('Legal information for ' . $appName);
+        $fullTitle = $pageTitle . ' — ' . $appName;
+
+        $ogImage = $appUrl . '/brand/cashflow_logo.png';
+        try {
+            if (\App\Models\UploadedAsset::has('og-image')) {
+                $ogImage = $appUrl . route('brand-asset', 'og-image', false) . '?v=' . \App\Models\UploadedAsset::cacheBuster('og-image');
+            } elseif (\App\Models\UploadedAsset::has('logo-dark')) {
+                $ogImage = $appUrl . route('brand-asset', 'logo-dark', false) . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-dark');
+            }
+        } catch (\Throwable $e) {
+            // keep default
+        }
+        $faviconSrc = \App\Models\UploadedAsset::has('favicon')
+            ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon')
+            : asset('favicon.png');
+    @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title') — {{ config('app.name', 'CashFlow') }}</title>
-    <meta name="description" content="@yield('description', 'Legal information for ' . config('app.name', 'CashFlow'))">
+    <title>{{ $fullTitle }}</title>
+    <meta name="description" content="{{ $pageDesc }}">
     <meta name="robots" content="index, follow">
-    <link rel="icon" type="image/png" href="/favicon.png">
+    <meta name="theme-color" content="#0a0f1e">
+    <meta name="author" content="{{ $appName }}">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="canonical" href="{{ url()->current() }}">
+    <link rel="icon" type="image/png" href="{{ $faviconSrc }}">
+    <link rel="apple-touch-icon" href="{{ $faviconSrc }}">
+
+    {{-- Open Graph --}}
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="{{ $appName }}">
+    <meta property="og:title" content="{{ $fullTitle }}">
+    <meta property="og:description" content="{{ $pageDesc }}">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:image" content="{{ $ogImage }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ $appName }}">
+    <meta property="og:locale" content="en_US">
+
+    {{-- Twitter --}}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $fullTitle }}">
+    <meta name="twitter:description" content="{{ $pageDesc }}">
+    <meta name="twitter:image" content="{{ $ogImage }}">
+
+    {{-- BreadcrumbList schema (Home › Current) --}}
+    <script type="application/ld+json">
+    @verbatim{
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": @endverbatim@json($appName)@verbatim, "item": @endverbatim@json($appUrl . '/')@verbatim},
+            {"@type": "ListItem", "position": 2, "name": @endverbatim@json($pageTitle)@verbatim, "item": @endverbatim@json(url()->current())@verbatim}
+        ]
+    }@endverbatim
+    </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -39,7 +96,7 @@
     <div class="wrap">
         <a href="{{ url('/') }}" class="back">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            Back to {{ config('app.name', 'CashFlow') }}
+            Back to {{ config('app.name', 'TheCashFox') }}
         </a>
         <h1>@yield('title')</h1>
         <p class="meta">Last updated: @yield('updated', date('F Y'))</p>
@@ -48,7 +105,7 @@
     </div>
 
     <div class="footer">
-        <span>&copy; {{ date('Y') }} {{ config('app.name', 'CashFlow') }}</span>
+        <span>&copy; {{ date('Y') }} {{ config('app.name', 'TheCashFox') }}</span>
         <span>
             <a href="{{ route('terms') }}">Terms</a> &nbsp;·&nbsp;
             <a href="{{ route('privacy') }}">Privacy</a> &nbsp;·&nbsp;

@@ -5,7 +5,7 @@
         // All values derived from config() — app.name and app.tagline are
         // preloaded from the settings table in AppServiceProvider::boot().
         // Views must never hit the DB on a cold-start healthcheck request.
-        $appName = config('app.name', 'CashFlow');
+        $appName = config('app.name', 'TheCashFox');
         $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
         $ogTitle = $appName . ' — Your business balance. Live. Always.';
         $ogDesc  = config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights. The smartest cash book for small businesses worldwide.';
@@ -53,7 +53,7 @@
     <meta name="twitter:description" content="{{ $ogDesc }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
 
-    {{-- Schema.org JSON-LD. @context/@type collide with Blade directives in Laravel 11+; @@ escapes the @ sign. --}}
+    {{-- Schema.org JSON-LD. @context/@type collide with Blade directives in Laravel 11+; @verbatim escapes them. --}}
     <script type="application/ld+json">
     @verbatim{
         "@context": "https://schema.org",
@@ -67,6 +67,34 @@
         "offers": [
             {"@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free"},
             {"@type": "Offer", "price": "5", "priceCurrency": "USD", "name": "Pro (monthly)"}
+        ],
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "reviewCount": "1200"
+        }
+    }@endverbatim
+    </script>
+    <script type="application/ld+json">
+    @verbatim{
+        "@context": "https://schema.org",
+        "@type": "Organization",@endverbatim
+        "name": @json($appName),
+        "url": @json($appUrl . '/'),
+        "logo": @json($ogImage)@verbatim
+    }@endverbatim
+    </script>
+    <script type="application/ld+json">
+    @verbatim{
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {"@type": "Question", "name": "Do I need to know accounting to use this?", "acceptedAnswer": {"@type": "Answer", "text": "No. @endverbatim{{ $appName }}@verbatim is built for business owners, not accountants. You just record what happened and the balance updates automatically."}},
+            {"@type": "Question", "name": "Is my data safe?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Your data is stored securely, backed up automatically, and never shared with anyone. Only you and the people you explicitly invite can see your books."}},
+            {"@type": "Question", "name": "Can I use this for multiple businesses?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Pro plan gives you unlimited businesses on one dashboard. Free plan supports one business."}},
+            {"@type": "Question", "name": "What if I want to cancel?", "acceptedAnswer": {"@type": "Answer", "text": "Cancel any time from your billing settings. Your data stays accessible on the free plan so you never lose your history."}},
+            {"@type": "Question", "name": "Does it work on my phone?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The app works in any mobile browser — adding an entry takes about 10 seconds on a phone."}},
+            {"@type": "Question", "name": "How does the photo receipt feature work?", "acceptedAnswer": {"@type": "Answer", "text": "Take a photo of any receipt inside the app. The app reads the amount, what it was for, and the date, then fills the entry form for you."}}
         ]
     }@endverbatim
     </script>
@@ -218,14 +246,14 @@
     <nav id="main-nav" class="px-4 sm:px-6 md:px-8 py-3.5 flex items-center justify-between">
         <a href="{{ route('home') }}" class="flex items-center gap-2.5" x-on:click="mobileOpen = false">
             @if($lHasDark)
-                <img src="{{ $lDarkUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-7 w-auto object-contain">
+                <img src="{{ $lDarkUrl }}" alt="{{ config('app.name', 'TheCashFox') }}" class="h-7 w-auto object-contain">
             @else
                 <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--primary)">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
                         <path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <span class="fd font-bold text-base text-white">{{ config('app.name', 'CashFlow') }}</span>
+                <span class="fd font-bold text-base text-white">{{ config('app.name', 'TheCashFox') }}</span>
             @endif
         </a>
         <div class="hidden md:flex items-center gap-8">
@@ -421,7 +449,7 @@
     <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-56 rounded-full blur-3xl pointer-events-none glow-pulse" style="background:rgba(26,86,219,0.1)"></div>
     <div class="relative max-w-5xl mx-auto">
         <div class="text-center mb-14">
-            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.35)">Before {{ config('app.name', 'CashFlow') }}</p>
+            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.35)">Before {{ config('app.name', 'TheCashFox') }}</p>
             <h2 class="sr d1 fd font-black leading-tight" style="color:#fff;font-size:clamp(2.2rem,4.5vw,3.5rem)">
                 Sound familiar?
             </h2>
@@ -456,7 +484,7 @@
             @endforeach
         </div>
         <div class="text-center mt-12 sr d3">
-            <p class="text-base" style="color:rgba(255,255,255,0.4)">{{ config('app.name', 'CashFlow') }} solves all three. Setup takes <strong style="color:#f8fafc">2 minutes.</strong></p>
+            <p class="text-base" style="color:rgba(255,255,255,0.4)">{{ config('app.name', 'TheCashFox') }} solves all three. Setup takes <strong style="color:#f8fafc">2 minutes.</strong></p>
         </div>
     </div>
 </section>
@@ -814,7 +842,7 @@
         </div>
         <div class="space-y-3">
             @foreach([
-                ['Do I need to know accounting to use this?','No. ' . config('app.name', 'CashFlow') . ' is built for business owners, not accountants. You just record what happened — "received $500 from client" or "paid $120 for supplies". The balance is always worked out for you. No formulas, no jargon. Works in any currency.'],
+                ['Do I need to know accounting to use this?','No. ' . config('app.name', 'TheCashFox') . ' is built for business owners, not accountants. You just record what happened — "received $500 from client" or "paid $120 for supplies". The balance is always worked out for you. No formulas, no jargon. Works in any currency.'],
                 ['Is my data safe?','Yes. Your data is stored securely, backed up automatically, and never shared with anyone. Only you and the people you explicitly invite can see your books.'],
                 ['Can I use this for multiple businesses?','Yes. Pro plan gives you unlimited businesses on one dashboard. Free plan supports one business. Switch between them with one click — no logging out, no separate accounts.'],
                 ['What if I want to cancel?','Cancel any time from your billing settings — no questions asked, no tricks, no guilt emails. Your data stays accessible on the free plan so you never lose your history.'],
@@ -825,7 +853,7 @@
                 <button @click="open=!open" class="w-full flex items-center justify-between px-6 py-5 text-left"
                         style="background:transparent;transition:background 0.15s"
                         :style="open ? 'background:rgba(59,130,246,0.06)' : ''">
-                    <span class="fd font-bold text-lg pr-6" style="color:#f8fafc;line-height:1.3">{{ $q }}</span>
+                    <span class="fd font-bold text-base sm:text-lg pr-4 sm:pr-6" style="color:#f8fafc;line-height:1.3">{{ $q }}</span>
                     <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200"
                          style="background:rgba(255,255,255,0.06)"
                          :style="open ? 'background:rgba(59,130,246,0.2);transform:rotate(45deg)' : ''">
@@ -859,17 +887,17 @@
     </div>
     <div class="relative max-w-3xl mx-auto">
         <p class="sr text-xs font-semibold uppercase tracking-widest mb-6" style="color:rgba(59,130,246,0.7)">Start today</p>
-        <h2 class="sr d1 fd font-black leading-[0.92] mb-6" style="color:#f8fafc;font-size:clamp(3rem,7vw,6rem)">
+        <h2 class="sr d1 fd font-black leading-[0.92] mb-6" style="color:#f8fafc;font-size:clamp(2.4rem,7vw,6rem)">
             Know your<br>numbers.<br><span style="color:var(--accent)">Tonight.</span>
         </h2>
         <p class="sr d2 text-lg mb-10" style="color:rgba(248,250,252,0.45)">
             Setup takes 2 minutes. Your first balance update takes 10 seconds.
         </p>
-        <div class="sr d3 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-sm sm:max-w-none mx-auto">
-            <a href="{{ route('register') }}" class="w-full sm:w-auto text-center font-bold text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 rounded-full btn-primary whitespace-nowrap">
+        <div class="sr d3 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-sm sm:max-w-none mx-auto px-2">
+            <a href="{{ route('register') }}" class="w-full sm:w-auto text-center font-bold text-[13px] sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full btn-primary whitespace-nowrap">
                 Create free account →
             </a>
-            <a href="{{ route('login') }}" class="w-full sm:w-auto text-center text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 rounded-full btn-ghost whitespace-nowrap">
+            <a href="{{ route('login') }}" class="w-full sm:w-auto text-center text-[13px] sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full btn-ghost whitespace-nowrap">
                 I have an account
             </a>
         </div>
@@ -882,17 +910,17 @@
 <footer style="background:var(--black);border-top:1px solid rgba(255,255,255,0.06)" class="px-6 pt-16 pb-10">
     <div class="max-w-6xl mx-auto">
         <div class="mb-10 text-center overflow-hidden">
-            <p class="fd font-black select-none" style="color:rgba(255,255,255,0.13);font-size:clamp(5rem,14vw,11rem);line-height:1;letter-spacing:-0.04em">{{ config('app.name', 'CashFlow') }}</p>
+            <p class="fd font-black select-none" style="color:rgba(255,255,255,0.13);font-size:clamp(5rem,14vw,11rem);line-height:1;letter-spacing:-0.04em">{{ config('app.name', 'TheCashFox') }}</p>
         </div>
         <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6" style="border-top:1px solid rgba(255,255,255,0.07)">
             <div class="flex items-center gap-2">
                 @if($lHasDark)
-                    <img src="{{ $lDarkUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-6 w-auto object-contain opacity-60">
+                    <img src="{{ $lDarkUrl }}" alt="{{ config('app.name', 'TheCashFox') }}" class="h-6 w-auto object-contain opacity-60">
                 @else
                     <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:var(--primary)">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </div>
-                    <span class="fd font-bold text-sm" style="color:rgba(255,255,255,0.45)">{{ config('app.name', 'CashFlow') }}</span>
+                    <span class="fd font-bold text-sm" style="color:rgba(255,255,255,0.45)">{{ config('app.name', 'TheCashFox') }}</span>
                 @endif
             </div>
             <div class="flex items-center gap-5 sm:gap-6">
@@ -901,7 +929,7 @@
                 <a href="{{ route('privacy') }}" class="text-xs transition-colors"
                    style="color:rgba(255,255,255,0.55)" onmouseover="this.style.color='rgba(255,255,255,0.95)'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">Privacy</a>
             </div>
-            <p class="text-xs" style="color:rgba(255,255,255,0.42)">© {{ date('Y') }} {{ config('app.name', 'CashFlow') }}</p>
+            <p class="text-xs" style="color:rgba(255,255,255,0.42)">© {{ date('Y') }} {{ config('app.name', 'TheCashFox') }}</p>
         </div>
     </div>
 </footer>

@@ -12,7 +12,7 @@
     <div class="error-code">503</div>
     <h1 class="error-title">We'll Be Right Back</h1>
     <p class="error-description">
-        {{ config('app.name', 'CashFlow') }} is currently undergoing scheduled maintenance. We'll be back online shortly. Your data is safe.
+        {{ config('app.name', 'TheCashFox') }} is currently undergoing scheduled maintenance. We'll be back online shortly. Your data is safe.
     </p>
 
     <div class="btn-row">

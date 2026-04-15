@@ -160,7 +160,7 @@
 <div class="header">
     <div class="header-top">
         <div>
-            <div class="brand-name">{{ config('app.name', 'CashFlow') }}</div>
+            <div class="brand-name">{{ config('app.name', 'TheCashFox') }}</div>
             <div class="book-title">{{ $book->name }}</div>
             <div class="book-sub">
                 {{ $business->name }}
@@ -262,7 +262,7 @@
 
 {{-- Footer --}}
 <div class="footer">
-    <span>{{ config('app.name', 'CashFlow') }} · {{ $business->name }} · {{ $book->name }}</span>
+    <span>{{ config('app.name', 'TheCashFox') }} · {{ $business->name }} · {{ $book->name }}</span>
     <span>Generated {{ now()->format('d M Y \a\t H:i') }}</span>
 </div>
 

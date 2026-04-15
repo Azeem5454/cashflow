@@ -23,7 +23,7 @@
     {{-- Re-apply dark class after wire:navigate page swaps --}}
     <script>document.addEventListener('livewire:navigated', function() { document.documentElement.classList.toggle('dark', (localStorage.getItem('cashflow_theme') ?? 'light') === 'dark'); });</script>
 
-    <title>{{ config('app.name', 'CashFlow') }}</title>
+    <title>{{ config('app.name', 'TheCashFox') }}</title>
     <meta name="description" content="{{ config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights.' }}">
     <meta name="robots" content="noindex,nofollow">
     <meta name="theme-color" content="#0a0f1e">

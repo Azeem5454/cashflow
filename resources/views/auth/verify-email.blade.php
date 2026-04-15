@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>Verify Your Email — {{ config('app.name', 'CashFlow') }}</title>
+    <title>Verify Your Email — {{ config('app.name', 'TheCashFox') }}</title>
 
     <link rel="icon" type="image/png" href="/favicon.png">
 
@@ -47,9 +47,9 @@
     <a href="/" class="anim-fade-up relative z-10 mb-12">
         @if(\App\Models\UploadedAsset::has('logo-dark'))
             <img src="{{ route('brand-asset', 'logo-dark') }}?v={{ \App\Models\UploadedAsset::cacheBuster('logo-dark') }}"
-                 alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto object-contain">
+                 alt="{{ config('app.name', 'TheCashFox') }}" class="h-9 w-auto object-contain">
         @else
-            <img src="/brand/cashflow_logo_horizontal.png" alt="{{ config('app.name', 'CashFlow') }}" class="h-9">
+            <img src="/brand/cashflow_logo_horizontal.png" alt="{{ config('app.name', 'TheCashFox') }}" class="h-9">
         @endif
     </a>
 

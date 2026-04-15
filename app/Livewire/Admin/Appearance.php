@@ -85,7 +85,7 @@ class Appearance extends Component
     public function mount(): void
     {
         // General
-        $this->appName      = Setting::get('app.name', config('app.name', 'CashFlow'));
+        $this->appName      = Setting::get('app.name', config('app.name', 'TheCashFox'));
         $this->tagline      = Setting::get('app.tagline', 'Real-Time Cash Flow Tracking for Your Business');
         $this->supportEmail = Setting::get('app.support_email', '');
         $this->appUrl       = Setting::get('app.url', config('app.url', ''));
@@ -111,7 +111,7 @@ class Appearance extends Component
         $this->footerTagline   = Setting::get('landing.footer_tagline', '');
 
         // Email sender
-        $this->mailFromName    = Setting::get('mail.from_name', config('mail.from.name', 'CashFlow'));
+        $this->mailFromName    = Setting::get('mail.from_name', config('mail.from.name', 'TheCashFox'));
         $this->mailFromAddress = Setting::get('mail.from_address', config('mail.from.address', ''));
     }
 

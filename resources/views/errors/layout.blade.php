@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title') — {{ config('app.name', 'CashFlow') }}</title>
+    <title>@yield('title') — {{ config('app.name', 'TheCashFox') }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
     <script>if((localStorage.getItem('cashflow_theme')||'light')==='dark'){document.documentElement.classList.add('dark');}</script>
@@ -220,7 +220,7 @@
     </div>
 
     <div class="error-footer">
-        &copy; {{ date('Y') }} {{ config('app.name', 'CashFlow') }}
+        &copy; {{ date('Y') }} {{ config('app.name', 'TheCashFox') }}
     </div>
 </body>
 </html>

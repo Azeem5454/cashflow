@@ -12,7 +12,7 @@ class CustomResetPassword extends ResetPassword
         $url = $this->resetUrl($notifiable);
 
         return (new MailMessage)
-            ->subject('Reset Your Password — ' . config('app.name', 'CashFlow'))
+            ->subject('Reset Your Password — ' . config('app.name', 'TheCashFox'))
             ->view('emails.reset-password', [
                 'url'   => $url,
                 'name'  => $notifiable->name,

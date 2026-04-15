@@ -1,5 +1,5 @@
 @php
-    $appName = config('app.name', 'CashFlow');
+    $appName = config('app.name', 'TheCashFox');
     $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
     // Use absolute URL — emails are rendered far from a request context,
     // and the route helper can't emit relative URLs to image src anyway.

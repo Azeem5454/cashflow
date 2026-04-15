@@ -19,7 +19,7 @@ class AdminEmailVerification extends Mailable
 
     public function envelope(): Envelope
     {
-        $appName = config('app.name', 'CashFlow');
+        $appName = config('app.name', 'TheCashFox');
 
         return new Envelope(
             subject: "Verify your new email address — {$appName} Admin",

@@ -17,7 +17,7 @@ class TeamInvitation extends Mailable
 
     public function envelope(): Envelope
     {
-        $appName = config('app.name', 'CashFlow');
+        $appName = config('app.name', 'TheCashFox');
 
         return new Envelope(
             subject: "You've been invited to join {$this->invitation->business->name} on {$appName}",

@@ -2,7 +2,7 @@
 
     <div class="anim-fade-up mb-8">
         <h1 class="guest-display font-extrabold text-3xl text-slate-900 dark:text-white mb-2">Welcome back</h1>
-        <p class="guest-body text-sm text-slate-500 dark:text-slate-400">Sign in to your {{ config('app.name', 'CashFlow') }} account</p>
+        <p class="guest-body text-sm text-slate-500 dark:text-slate-400">Sign in to your {{ config('app.name', 'TheCashFox') }} account</p>
     </div>
 
     {{-- Session Status --}}
@@ -73,7 +73,7 @@
                     class="auth-input w-full rounded-lg pl-10 pr-10 py-3 guest-body text-sm"
                 >
                 <button type="button" @click="show = !show"
-                        class="absolute inset-y-0 right-0 flex items-center pr-3.5
+                        class="absolute inset-y-0 right-0 flex items-center justify-center w-11 pr-2
                                text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                     <svg x-show="!show" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -115,7 +115,7 @@
             type="submit"
             class="anim-fade-up-d2 w-full guest-body font-medium text-sm text-white bg-primary hover:bg-accent rounded-lg px-4 py-3 transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-accent/30 hover:-translate-y-px mt-2"
         >
-            Sign in to {{ config('app.name', 'CashFlow') }}
+            Sign in to {{ config('app.name', 'TheCashFox') }}
         </button>
 
         {{-- Divider --}}

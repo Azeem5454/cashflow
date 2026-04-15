@@ -13,6 +13,29 @@ Route::get('/', function () {
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 
+// Dynamic sitemap — emits the small set of public URLs and a timestamp.
+Route::get('/sitemap.xml', function () {
+    $base  = rtrim(config('app.url', url('/')), '/');
+    $today = now()->format('Y-m-d');
+    $urls  = [
+        ['loc' => $base . '/',        'priority' => '1.0', 'changefreq' => 'weekly'],
+        ['loc' => $base . '/login',    'priority' => '0.6', 'changefreq' => 'yearly'],
+        ['loc' => $base . '/register', 'priority' => '0.8', 'changefreq' => 'yearly'],
+        ['loc' => $base . '/terms',    'priority' => '0.4', 'changefreq' => 'yearly'],
+        ['loc' => $base . '/privacy',  'priority' => '0.4', 'changefreq' => 'yearly'],
+    ];
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+         . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+    foreach ($urls as $u) {
+        $xml .= '  <url><loc>' . htmlspecialchars($u['loc'], ENT_XML1) . '</loc>'
+              . '<lastmod>' . $today . '</lastmod>'
+              . '<changefreq>' . $u['changefreq'] . '</changefreq>'
+              . '<priority>' . $u['priority'] . '</priority></url>' . "\n";
+    }
+    $xml .= '</urlset>';
+    return response($xml, 200, ['Content-Type' => 'application/xml']);
+})->name('sitemap');
+
 // Admin-uploaded brand assets — served from DB so they survive redeploys.
 Route::get('/brand-asset/{key}', [\App\Http\Controllers\BrandAssetController::class, 'show'])
     ->where('key', '[a-z0-9_-]+')

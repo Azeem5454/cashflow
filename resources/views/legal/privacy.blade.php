@@ -1,11 +1,11 @@
 @extends('legal._layout')
 
 @section('title', 'Privacy Policy')
-@section('description', 'Privacy Policy for ' . config('app.name', 'CashFlow'))
+@section('description', 'Privacy Policy for ' . config('app.name', 'TheCashFox'))
 @section('updated', date('F Y'))
 
 @section('content')
-    @php $app = config('app.name', 'CashFlow'); @endphp
+    @php $app = config('app.name', 'TheCashFox'); @endphp
 
     <p>Your privacy matters. This Privacy Policy explains what personal information {{ $app }} collects, how we use it, how we protect it, and the choices you have. It applies to our website and all services operated under {{ $app }} (the "Service").</p>
 

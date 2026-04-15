@@ -15,5 +15,11 @@ Disallow: /settings
 Disallow: /settings/
 Disallow: /profile
 Disallow: /invitations/
+Disallow: /verify-email
+Disallow: /email/verify
+Disallow: /forgot-password
+Disallow: /reset-password/
+Disallow: /brand-asset/
 
-# No crawl delay needed for small site
+# Sitemap location
+Sitemap: /sitemap.xml

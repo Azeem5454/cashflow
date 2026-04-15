@@ -1,11 +1,11 @@
 @extends('legal._layout')
 
 @section('title', 'Terms of Service')
-@section('description', 'Terms of Service for ' . config('app.name', 'CashFlow'))
+@section('description', 'Terms of Service for ' . config('app.name', 'TheCashFox'))
 @section('updated', date('F Y'))
 
 @section('content')
-    @php $app = config('app.name', 'CashFlow'); @endphp
+    @php $app = config('app.name', 'TheCashFox'); @endphp
 
     <p>These Terms of Service ("Terms") govern your access to and use of {{ $app }} (the "Service"). By creating an account, accessing, or using the Service you agree to be bound by these Terms. If you do not agree, do not use the Service.</p>
 

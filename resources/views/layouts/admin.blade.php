@@ -19,7 +19,7 @@
     <script>if ((localStorage.getItem('cashflow_theme') ?? 'light') === 'dark') { document.documentElement.classList.add('dark'); }</script>
     <script>document.addEventListener('livewire:navigated', function() { document.documentElement.classList.toggle('dark', (localStorage.getItem('cashflow_theme') ?? 'light') === 'dark'); });</script>
 
-    <title>Admin · {{ config('app.name', 'CashFlow') }}</title>
+    <title>Admin · {{ config('app.name', 'TheCashFox') }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}?v={{ @filemtime(public_path('favicon.png')) }}">
 
     <!-- Google Fonts -->

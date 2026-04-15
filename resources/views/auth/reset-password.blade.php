@@ -8,7 +8,7 @@
             </svg>
         </div>
         <h1 class="guest-display font-extrabold text-3xl text-slate-900 dark:text-white mb-2">Set new password</h1>
-        <p class="guest-body text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Choose a strong password to secure your {{ config('app.name', 'CashFlow') }} account.</p>
+        <p class="guest-body text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Choose a strong password to secure your {{ config('app.name', 'TheCashFox') }} account.</p>
     </div>
 
     {{-- General error (e.g. invalid/expired token) --}}
@@ -109,7 +109,7 @@
                     @input="checkStrength($event.target.value)"
                     class="auth-input w-full rounded-lg pl-10 pr-10 py-3 guest-body text-sm"
                 >
-                <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-slate-300 transition-colors">
+                <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 flex items-center justify-center w-11 pr-2 text-slate-500 hover:text-slate-300 transition-colors">
                     <svg x-show="!show" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
@@ -167,7 +167,7 @@
                     placeholder="Repeat your password"
                     class="auth-input w-full rounded-lg pl-10 pr-10 py-3 guest-body text-sm"
                 >
-                <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500 hover:text-slate-300 transition-colors">
+                <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 flex items-center justify-center w-11 pr-2 text-slate-500 hover:text-slate-300 transition-colors">
                     <svg x-show="!show" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>

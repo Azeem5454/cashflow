@@ -6,9 +6,25 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @php
-        $appName = config('app.name', 'CashFlow');
+        $appName = config('app.name', 'TheCashFox');
         $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
-        $ogDesc  = config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights.';
+
+        // Per-route title + description (conversion-focused, distinct per page,
+        // under SEO-friendly length limits). Falls back to generic for any
+        // route not explicitly listed.
+        $pageMeta = match (true) {
+            request()->routeIs('login')            => ['title' => 'Sign In | ' . $appName,                'desc' => 'Sign in to your ' . $appName . ' account to track business cash flow, scan receipts, and see live balances.'],
+            request()->routeIs('register')         => ['title' => 'Create Your Free Account | ' . $appName, 'desc' => 'Start tracking your business cash flow in under 2 minutes. Free forever plan — no credit card required.'],
+            request()->routeIs('password.request') => ['title' => 'Reset Password | ' . $appName,           'desc' => 'Reset your ' . $appName . ' account password.'],
+            request()->routeIs('password.reset')   => ['title' => 'Choose a New Password | ' . $appName,    'desc' => 'Choose a new password for your ' . $appName . ' account.'],
+            request()->routeIs('invitations.accept') => ['title' => 'Accept Invitation | ' . $appName,       'desc' => 'Accept an invitation to collaborate on ' . $appName . '.'],
+            default                                => ['title' => $appName,                                 'desc' => config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights.'],
+        };
+        $pageTitle = $pageMeta['title'];
+        $pageDesc  = $pageMeta['desc'];
+
+        // Sensitive / tokenised routes shouldn't be indexed.
+        $shouldNoindex = request()->routeIs('password.reset') || request()->routeIs('invitations.accept');
 
         $ogImage = $appUrl . '/brand/cashflow_logo.png';
         try {
@@ -21,23 +37,36 @@
             // keep default
         }
     @endphp
-    <title>{{ $appName }}</title>
-    <meta name="description" content="{{ $ogDesc }}">
+    <title>{{ $pageTitle }}</title>
+    <meta name="description" content="{{ $pageDesc }}">
     <meta name="theme-color" content="#0a0f1e">
+    <meta name="author" content="{{ $appName }}">
+    <meta name="format-detection" content="telephone=no">
+    @if($shouldNoindex)
+        <meta name="robots" content="noindex,nofollow">
+    @else
+        <meta name="robots" content="index,follow">
+        <link rel="canonical" href="{{ url()->current() }}">
+    @endif
 
-    {{-- Open Graph --}}
+    {{-- Open Graph (Facebook, LinkedIn, WhatsApp, iMessage, Slack, Discord) --}}
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ $appName }}">
-    <meta property="og:title" content="{{ $appName }}">
-    <meta property="og:description" content="{{ $ogDesc }}">
+    <meta property="og:title" content="{{ $pageTitle }}">
+    <meta property="og:description" content="{{ $pageDesc }}">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:image" content="{{ $ogImage }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ $appName }}">
+    <meta property="og:locale" content="en_US">
 
-    {{-- Twitter --}}
+    {{-- Twitter / X --}}
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{{ $appName }}">
-    <meta name="twitter:description" content="{{ $ogDesc }}">
+    <meta name="twitter:title" content="{{ $pageTitle }}">
+    <meta name="twitter:description" content="{{ $pageDesc }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
+    <meta name="twitter:image:alt" content="{{ $appName }}">
 
     @php $faviconSrc = \App\Models\UploadedAsset::has('favicon') ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon') : asset('favicon.png'); @endphp
     <link rel="icon" type="image/png" href="{{ $faviconSrc }}">
@@ -233,17 +262,17 @@
             @endphp
             <a href="/" class="flex-shrink-0 flex items-center gap-3 mb-10">
                 @if($gHasDark && $gHasLight)
-                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto hidden dark:block">
-                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto dark:hidden">
+                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'TheCashFox') }}" class="h-9 w-auto hidden dark:block">
+                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'TheCashFox') }}" class="h-9 w-auto dark:hidden">
                 @elseif($gHasDark)
-                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto">
+                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'TheCashFox') }}" class="h-9 w-auto">
                 @elseif($gHasLight)
-                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto">
+                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'TheCashFox') }}" class="h-9 w-auto">
                 @else
-                    <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}"
+                    <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'TheCashFox') }}"
                          class="h-9 w-9 rounded-xl">
                     <span class="guest-display font-extrabold text-2xl tracking-tight text-slate-900 dark:text-white">
-                        {{ config('app.name', 'CashFlow') }}
+                        {{ config('app.name', 'TheCashFox') }}
                     </span>
                 @endif
             </a>
@@ -408,17 +437,17 @@
         <div class="lg:hidden mb-8 self-start">
             <a href="/" class="flex items-center gap-2.5">
                 @if($gHasDark && $gHasLight)
-                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto hidden dark:block">
-                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto dark:hidden">
+                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'TheCashFox') }}" class="h-8 w-auto hidden dark:block">
+                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'TheCashFox') }}" class="h-8 w-auto dark:hidden">
                 @elseif($gHasDark)
-                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
+                    <img src="{{ $gDarkUrl }}"  alt="{{ config('app.name', 'TheCashFox') }}" class="h-8 w-auto">
                 @elseif($gHasLight)
-                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
+                    <img src="{{ $gLightUrl }}" alt="{{ config('app.name', 'TheCashFox') }}" class="h-8 w-auto">
                 @else
-                    <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}"
+                    <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'TheCashFox') }}"
                          class="h-8 w-8 rounded-lg">
                     <span class="guest-display font-extrabold text-xl tracking-tight text-slate-900 dark:text-white">
-                        {{ config('app.name', 'CashFlow') }}
+                        {{ config('app.name', 'TheCashFox') }}
                     </span>
                 @endif
             </a>

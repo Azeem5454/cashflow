@@ -15,7 +15,7 @@ class CustomVerifyEmail extends VerifyEmail
         $verificationUrl = $this->verificationUrl($notifiable);
 
         return (new MailMessage)
-            ->subject('Verify Your Email — ' . config('app.name', 'CashFlow'))
+            ->subject('Verify Your Email — ' . config('app.name', 'TheCashFox'))
             ->view('emails.verify-email', [
                 'url'   => $verificationUrl,
                 'name'  => $notifiable->name,

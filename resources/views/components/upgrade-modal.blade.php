@@ -107,7 +107,7 @@
                 </p>
             @elseif($isExport)
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
-                    Upgrade to <strong class="dark:text-white text-gray-900">{{ config('app.name', 'CashFlow') }} Pro</strong> to export
+                    Upgrade to <strong class="dark:text-white text-gray-900">{{ config('app.name', 'TheCashFox') }} Pro</strong> to export
                     books as PDF or CSV. Unlocks export for your whole team.
                 </p>
             @elseif($isTeam)
@@ -123,12 +123,12 @@
                 </p>
             @elseif($isAi)
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
-                    Upgrade to <strong class="dark:text-white text-gray-900">{{ config('app.name', 'CashFlow') }} Pro</strong> to unlock
+                    Upgrade to <strong class="dark:text-white text-gray-900">{{ config('app.name', 'TheCashFox') }} Pro</strong> to unlock
                     AI receipt scanning, auto-categorization, and cash flow insights.
                 </p>
             @elseif($isComments)
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
-                    Upgrade to <strong class="dark:text-white text-gray-900">{{ config('app.name', 'CashFlow') }} Pro</strong> to add comments
+                    Upgrade to <strong class="dark:text-white text-gray-900">{{ config('app.name', 'TheCashFox') }} Pro</strong> to add comments
                     on entries, @mention teammates, and get notified when someone mentions you.
                 </p>
             @elseif($isDaterange)

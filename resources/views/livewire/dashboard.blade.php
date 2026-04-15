@@ -136,10 +136,10 @@
                                         Getting started
                                     </span>
                                     <h2 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 mb-2 leading-tight">
-                                        Welcome to {{ config('app.name', 'CashFlow') }}.
+                                        Welcome to {{ config('app.name', 'TheCashFox') }}.
                                     </h2>
                                     <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed max-w-lg">
-                                        {{ config('app.name', 'CashFlow') }} helps you track money coming in and going out — for any business, project, or personal budget. Here's how to get set up in under a minute.
+                                        {{ config('app.name', 'TheCashFox') }} helps you track money coming in and going out — for any business, project, or personal budget. Here's how to get set up in under a minute.
                                     </p>
                                 </div>
                                 <a href="{{ route('businesses.create') }}" wire:navigate
