@@ -13,22 +13,53 @@ Route::get('/', function () {
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 
-// Dynamic sitemap — emits the small set of public URLs and a timestamp.
+// Dynamic sitemap — emits public URLs including every published blog post.
 Route::get('/sitemap.xml', function () {
     $base  = rtrim(config('app.url', url('/')), '/');
     $today = now()->format('Y-m-d');
     $urls  = [
-        ['loc' => $base . '/',        'priority' => '1.0', 'changefreq' => 'weekly'],
-        ['loc' => $base . '/login',    'priority' => '0.6', 'changefreq' => 'yearly'],
-        ['loc' => $base . '/register', 'priority' => '0.8', 'changefreq' => 'yearly'],
-        ['loc' => $base . '/terms',    'priority' => '0.4', 'changefreq' => 'yearly'],
-        ['loc' => $base . '/privacy',  'priority' => '0.4', 'changefreq' => 'yearly'],
+        ['loc' => $base . '/',         'lastmod' => $today, 'priority' => '1.0', 'changefreq' => 'weekly'],
+        ['loc' => $base . '/login',    'lastmod' => $today, 'priority' => '0.6', 'changefreq' => 'yearly'],
+        ['loc' => $base . '/register', 'lastmod' => $today, 'priority' => '0.8', 'changefreq' => 'yearly'],
+        ['loc' => $base . '/blog',     'lastmod' => $today, 'priority' => '0.9', 'changefreq' => 'daily'],
+        ['loc' => $base . '/terms',    'lastmod' => $today, 'priority' => '0.4', 'changefreq' => 'yearly'],
+        ['loc' => $base . '/privacy',  'lastmod' => $today, 'priority' => '0.4', 'changefreq' => 'yearly'],
     ];
+
+    // Blog posts — each published post
+    try {
+        \App\Models\BlogPost::published()
+            ->orderByDesc('published_at')
+            ->limit(500) // hard cap
+            ->get(['slug', 'updated_at'])
+            ->each(function ($p) use (&$urls, $base) {
+                $urls[] = [
+                    'loc'        => $base . '/blog/' . $p->slug,
+                    'lastmod'    => $p->updated_at->format('Y-m-d'),
+                    'priority'   => '0.7',
+                    'changefreq' => 'monthly',
+                ];
+            });
+        // Blog categories with at least one published post
+        \App\Models\BlogCategory::where('post_count', '>', 0)
+            ->get(['slug', 'updated_at'])
+            ->each(function ($c) use (&$urls, $base) {
+                $urls[] = [
+                    'loc'        => $base . '/blog/category/' . $c->slug,
+                    'lastmod'    => $c->updated_at->format('Y-m-d'),
+                    'priority'   => '0.5',
+                    'changefreq' => 'weekly',
+                ];
+            });
+    } catch (\Throwable $e) {
+        // DB unreachable — still serve the static URLs above.
+    }
+
     $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
          . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
     foreach ($urls as $u) {
         $xml .= '  <url><loc>' . htmlspecialchars($u['loc'], ENT_XML1) . '</loc>'
-              . '<lastmod>' . $today . '</lastmod>'
+              . '<lastmod>' . $u['lastmod'] . '</lastmod>'
               . '<changefreq>' . $u['changefreq'] . '</changefreq>'
               . '<priority>' . $u['priority'] . '</priority></url>' . "\n";
     }
@@ -158,6 +189,20 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/appearance', \App\Livewire\Admin\Appearance::class)->name('appearance');
     Route::get('/announcement', \App\Livewire\Admin\Announcement::class)->name('announcement');
     Route::get('/profile', \App\Livewire\Admin\Profile::class)->name('profile');
+
+    // Blog CMS
+    Route::get('/blog',              \App\Livewire\Admin\Blog\Index::class)->name('blog.index');
+    Route::get('/blog/create',       \App\Livewire\Admin\Blog\Edit::class)->name('blog.create');
+    Route::get('/blog/categories',   \App\Livewire\Admin\Blog\Categories::class)->name('blog.categories');
+    Route::get('/blog/{id}/edit',    \App\Livewire\Admin\Blog\Edit::class)->name('blog.edit');
 });
+
+// ── Public Blog ──────────────────────────────────────────────
+Route::get('/blog',                     \App\Livewire\Blog\Index::class)->name('blog.index');
+Route::get('/blog/feed.xml',            [\App\Http\Controllers\BlogFeedController::class, 'rss'])->name('blog.feed');
+Route::get('/blog/category/{categorySlug}', \App\Livewire\Blog\Index::class)->name('blog.category');
+Route::get('/blog/{slug}',              \App\Livewire\Blog\Show::class)
+    ->where('slug', '[a-z0-9]+(?:-[a-z0-9]+)*')
+    ->name('blog.show');
 
 require __DIR__.'/auth.php';

@@ -15,6 +15,7 @@
         "laravel/sanctum": "^4.3",
         "laravel/socialite": "^5.26",
         "laravel/tinker": "^2.10.1",
+        "league/commonmark": "^2.8",
         "livewire/livewire": "^4.2",
         "predis/predis": "^3.4",
         "resend/resend-laravel": "^1.3",

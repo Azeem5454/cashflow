@@ -1,0 +1,69 @@
+<?php
+
+namespace App\Livewire\Blog;
+
+use App\Models\BlogCategory;
+use App\Models\BlogPost;
+use Livewire\Component;
+use Livewire\WithPagination;
+
+class Index extends Component
+{
+    use WithPagination;
+
+    public ?string $categorySlug = null;
+    public string $search = '';
+
+    protected $queryString = [
+        'search' => ['except' => ''],
+    ];
+
+    public function mount(?string $categorySlug = null): void
+    {
+        $this->categorySlug = $categorySlug;
+    }
+
+    public function updatingSearch(): void { $this->resetPage(); }
+
+    public function render()
+    {
+        $category = $this->categorySlug
+            ? BlogCategory::where('slug', $this->categorySlug)->firstOrFail()
+            : null;
+
+        // Featured post — only on "/blog" without filters so it doesn't
+        // duplicate when a category filter is active.
+        $featured = (! $category && $this->search === '')
+            ? BlogPost::published()->featured()->with(['category', 'author'])->first()
+            : null;
+
+        $query = BlogPost::published()
+            ->with(['category', 'author'])
+            ->when($category, fn ($q) => $q->where('category_id', $category->id))
+            ->when($this->search !== '', function ($q) {
+                $like = '%' . $this->search . '%';
+                $q->where(function ($q2) use ($like) {
+                    $q2->where('title', 'ilike', $like)
+                       ->orWhere('excerpt', 'ilike', $like);
+                });
+            })
+            // Exclude the featured one from the main grid so it doesn't appear twice.
+            ->when($featured, fn ($q) => $q->where('id', '!=', $featured->id))
+            ->orderByDesc('published_at');
+
+        return view('livewire.blog.index', [
+            'featured'       => $featured,
+            'posts'          => $query->paginate(12),
+            'allCategories'  => BlogCategory::where('post_count', '>', 0)->orderBy('name')->get(),
+            'currentCategory' => $category,
+        ])->layout('layouts.blog', [
+            'pageTitle'       => $category ? ($category->name . ' — Blog') : 'Blog',
+            'pageDescription' => $category
+                ? ($category->description ?: 'Articles tagged ' . $category->name)
+                : 'Practical advice, cash flow insights, and product updates from the TheCashFox team.',
+            'canonical'       => $category
+                ? route('blog.category', $category->slug)
+                : route('blog.index'),
+        ]);
+    }
+}
