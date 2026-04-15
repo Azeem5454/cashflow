@@ -55,9 +55,15 @@ class BlogPost extends Model
 
     public function scopePublished(Builder $q): Builder
     {
+        // Treat status=published as sufficient. If published_at is set AND in
+        // the future, exclude (honours scheduled publishing). Null published_at
+        // is fail-open: trust status=published as the source of truth so a
+        // data anomaly never hides a post the admin meant to make live.
         return $q->where('status', 'published')
-            ->whereNotNull('published_at')
-            ->where('published_at', '<=', now());
+            ->where(function ($w) {
+                $w->whereNull('published_at')
+                  ->orWhere('published_at', '<=', now());
+            });
     }
 
     public function scopeFeatured(Builder $q): Builder

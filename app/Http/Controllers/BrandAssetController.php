@@ -16,12 +16,16 @@ use Illuminate\Support\Facades\Cache;
  */
 class BrandAssetController extends Controller
 {
-    /** Allow-list of keys this controller will serve — prevents path-like abuse. */
-    private const ALLOWED = ['logo-dark', 'logo-light', 'favicon', 'og-image'];
+    /**
+     * Allow-list regex for servable asset keys. Static keys cover brand assets;
+     * the pattern also permits `blog-post-{uuid}-featured` so blog featured
+     * images work. Anything outside the pattern is treated as abuse (404).
+     */
+    private const KEY_PATTERN = '/^(logo-dark|logo-light|favicon|og-image|blog-post-[0-9a-f\-]{36}-featured)$/i';
 
     public function show(string $key)
     {
-        if (! in_array($key, self::ALLOWED, true)) {
+        if (! preg_match(self::KEY_PATTERN, $key)) {
             abort(404);
         }
 

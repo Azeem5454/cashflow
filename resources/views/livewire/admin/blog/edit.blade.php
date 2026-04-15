@@ -2,16 +2,28 @@
 
     {{-- Header --}}
     <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
-        <div>
+        <div class="min-w-0">
             <a href="{{ route('admin.blog.index') }}" class="inline-flex items-center gap-1 text-xs dark:text-slate-400 text-gray-500 hover:text-primary dark:hover:text-blue-light mb-2">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
                 Back to posts
             </a>
-            <h1 class="font-heading font-bold text-2xl dark:text-white text-gray-900">
-                {{ $post ? 'Edit post' : 'New post' }}
-            </h1>
+            <div class="flex items-center gap-3 flex-wrap">
+                <h1 class="font-heading font-bold text-2xl dark:text-white text-gray-900">
+                    {{ $post ? 'Edit post' : 'New post' }}
+                </h1>
+                @if($post && $post->status === 'published')
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style="background:rgba(22,163,74,0.15);color:#22c55e;border:1px solid rgba(22,163,74,0.25)">
+                        <span class="w-1.5 h-1.5 rounded-full" style="background:#22c55e"></span>
+                        Live
+                    </span>
+                @elseif($post)
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider dark:bg-slate-700/60 bg-gray-200 dark:text-slate-400 text-gray-600">Draft</span>
+                @else
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style="background:rgba(59,130,246,0.12);color:#3b82f6;border:1px solid rgba(59,130,246,0.2)">New</span>
+                @endif
+            </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
             @if($post && $post->status === 'published')
                 <a href="{{ route('blog.show', $post->slug) }}" target="_blank" rel="noopener"
                    class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700 dark:hover:bg-slate-700 hover:bg-gray-200 transition-colors">
@@ -23,11 +35,34 @@
                     class="px-3.5 py-2 text-xs font-medium rounded-lg dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700 dark:hover:bg-slate-700 hover:bg-gray-200 transition-colors">
                 {{ $showPreview ? 'Hide preview' : 'Preview' }}
             </button>
-            <button wire:click="save" wire:loading.attr="disabled"
-                    class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-accent text-white text-sm font-semibold rounded-lg shadow-lg shadow-primary/25 transition-all disabled:opacity-60">
-                <svg wire:loading wire:target="save" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round" class="opacity-75"/></svg>
-                Save
+
+            {{-- Save as draft (secondary) --}}
+            <button wire:click="saveDraft" wire:loading.attr="disabled"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700 dark:hover:bg-slate-700 hover:bg-gray-200 transition-all disabled:opacity-60">
+                Save draft
             </button>
+
+            {{-- Primary publish action — its label + icon reflect current state. --}}
+            @if($post && $post->status === 'published')
+                <button wire:click="save" wire:loading.attr="disabled"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-accent text-white text-sm font-semibold rounded-lg shadow-lg shadow-primary/25 transition-all disabled:opacity-60">
+                    <svg wire:loading wire:target="save" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round" class="opacity-75"/></svg>
+                    Update
+                </button>
+                <button wire:click="unpublish" wire:confirm="Unpublish this post? It will disappear from the public blog."
+                        class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg dark:bg-amber-500/10 bg-amber-50 dark:text-amber-400 text-amber-700 dark:hover:bg-amber-500/20 hover:bg-amber-100 transition-all"
+                        title="Unpublish">
+                    Unpublish
+                </button>
+            @else
+                <button wire:click="publish" wire:loading.attr="disabled"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-emerald-500/25 transition-all disabled:opacity-60">
+                    <svg wire:loading wire:target="publish,save" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round" class="opacity-75"/></svg>
+                    <svg wire:loading.remove wire:target="publish,save" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
+                    {{ $post ? 'Publish now' : 'Publish' }}
+                </button>
+            @endif
+
             @if($post)
                 <button wire:click="deletePost" wire:confirm="Delete this post permanently? This cannot be undone."
                         title="Delete"

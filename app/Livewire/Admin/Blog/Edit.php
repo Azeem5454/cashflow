@@ -19,10 +19,11 @@ class Edit extends Component
     // form fields
     public string $title = '';
     public string $slug = '';
+    public bool   $slugTouched = false;    // suppress auto-slug after manual edit
     public string $excerpt = '';
     public string $body_markdown = '';
     public ?string $category_id = null;
-    public string $status = 'draft';
+    public string $status = 'draft';       // overridden in mount() for new posts
     public bool $is_featured = false;
     public ?string $published_at = null;
     public string $seo_title = '';
@@ -45,6 +46,7 @@ class Edit extends Component
             $this->post = BlogPost::findOrFail($id);
             $this->title              = $this->post->title ?? '';
             $this->slug               = $this->post->slug ?? '';
+            $this->slugTouched        = true; // existing post — don't auto-overwrite
             $this->excerpt            = $this->post->excerpt ?? '';
             $this->body_markdown      = $this->post->body_markdown ?? '';
             $this->category_id        = $this->post->category_id;
@@ -54,15 +56,53 @@ class Edit extends Component
             $this->seo_title          = $this->post->seo_title ?? '';
             $this->seo_description    = $this->post->seo_description ?? '';
             $this->featured_image_alt = $this->post->featured_image_alt ?? '';
+        } else {
+            // For NEW posts, default to 'published' so admins don't silently
+            // save drafts expecting them to be live. The explicit "Save as
+            // draft" action lets them opt out when they want to.
+            $this->status = 'published';
+        }
+
+        // Consume one-shot flash from prior redirect so "Post created" appears
+        // on the freshly-loaded edit page after a new-post save.
+        if (session()->has('blog_flash')) {
+            $this->savedMessage = (string) session()->pull('blog_flash');
         }
     }
 
     public function updatedTitle(): void
     {
-        // Auto-slug only while creating a new post and slug hasn't been manually touched.
-        if (! $this->post && empty($this->slug)) {
+        // Auto-slug only for new posts until the user has manually edited the
+        // slug — then lock it so their changes aren't overwritten.
+        if (! $this->post && ! $this->slugTouched) {
             $this->slug = Str::slug($this->title);
         }
+    }
+
+    public function updatedSlug(): void
+    {
+        $this->slugTouched = true;
+    }
+
+    /** Shortcut for a prominent "Publish" button on the edit form. */
+    public function publish(): void
+    {
+        $this->status = 'published';
+        $this->save();
+    }
+
+    /** Shortcut for a prominent "Save as draft" button. */
+    public function saveDraft(): void
+    {
+        $this->status = 'draft';
+        $this->save();
+    }
+
+    /** Shortcut for "Unpublish" on already-live posts. */
+    public function unpublish(): void
+    {
+        $this->status = 'draft';
+        $this->save();
     }
 
     public function refreshPreview(): void
@@ -169,15 +209,21 @@ class Edit extends Component
 
         $this->removeFeaturedImage = false;
 
-        $this->savedMessage = $isNew ? 'Post created.' : 'Post updated.';
+        $baseMsg = $isNew ? 'Post created' : 'Post updated';
+        $stateMsg = $this->post->status === 'published' ? ' and published.' : ' as draft.';
+        $flash    = $baseMsg . $stateMsg;
+        $this->savedMessage = $flash;
 
         if (! $keepEditing) {
+            session()->flash('blog_flash', $flash);
             $this->redirect(route('admin.blog.index'));
             return;
         }
 
-        // If we just created the post, redirect to the edit URL so further saves hit the right row.
+        // Fresh posts need to redirect to the edit URL so further saves target
+        // the right row. Flash the success message so it survives the redirect.
         if ($isNew) {
+            session()->flash('blog_flash', $flash);
             $this->redirect(route('admin.blog.edit', ['id' => $this->post->id]));
         }
     }
