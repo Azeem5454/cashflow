@@ -13,7 +13,9 @@
 /.zed
 /auth.json
 /node_modules
-/public/build
+# /public/build  — committed so Railway doesn't depend on running
+# `npm run build` during deploy. Run `npm run build` before every commit
+# that touches Blade classes, CSS, or JS.
 /public/hot
 /public/storage
 /storage/*.key
