@@ -644,23 +644,13 @@
 
 
 {{-- ══ PRICING ══════════════════════════════════════════════════════════ --}}
-<section id="pricing" style="background:var(--black)" class="relative overflow-hidden px-6 py-24 md:py-32" x-data="{annual:false}">
+<section id="pricing" style="background:var(--black)" class="relative overflow-hidden px-6 py-24 md:py-32">
     <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-72 rounded-full blur-3xl pointer-events-none glow-pulse" style="background:rgba(26,86,219,0.12)"></div>
     <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-40 rounded-full blur-3xl pointer-events-none" style="background:rgba(59,130,246,0.06)"></div>
     <div class="relative max-w-3xl mx-auto">
         <div class="text-center mb-10">
             <h2 class="sr fd font-black leading-tight mb-3" style="color:#fff;font-size:clamp(2.2rem,4vw,3.25rem)">Honest pricing.</h2>
             <p class="sr d1 text-lg mb-8" style="color:rgba(255,255,255,0.35)">No seat fees. No trial tricks. No surprise bills.</p>
-            {{-- Annual toggle --}}
-            <div class="sr d2 inline-flex items-center gap-3 rounded-full p-1" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08)">
-                <button @click="annual=false" class="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
-                        :style="!annual ? 'background:var(--primary);color:#fff' : 'color:rgba(255,255,255,0.4)'">Monthly</button>
-                <button @click="annual=true" class="px-4 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2"
-                        :style="annual ? 'background:var(--primary);color:#fff' : 'color:rgba(255,255,255,0.4)'">
-                    Annual
-                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(74,222,128,0.2);color:#4ade80">SAVE 20%</span>
-                </button>
-            </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {{-- Free --}}
@@ -682,12 +672,10 @@
                 <div class="absolute top-5 right-5 text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:var(--primary);color:#fff">MOST POPULAR</div>
                 <p class="text-sm font-semibold mb-2" style="color:var(--accent)">Pro</p>
                 <div class="mb-0">
-                    <span class="fm font-bold" style="color:#f8fafc;font-size:2.5rem" x-text="annual ? '$4' : '$5'">$5</span>
+                    <span class="fm font-bold" style="color:#f8fafc;font-size:2.5rem">$5</span>
                     <span class="text-sm" style="color:rgba(248,250,252,0.4)">/month</span>
                 </div>
-                <p class="text-xs mb-2" style="color:rgba(248,250,252,0.35)" x-show="annual">Billed $48/year · saves $12</p>
-                <p class="text-xs mb-2" style="color:rgba(248,250,252,0.35)" x-show="!annual">Or $48/year — save $12</p>
-                <p class="text-xs mb-7" style="color:rgba(248,250,252,0.25)">Cancel any time</p>
+                <p class="text-xs mb-7 mt-1" style="color:rgba(248,250,252,0.25)">Billed monthly · Cancel any time</p>
                 {{-- Hero benefit --}}
                 <div class="rounded-xl p-3.5 mb-6" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2)">
                     <p class="text-xs font-semibold mb-1" style="color:var(--accent)">★ The reason most people upgrade</p>
@@ -700,8 +688,8 @@
                     </li>
                     @endforeach
                 </ul>
-                <a href="{{ route('register') }}" class="block text-center text-sm font-semibold py-3.5 rounded-xl btn-primary">Start Pro free for 7 days →</a>
-                <p class="text-center text-xs mt-3" style="color:rgba(248,250,252,0.25)">No card needed to start</p>
+                <a href="{{ route('register') }}" class="block text-center text-sm font-semibold py-3.5 rounded-xl btn-primary">Get started →</a>
+                <p class="text-center text-xs mt-3" style="color:rgba(248,250,252,0.25)">No card needed to start · Upgrade any time</p>
             </div>
         </div>
     </div>
