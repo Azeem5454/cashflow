@@ -79,6 +79,7 @@ class Billing extends Component
         try {
             $checkout = $user
                 ->newSubscription('default', $priceId)
+                ->allowPromotionCodes()
                 ->checkout([
                     'success_url' => route('billing') . '?checkout=success',
                     'cancel_url'  => route('billing') . '?checkout=canceled',
