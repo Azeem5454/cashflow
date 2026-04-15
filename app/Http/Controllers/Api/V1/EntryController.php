@@ -178,6 +178,11 @@ class EntryController extends Controller
     {
         $entry = $this->findAuthorizedEntry($request, $id, requireEditor: true);
 
+        // Pro feature — entry comments are gated.
+        if (! $entry->book->business->isPro()) {
+            return response()->json(['message' => 'Pro subscription required to post comments.'], 403);
+        }
+
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:1000'],
         ]);

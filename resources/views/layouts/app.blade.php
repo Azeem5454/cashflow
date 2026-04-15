@@ -307,7 +307,15 @@
                         {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
                     </div>
                     <div class="flex-1 text-left min-w-0">
-                        <p class="text-sm font-semibold dark:text-white text-gray-900 truncate leading-tight">{{ auth()->user()->name }}</p>
+                        <div class="flex items-center gap-1.5">
+                            <p class="text-sm font-semibold dark:text-white text-gray-900 truncate leading-tight">{{ auth()->user()->name }}</p>
+                            @if(auth()->user()->isPro())
+                                <span class="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
+                                      style="background:rgba(245,158,11,0.15);color:#f59e0b">PRO</span>
+                            @else
+                                <span class="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 dark:bg-slate-700 bg-gray-200 dark:text-slate-300 text-gray-600">FREE</span>
+                            @endif
+                        </div>
                         <p class="text-xs dark:text-slate-500 text-gray-400 truncate leading-tight">{{ auth()->user()->email }}</p>
                     </div>
                     <svg class="w-4 h-4 dark:text-slate-500 text-gray-400 flex-shrink-0 transition-transform duration-150"
@@ -332,6 +340,17 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>
                         </svg>
                         Your Profile
+                    </a>
+                    <a href="{{ route('billing') }}" wire:navigate
+                       class="flex items-center gap-2.5 px-4 py-3 text-sm dark:text-slate-300 text-gray-700 dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/>
+                        </svg>
+                        Billing & Plans
+                        @if(! auth()->user()->isPro())
+                            <span class="ml-auto text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded"
+                                  style="background:rgba(245,158,11,0.15);color:#f59e0b">UPGRADE</span>
+                        @endif
                     </a>
                     <div class="dark:border-slate-700 border-t border-gray-100 mx-3"></div>
                     <form method="POST" action="{{ route('logout') }}">

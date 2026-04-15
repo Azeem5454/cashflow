@@ -688,8 +688,8 @@
                     </li>
                     @endforeach
                 </ul>
-                <a href="{{ route('register') }}" class="block text-center text-sm font-semibold py-3.5 rounded-xl btn-primary">Get started →</a>
-                <p class="text-center text-xs mt-3" style="color:rgba(248,250,252,0.25)">No card needed to start · Upgrade any time</p>
+                <a href="{{ route('register', ['plan' => 'pro']) }}" class="block text-center text-sm font-semibold py-3.5 rounded-xl btn-primary">Get Pro →</a>
+                <p class="text-center text-xs mt-3" style="color:rgba(248,250,252,0.25)">Sign up, then complete payment · Cancel any time</p>
             </div>
         </div>
     </div>

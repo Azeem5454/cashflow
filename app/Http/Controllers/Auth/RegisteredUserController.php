@@ -34,6 +34,7 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'intended_plan' => ['nullable', 'in:pro'],
         ]);
 
         $user = User::create([
@@ -45,6 +46,12 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
+
+        // If the user signed up from the Pro tier on the landing page, take
+        // them straight to billing to complete Stripe Checkout.
+        if ($request->input('intended_plan') === 'pro') {
+            return redirect(route('billing', ['auto' => 1]));
+        }
 
         return redirect(route('dashboard', absolute: false));
     }

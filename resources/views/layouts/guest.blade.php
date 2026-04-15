@@ -19,8 +19,8 @@
         <link rel="stylesheet" href="{{ asset('brand/theme.css') }}?v={{ filemtime(public_path('brand/theme.css')) }}">
     @endif
 
-    {{-- Apply theme before first paint --}}
-    <script>if((localStorage.getItem('cashflow_theme')||'light')==='dark'){document.documentElement.classList.add('dark');}</script>
+    {{-- Auth pages are always dark to match the landing page. Dashboard theme toggle does not apply here. --}}
+    <script>document.documentElement.classList.add('dark');</script>
 
     <style>
         /* ── Guest font declarations — use CSS variables from theme.css, fall back to defaults ── */

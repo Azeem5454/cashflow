@@ -2,11 +2,12 @@
 
 namespace App\Livewire\Settings;
 
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class Billing extends Component
 {
-    public string $flash = ''; // 'success' | 'canceled' | 'resumed' | ''
+    public string $flash = ''; // 'success' | 'canceled' | 'resumed' | 'processing' | ''
 
     public function mount(): void
     {
@@ -14,13 +15,50 @@ class Billing extends Component
         $query = request()->query('checkout');
 
         if ($query === 'success') {
-            // Stripe only redirects here on successful payment — update plan immediately.
-            // The webhook will also fire async and confirm via AppServiceProvider.
-            $user->update(['plan' => 'pro']);
+            // Stripe redirected us here after successful payment. The webhook
+            // will also fire async and update the plan via AppServiceProvider.
+            //
+            // SECURITY: we do NOT blindly mark the user as Pro based on the
+            // query string — that would let anyone flip themselves to Pro by
+            // visiting this URL manually. Instead we verify directly against
+            // Stripe that an active subscription exists on this customer.
+            $this->syncPlanFromStripe($user);
             $user->refresh();
-            $this->flash = 'success';
+            $this->flash = $user->isPro() ? 'success' : 'processing';
         } elseif ($query === 'canceled') {
             $this->flash = 'canceled';
+        }
+
+        // Auto-trigger checkout when redirected from Pro-intent signup.
+        if (request()->boolean('auto') && ! $user->isPro() && ! $user->subscribed('default')) {
+            $this->subscribe();
+        }
+    }
+
+    /**
+     * Check Stripe directly for an active subscription and sync the local plan.
+     * Returns early if no Stripe customer exists yet (first-time signup).
+     */
+    private function syncPlanFromStripe($user): void
+    {
+        if (! $user->hasStripeId()) {
+            return;
+        }
+
+        try {
+            $stripeSubs = $user->stripe()->subscriptions->all([
+                'customer' => $user->stripe_id,
+                'status'   => 'active',
+                'limit'    => 1,
+            ]);
+
+            $hasActive = ! empty($stripeSubs->data);
+
+            if ($hasActive && $user->plan !== 'pro') {
+                $user->update(['plan' => 'pro']);
+            }
+        } catch (\Throwable) {
+            // Fall through — webhook will update eventually.
         }
     }
 

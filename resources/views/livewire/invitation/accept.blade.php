@@ -55,6 +55,27 @@
             </a>
         </div>
 
+    @elseif($status === 'seat_limit')
+        <div class="anim-fade-up text-center">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+                 style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3)">
+                <svg class="w-7 h-7" style="color:#fbbf24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+                </svg>
+            </div>
+            <h2 class="font-display font-extrabold text-2xl text-white mb-2 tracking-tight">Team Full</h2>
+            <p class="font-body text-sm text-slate-400 mb-8">
+                <span class="font-semibold text-white">{{ $invitation->business->name }}</span> is on the Free plan, which is limited to 2 team members.<br>
+                Ask the owner to upgrade to Pro so you can join.
+            </p>
+            <a href="{{ route('dashboard') }}"
+               class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold font-body
+                      bg-primary hover:bg-accent text-white rounded-xl
+                      transition-all duration-200 shadow-lg shadow-primary/25">
+                Go to Dashboard
+            </a>
+        </div>
+
     @else
         {{-- Pending — show accept UI --}}
         <div class="anim-fade-up">
