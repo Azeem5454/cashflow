@@ -80,14 +80,15 @@ class UserDetail extends Component
 
             if (empty($customers->data)) {
                 // No customer in this mode — clear stale ID and reset to free.
+                // Cashier columns (stripe_id, pm_*, trial_ends_at) are NOT in
+                // User::$fillable for security, so we have to set them directly.
                 $this->user->subscriptions()->delete();
-                $this->user->update([
-                    'stripe_id'     => null,
-                    'pm_type'       => null,
-                    'pm_last_four'  => null,
-                    'trial_ends_at' => null,
-                    'plan'          => 'free',
-                ]);
+                $this->user->stripe_id     = null;
+                $this->user->pm_type       = null;
+                $this->user->pm_last_four  = null;
+                $this->user->trial_ends_at = null;
+                $this->user->plan          = 'free';
+                $this->user->save();
                 $this->user->refresh();
                 $this->resyncMessage = "No Stripe customer found — cleared stale ID, plan reset to Free. User can now subscribe fresh.";
                 return;
@@ -106,10 +107,10 @@ class UserDetail extends Component
                 fn ($s) => in_array($s->status, ['active', 'trialing', 'past_due'])
             );
 
-            $this->user->update([
-                'stripe_id' => $customer->id,
-                'plan'      => $activeSub ? 'pro' : 'free',
-            ]);
+            // stripe_id isn't in User::$fillable — set directly.
+            $this->user->stripe_id = $customer->id;
+            $this->user->plan      = $activeSub ? 'pro' : 'free';
+            $this->user->save();
 
             // Drop cashier subscription rows that don't match the current active sub
             $this->user->subscriptions()

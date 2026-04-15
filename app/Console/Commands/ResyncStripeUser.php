@@ -51,15 +51,15 @@ class ResyncStripeUser extends Command
             $this->warn("No Stripe customer found in current mode for {$email}.");
             $this->warn("Clearing stale stripe_id and resetting plan to 'free'.");
 
-            // Also drop any cashier subscription rows referencing the old customer
+            // Also drop any cashier subscription rows referencing the old customer.
+            // stripe_id + pm_* are not in User::$fillable, so set directly.
             $user->subscriptions()->delete();
-            $user->update([
-                'stripe_id'      => null,
-                'pm_type'        => null,
-                'pm_last_four'   => null,
-                'trial_ends_at'  => null,
-                'plan'           => 'free',
-            ]);
+            $user->stripe_id     = null;
+            $user->pm_type       = null;
+            $user->pm_last_four  = null;
+            $user->trial_ends_at = null;
+            $user->plan          = 'free';
+            $user->save();
 
             $this->info("User reset. They can now subscribe fresh via /settings/billing.");
             return self::SUCCESS;
@@ -78,11 +78,10 @@ class ResyncStripeUser extends Command
 
         $activeSub = collect($subs->data)->first(fn ($s) => in_array($s->status, ['active', 'trialing', 'past_due']));
 
-        // Update user.stripe_id to point at the real customer
-        $user->update([
-            'stripe_id' => $customer->id,
-            'plan'      => $activeSub ? 'pro' : 'free',
-        ]);
+        // Update user.stripe_id to point at the real customer (not in $fillable).
+        $user->stripe_id = $customer->id;
+        $user->plan      = $activeSub ? 'pro' : 'free';
+        $user->save();
 
         // Drop stale cashier subscription rows that don't match the current customer
         $user->subscriptions()->where('stripe_id', '!=', $activeSub?->id)->delete();
