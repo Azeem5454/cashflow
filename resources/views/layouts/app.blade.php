@@ -37,6 +37,22 @@
     <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..60,400;12..60,700;12..60,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400&display=swap') }}" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- Google Analytics 4 — only loaded when configured. --}}
+    @if(config('services.analytics.ga4_id'))
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('services.analytics.ga4_id') }}"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', @json(config('services.analytics.ga4_id')), {send_page_view: true});
+            // Track subsequent wire:navigate page swaps as virtual pageviews
+            document.addEventListener('livewire:navigated', function () {
+                gtag('event', 'page_view', {page_path: window.location.pathname + window.location.search});
+            });
+        </script>
+    @endif
+
     @if(file_exists(public_path('brand/theme.css')))
         <link rel="stylesheet" href="{{ asset('brand/theme.css') }}?v={{ filemtime(public_path('brand/theme.css')) }}">
     @endif

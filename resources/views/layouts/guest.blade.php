@@ -85,6 +85,22 @@
     {{-- Alpine.js — guest pages have no Livewire, so Alpine must be loaded standalone for password toggles etc. --}}
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
+    {{-- Cloudflare Turnstile — only loaded when configured. --}}
+    @if(config('services.turnstile.site_key'))
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    @endif
+
+    {{-- Google Analytics 4 — only loaded when configured. --}}
+    @if(config('services.analytics.ga4_id'))
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('services.analytics.ga4_id') }}"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', @json(config('services.analytics.ga4_id')));
+        </script>
+    @endif
+
     {{-- Auth pages are always dark to match the landing page. Dashboard theme toggle does not apply here. --}}
     <script>document.documentElement.classList.add('dark');</script>
 

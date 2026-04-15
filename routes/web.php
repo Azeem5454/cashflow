@@ -41,6 +41,17 @@ Route::get('/brand-asset/{key}', [\App\Http\Controllers\BrandAssetController::cl
     ->where('key', '[a-z0-9_-]+')
     ->name('brand-asset');
 
+// Social OAuth (Google for now — add apple/microsoft later by extending
+// SocialAuthController::SUPPORTED_PROVIDERS and config/services.php).
+Route::middleware('guest')->group(function () {
+    Route::get('/auth/{provider}/redirect',  [\App\Http\Controllers\Auth\SocialAuthController::class, 'redirect'])
+        ->whereIn('provider', ['google'])
+        ->name('social.redirect');
+    Route::get('/auth/{provider}/callback',  [\App\Http\Controllers\Auth\SocialAuthController::class, 'callback'])
+        ->whereIn('provider', ['google'])
+        ->name('social.callback');
+});
+
 
 Route::get('/dashboard', \App\Livewire\Dashboard::class)
     ->middleware(['auth', 'verified', 'redirect_admin'])
