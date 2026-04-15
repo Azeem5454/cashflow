@@ -28,8 +28,8 @@
         <div class="anim-fade-up-d1 mb-5">
             <a href="{{ route('social.redirect', 'google') }}"
                class="flex items-center justify-center gap-3 w-full guest-body font-medium text-sm
-                      text-slate-900 dark:text-white
-                      bg-white dark:bg-white/95
+                      text-slate-900
+                      bg-white hover:bg-gray-50
                       border border-gray-200 hover:border-gray-300
                       rounded-lg px-4 py-3 transition-all duration-200
                       hover:shadow-md hover:-translate-y-px">
