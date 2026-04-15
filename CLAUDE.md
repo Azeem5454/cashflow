@@ -612,33 +612,65 @@ The web backend is already mobile-ready — Laravel Sanctum is installed and all
 ### Strategy: React Native (recommended)
 One codebase → iOS + Android. Expo managed workflow keeps tooling simple.
 
-### Phase 1 — API Layer (build before touching mobile)
-Add `/api/v1/` routes in `routes/api.php` protected by `auth:sanctum`:
+### Phase 1 — API Layer — ✅ DONE (60 endpoints live on Railway)
+`routes/api.php` exposes `/api/v1/` protected by `auth:sanctum`. Full list via `php artisan route:list --path=api/v1`. Controllers: `AuthController`, `BusinessController`, `BookController`, `EntryController`, `SettingsController`.
 
-```
-POST   /api/v1/auth/login              → issue Sanctum token
-POST   /api/v1/auth/register
-POST   /api/v1/auth/logout             → revoke token
-GET    /api/v1/businesses              → list user's businesses
-GET    /api/v1/businesses/{id}/books   → list books
-GET    /api/v1/books/{id}/entries      → paginated entries + running balance
-POST   /api/v1/books/{id}/entries      → create entry
-PUT    /api/v1/entries/{id}            → update entry
-DELETE /api/v1/entries/{id}            → delete entry
-POST   /api/v1/entries/{id}/scan       → OCR receipt (same AiService)
-GET    /api/v1/books/{id}/summary      → cash in / out / balance totals
-```
+Groups:
+- **Auth+Profile**: register/login/logout/forgot-password, user, profile (PUT/DELETE), profile/password, auth/email/resend
+- **Businesses**: index/show/store/update/destroy, books, createBook, members, invitations (list/invite/cancel), members role/remove
+- **Books**: show/update/destroy/duplicate, recent, entries, summary, categories, payment-modes, activity, recurring, insights, report-data, report-schedule (CRUD), suggest-category, export
+- **Entries**: store, update, destroy, bulk-delete, bulk-update, bulk-move, comments (list/add/delete), attachment (upload/get/delete), scan
+- **Recurring**: toggle, delete
+- **Settings**: billing/checkout-url, announcement, notifications (list/mark-all-read/delete)
 
 All responses: JSON, camelCase keys, ISO 8601 dates, amounts as strings (not floats).
 
-### Phase 2 — Mobile App (React Native + Expo)
-Core screens mirror the web app:
-- Dashboard — businesses list
-- Book list — books for a business
-- Ledger — entries with running balance, pull-to-refresh
-- Add/Edit Entry — form with OCR "Scan Receipt" using device camera
-- Reports — charts (Victory Native or Skia)
-- Settings/Profile, Billing (Stripe mobile SDK)
+### Phase 2 — Mobile App (React Native + Expo) — ⚠️ ~90% DONE
+Core screens implemented and live on Expo Go. Stack: Expo SDK 54, expo-router v6, React Native 0.81, TypeScript strict. Font: Bricolage Grotesque + Plus Jakarta Sans + Outfit + Geist Mono. Theme: dark-luxe navy (default) + light mode toggle in profile.
+
+**Implemented screens** (`project-mobile/app/`):
+- `(auth)/login.tsx`, `(auth)/register.tsx`, `(auth)/forgot-password.tsx` — Breeze-equivalent auth, toast feedback, error sanitization
+- `(app)/index.tsx` — Dashboard with owned/shared split, recently-edited books, notifications bell, announcement banner, skeleton loaders, empty state CTA
+- `(app)/profile/index.tsx` + `profile/edit.tsx` — Profile view with actions (Edit Profile / Billing / Dark Mode toggle) + edit form (name/email/password)
+- `(app)/billing.tsx` — WebView wrapping `/settings/billing` for Stripe Checkout (auto-detects `?checkout=success`)
+- `(app)/business/create.tsx` — Create Business with 24-currency searchable picker
+- `(app)/business/[id].tsx` — Business detail with books list + totals strip + search/sort + Rename/Manage Team/Delete menu (owner only) + FAB
+- `(app)/business/members.tsx` — Team management with invite FAB (email + role), pending invitations, change role, remove member
+- `(app)/business/create-book.tsx` — Create book with period presets + Geist Mono opening balance
+- `(app)/business/book/[id].tsx` — Ledger with 4 tabs (Entries / Activity / Reports / Recurring), balance strip, type filter, duration filter (All/Today/Yesterday/7d/30d/Custom), long-press bulk select (Delete/Move/Copy/Flip), comments panel, AI insights, charts
+- `(app)/business/book/entry.tsx` — Add/Edit entry with AI receipt scan (camera or gallery), AI auto-categorization, native date picker, receipt attachment (edit mode)
+- `(app)/business/book/edit.tsx` — Edit/Duplicate Book (mode param), period presets, carry-over toggles
+- `(app)/business/book/email-reports.tsx` — Weekly/Monthly email reports settings with recipients
+
+**Components** (`project-mobile/src/components/`):
+- `Toast.tsx` — slide-up toast with success/error/info + haptics
+- `DatePickerInput.tsx` — cross-platform (Android inline, iOS modal spinner)
+- `DrawerMenu.tsx` — left drawer with business switcher + nav
+- `NotificationsBell.tsx` — header bell with unread badge + slide-in panel
+- `AnnouncementBanner.tsx` — dismissible banner with SecureStore persistence
+- `CommentsPanel.tsx` — Modal + KeyboardAvoidingView (fixed iOS keyboard bug)
+- `ActivityFeed.tsx`, `RecurringTab.tsx`, `AiInsightsCard.tsx`, `ReportsTab.tsx` — tab content
+- `PickerDropdown.tsx` — category/payment mode picker with "Add New" inline
+- `Skeleton.tsx` — animated shimmer placeholders (SkeletonCard, SkeletonEntryRow)
+
+**Context/utils**:
+- `src/context/AuthContext.tsx` — Sanctum token in expo-secure-store, biometric gate on launch, retry flow, 401 global handler
+- `src/context/ThemeContext.tsx` — dark/light mode with SecureStore persistence + `useThemedStyles(makeStyles)` hook
+- `src/api/client.ts` — axios instance, base URL from `app.json` extra, 30s timeout, auth interceptors
+- `src/utils/errors.ts` — `errorMessage()` safe message extraction
+
+**Key patterns**:
+- Bulk operations: long-press entry → selection mode → bottom toolbar
+- Receipt OCR: camera/gallery → upload → shimmer → typewriter field fill
+- Navigation: expo-router Stack, `headerBackButtonDisplayMode: 'minimal'` at `(app)/_layout.tsx` to hide iOS back label
+- Theme system: `const styles = useThemedStyles(makeStyles)` pattern (profile/dashboard/business detail/ledger/entry form converted; others pending)
+
+**Not yet done**:
+- Auth screens still dark-only (light mode not applied)
+- ~10 secondary screens still use static `colors` import
+- Offline SQLite cache
+- Push notifications
+- Certificate pinning (requires ejecting from Expo managed)
 
 ### Security for Mobile API
 - Tokens stored in `expo-secure-store` (iOS Keychain / Android Keystore) — never AsyncStorage
@@ -667,7 +699,195 @@ Core screens mirror the web app:
 
 ---
 
-## Session Notes (last updated 2026-03-26)
+## Session Notes (last updated 2026-04-16)
+
+### Completed this session (2026-04-15 → 2026-04-16) — Launch-prep: rebrand, security, social preview, OAuth, observability
+
+**Rebrand CashFlow → TheCashFox**
+- All 23 hardcoded `'CashFlow'` fallback literals across controllers/mailers/notifications/views replaced with `'TheCashFox'`. `config('app.name')` is live-editable via `/admin/appearance` and preloaded into `config()` via `AppServiceProvider::boot()`; fallbacks only apply on first boot before APP_NAME env is set.
+
+**DB-backed brand assets — logos now survive Railway redeploys**
+- New `uploaded_assets` table (key/mime/data/size/updated_at). `data` column is longText holding base64-encoded bytes — avoids Postgres bytea UTF-8 driver issues, portable across Postgres/MySQL/SQLite.
+- `App\Models\UploadedAsset::has()/cacheBuster()/meta()/put()/forgetKey()/payload()`. Metadata + payload cached separately so hot pages pay one Redis round-trip, never a DB query.
+- `App\Http\Controllers\BrandAssetController` + `GET /brand-asset/{key}` with strict key allow-list (`logo-dark`, `logo-light`, `favicon`, `og-image`), immutable long-cache, `X-Content-Type-Options: nosniff`.
+- Migration backfills any existing `public/brand/*.png` on first run.
+- `Admin\Appearance::uploadLogo*` writes to DB via `UploadedAsset::put`; revert deletes. All Blade consumers (`x-app-logo`, landing nav + footer, guest layout desktop/mobile, verify-email, email partials, error layout, admin previews, favicon `<link>` tags) read from the DB-backed route.
+
+**Security hardening**
+- `User::$fillable` removed `plan` + `is_admin`; all call sites converted to explicit `$user->plan = ...; $user->save()` (AuthController register, AppServiceProvider webhook, Billing::subscribe/resume, Admin\UserDetail force-pro/free, Admin\Users force-pro/free).
+- Admin `forceFree()` now `cancelNow()`s the Stripe subscription BEFORE downgrading — stops billing cancelled users.
+- Stripe error messages sanitised — no more `$e->getMessage()` to users; full error still logged.
+- Sanctum token expiration: default 30 days (`SANCTUM_EXPIRATION=43200`, env-configurable).
+- `AiService` prompts JSON-encode user-controlled strings (book names, periods, category names, descriptions) — neutralises prompt injection via category like `"rent\n\nIGNORE..."`.
+- `guardEditor()` re-fetches role from DB on every write (prevents stale Livewire session state).
+- `validateBulkIds()` strips IDs not belonging to current book.
+- `SecurityHeaders` middleware (X-Frame-Options DENY, nosniff, XSS, Referrer-Policy, Permissions-Policy, HSTS in production).
+- MIME whitelist on attachment serving + `X-Content-Type-Options: nosniff` on file responses.
+- OCR 5/min, login 10/min, export 10/min, invitation 5/hr, social-callback 10/min rate limits.
+
+**Per-page SEO + social preview coverage (every public route)**
+- `layouts/guest.blade.php`: `match()` on `request()->routeIs(...)` → distinct titles/descriptions for login, register, password.request, password.reset, invitations.accept; `shouldNoindex` for tokenised routes.
+- All public pages (landing, auth, legal) emit full OG (og:type, og:site_name, og:title, og:description, og:url, og:image 1200×630, og:image:alt, og:locale) + Twitter (summary_large_image) + canonical + theme-color + author + format-detection: telephone=no.
+- Landing JSON-LD: `SoftwareApplication` (with AggregateRating + pricing Offers), standalone `Organization`, `FAQPage` mirroring on-page accordion. All escaped via `@verbatim` to avoid Blade 11 `@context`/`@type` directive collision.
+- Legal layout: `BreadcrumbList` schema (Home › Current).
+- Dynamic `/sitemap.xml` route emits `/, /login, /register, /terms, /privacy` with lastmod + priority.
+- `robots.txt` disallows admin, api, dashboard, businesses, settings, profile, tokenised auth flows, brand-asset, invitations. Adds `Sitemap:` directive.
+
+**CRITICAL Blade pitfall discovered + documented**
+- `{{-- ... @verbatim ... --}}` — the word `@verbatim` (or any real directive name) inside a Blade comment IS picked up by Blade's directive scanner BEFORE comment stripping, opening an unclosed verbatim block that silently swallows everything below. This broke landing: `@vite`, Alpine CDN, GA4 conditional, and JSON-LD blocks all disappeared. Symptom: page renders without Tailwind (only inline `<style>` works), no SPA JS, no analytics, no schema. Fix: never write `@directiveName` as prose inside a Blade template — use `at-verbatim` or `&#64;verbatim` or wrap in `<code>`.
+- Same gotcha fixed earlier in this repo: Laravel 11 added `@context` Blade directive which collided with JSON-LD `"@context"` key — escape with `@verbatim` blocks around the literal JSON.
+
+**Vite build artifacts committed to git**
+- `/public/build` un-gitignored; run `npm run build` before every commit touching Blade classes / CSS / JS. Railway's Railpack doesn't reliably build Node assets for PHP-declared projects. Committing the build artifacts guarantees styled pages regardless of what the builder does.
+- Comment in `.gitignore` documents the workflow rule.
+
+**Google OAuth (Laravel Socialite)**
+- `GET /auth/google/{redirect,callback}` via `guest` middleware group.
+- `SocialAuthController` matches users on email (Google emails are verified), creates with `plan=free` + `email_verified_at=now()` on first sign-in, stamps `provider + provider_id` columns (new migration, nullable, composite unique index). `plan`/`provider_id` NOT fillable — set explicitly.
+- Errors (user cancel, no email returned, network) route back to `/login` with sanitised flash.
+- Rate-limited 10/min per IP on callback.
+- "Continue with Google" button on `/login` + `/register` — renders only when `GOOGLE_CLIENT_ID` is configured (silent in local dev). Button styling: white bg + dark text in BOTH light and dark modes (per Google brand guidelines).
+
+**Cloudflare Turnstile**
+- Widget on `/register` (renders only when `TURNSTILE_SITE_KEY` set).
+- `RegisteredUserController::verifyTurnstile()` calls Cloudflare siteverify server-side. Fails closed on network errors (won't let bots DOS siteverify to bypass).
+
+**Sentry (error monitoring)**
+- `composer require sentry/sentry-laravel`; `vendor:publish` emitted `config/sentry.php`; reads `SENTRY_LARAVEL_DSN` + `SENTRY_TRACES_SAMPLE_RATE`. Service provider auto-registers — no code changes needed to capture exceptions.
+
+**Google Analytics 4**
+- Snippet in landing-v3 + guest layout + app layout, gated on `config('services.analytics.ga4_id')`. App layout fires virtual `page_view` on `livewire:navigated` so SPA-style navigation is tracked.
+
+**Terms + Privacy pages**
+- `/terms` and `/privacy` with generic best-practice copy. Shared `legal/_layout.blade.php` with BreadcrumbList + full OG + canonical. Linked from register form + landing footer.
+
+**UX polish from launch-prep audit**
+- Footer CTA buttons fit 360px mobile (text-[13px] on mobile, full-width stacked).
+- Final CTA heading clamp minimum dropped `3rem → 2.4rem`.
+- FAQ accordion titles: `text-base` on mobile, `text-lg` sm+.
+- "Add Entry" button always shows "Add" on mobile (was icon-only).
+- Password-toggle hit targets on all auth + Change Password forms: expanded from ~20px wide to `w-11` (44px).
+- Landing mobile hamburger drawer (Alpine, slides down, X/close icon swap).
+- Sidebar auto-closes on `livewire:navigated` + `popstate` — mobile hamburger no longer sticks open after navigation.
+- Mobile app-header logo now links to `/dashboard`.
+- Mobile Scan-Receipt picker fix: file input moved off-screen (display:none blocks `.click()` on mobile Safari/Chrome); Pro users trigger `.click()` synchronously from the user gesture instead of via Livewire round-trip.
+- Default currency on Create Business flipped from `PKR` → `USD`.
+- Stripe error messages sanitised on Billing page.
+- Landing footer giant wordmark opacity raised from 0.04 → 0.13 (was invisible).
+- Landing footer links simplified to just Terms + Privacy.
+
+**Error pages polish (404/403/419/429/500/503)**
+- Always-dark (removed light-mode variants) to match landing's aesthetic — users arriving from a broken share link now see continuity.
+- Giant gradient error code, subtle dot-grid background, 3 floating glow orbs, pulsing icon, fade-up entrance.
+- Brand strip at top links to home.
+- 404 gains context-aware quick-links: authenticated users see Dashboard / Billing / Profile; guests see Register / Login / Terms / Privacy.
+- Favicon uses DB-backed `brand-asset/favicon` route.
+- Footer with Terms + Privacy links.
+
+**Removed from Build Order (deferred):**
+- Apple / Microsoft / Facebook OAuth — Google-only for launch
+- Welcome email on signup
+- Custom OG image (1200×630) — landing falls back to logo-dark
+- Webhook event log table
+- Admin audit log
+- Mobile app Google OAuth (separate native flow)
+- Full desktop-audit cosmetic polish items
+
+### Key patterns / gotchas documented this session
+
+- **Railway is ephemeral** — `public/brand/` uploads wiped every redeploy. Solution for this project: DB-backed `uploaded_assets` table. Alternative for other uploads: mount a Railway volume.
+- **`@directiveName` inside `{{-- --}}` Blade comments IS a directive** — silent swallowing of everything downstream. Always write "at-directiveName" or HTML-escape.
+- **Google OAuth "unverified app" warning** — avoid by (a) verifying domain in Google Search Console via DNS TXT record, then (b) publishing the app on Google Auth Platform. Takes ~10 min, vs Google's multi-week app verification (only needed for sensitive scopes / 100+ users).
+- **Turnstile widget classes** — `<div class="cf-turnstile" data-sitekey="..." data-theme="auto" data-size="flexible">`. Server-side verify via `https://challenges.cloudflare.com/turnstile/v0/siteverify` with `secret + response + remoteip`.
+- **Sentry**: `vendor:publish --provider="Sentry\Laravel\ServiceProvider"` publishes `config/sentry.php`. No kernel changes needed — the service provider auto-hooks into the exception handler.
+
+### Session Notes (previous — 2026-04-07)
+
+### Completed this session (2026-04-07) — Mobile app Phase A/B/C/D + device testing fixes
+
+**Massive session: mobile app brought from ~60% to near-parity with the web app, tested on real device, UX issues patched iteratively.** Touches both `project-web` (backend API expansion) and `project-mobile` (Expo React Native).
+
+#### Phase A — Mobile foundation fixes
+- `project-mobile/src/api/client.ts` — moved API URL to `app.json` → `expo.extra.apiUrl` (single source of truth), pointing at `https://cashflow-production-fd97.up.railway.app/api/v1`. Removed hardcoded dev IP. Bumped axios timeout to 30s for Railway cold-starts. Added global 401 handler via `setAuthExpiredHandler()`.
+- `project-mobile/src/utils/errors.ts` — `errorMessage()` extracts safe user-facing messages from axios errors; strips SQL/stack-trace leakage; handles 401/403/404/422/429/500/network/timeout; `isSafeMessage()` heuristic blocks messages containing banned terms.
+- `project-mobile/src/components/Toast.tsx` — animated slide-up toast with `success/error/info` variants, auto-dispatches haptics (Success/Error `Haptics.notificationAsync`), safe-area aware positioning. `ToastProvider` at root; `useToast()` hook. Replaces `Alert.alert` for non-destructive feedback across all screens.
+- `project-mobile/app/_layout.tsx` — wraps children in `SafeAreaProvider` + `ThemeProvider` + `AuthProvider` + `ToastProvider`. Loads `GeistMono_400Regular` + `GeistMono_700Bold` via `@expo-google-fonts/geist-mono`. `ThemedRoot` inner component makes StatusBar style reactive to theme.
+- `project-mobile/src/theme/typography.ts` — `fonts.mono` = `GeistMono_400Regular`, `fonts.monoBold` = `GeistMono_700Bold`. All `'Courier'` fallbacks replaced across ~8 files (dashboard, business detail, ledger, entry form, recurring tab, activity feed, drawer, create-book).
+- `project-mobile/src/context/AuthContext.tsx` — fixed biometric cancel no longer leaving the app on an infinite loading screen. `retryBiometric()` method added. Registers global 401 handler via `setAuthExpiredHandler`. Proper cleanup on unmount.
+- `project-mobile/src/components/CommentsPanel.tsx` — rewritten as `<Modal>` with `KeyboardAvoidingView` so iOS keyboard no longer hides the input. Wired to toast system. Added `hitSlop` on close/delete. Safe-area bottom padding.
+
+#### Phase B — Backend REST API expansion (60 total endpoints, +30 new)
+- `project-web/app/Http/Controllers/Api/V1/AuthController.php` — `PUT /profile` (updateProfile, invalidates email verification on change), `PUT /profile/password` (with currentPassword check + revokes all OTHER tokens preserving current), `POST /auth/email/resend`, `DELETE /profile` (requires password; cancels active subscription via `$user->subscription('default')->cancelNow()`).
+- `project-web/app/Http/Controllers/Api/V1/BusinessController.php` — `POST /businesses` (create, Free plan 1-business gate, owner pivot attach, currency regex validation), `PUT/DELETE /businesses/{id}`, team management: `POST /businesses/{id}/invitations` (Free 2-member gate, 5/hour rate limit via `RateLimiter`, queues `TeamInvitation` mailable), `GET /businesses/{id}/invitations` (pending only), `DELETE /invitations/{id}`, `PUT/DELETE /businesses/{businessId}/members/{userId}` (role change + remove). Private `ensureOwner()` guard.
+- `project-web/app/Http/Controllers/Api/V1/BookController.php` — `PUT/DELETE /books/{id}`, `POST /books/{id}/duplicate` (with `copyCategories/copyPaymentModes/copyEntries` flags; creates new book, optionally loops entries stamping `created_by`), `GET /books/{id}/report-data` (full period summary + auto-bucketed trend by day/week/month + category breakdown in/out + payment mode breakdown; Pro-gated), `GET/PUT/DELETE /books/{id}/report-schedule` (CRUD for `ReportSchedule` model). Private `ensureEditor()` guard.
+- `project-web/app/Http/Controllers/Api/V1/EntryController.php` — bulk ops: `POST /books/{id}/entries/bulk-delete` (cleans up attachment files), `POST /books/{id}/entries/bulk-update` (category/paymentMode change + `flipType: true` toggles in↔out via temp marker), `POST /books/{id}/entries/bulk-move` (move or copy with `copy: true/false` flag, target book must be same business). Attachment endpoints: `POST/GET/DELETE /entries/{id}/attachment` with MIME whitelist + `X-Content-Type-Options: nosniff`. `validatedBulkIds()` private helper verifies all IDs belong to current book (security: prevents cross-book manipulation).
+- `project-web/app/Http/Controllers/Api/V1/SettingsController.php` — NEW controller: `GET /billing/checkout-url` (returns web `/settings/billing` URL for WebView), `GET /announcement` (reads `Setting::get('announcement')` JSON, checks `is_active` + expiry), `GET /notifications`, `POST /notifications/mark-all-read`, `DELETE /notifications/{id}`.
+- `project-web/routes/api.php` — rewrote to register all 60 endpoints in grouped blocks (Auth+Profile / Businesses / Books / Entries / Attachments / Comments / Recurring / OCR / Export / Settings).
+
+#### Phase C — Mobile screens consuming Phase B
+- `project-mobile/src/api/auth.ts` — added `updateProfile`, `changePassword`, `resendVerification`, `deleteAccount` methods.
+- `project-mobile/src/api/businesses.ts` — massive expansion: added `Invitation`, `ReportSchedule`, `ReportData`, `AppNotification`, `Announcement` interfaces. Added methods for business CRUD, book CRUD + duplicate, team (invitations/invite/cancelInvitation/updateMemberRole/removeMember), reports (reportData/reportSchedule/saveReportSchedule/deleteReportSchedule), billing, announcement, notifications.
+- `project-mobile/src/api/entries.ts` — added `bulkDelete`, `bulkUpdate`, `bulkMove`, `uploadAttachment` (FormData with RN file blob shape), `attachmentUrl`, `deleteAttachment`.
+- `project-mobile/app/(app)/profile/` — converted from file to directory. `profile/index.tsx` redesigned with action rows (Edit Profile / Billing & Plans / Dark Mode toggle) plus account info card + upgrade card. `profile/edit.tsx` new screen with profile form (name/email) + password form + email verification resend link when unverified.
+- `project-mobile/app/(app)/business/create.tsx` — new Create Business screen with 24-currency searchable picker modal (PKR, USD, EUR, GBP, INR, AED, SAR, BDT, CAD, AUD, JPY, CNY, SGD, MYR, IDR, THB, PHP, TRY, EGP, ZAR, NGN, KES, BRL, MXN), name/description fields, Free plan note.
+- `project-mobile/app/(app)/business/book/edit.tsx` — new Edit/Duplicate Book screen. Mode-aware via `?mode=edit|duplicate` param. Shares period presets (This Month / Last Month / This Quarter / This Year) + start/end date fields + opening balance + description. Duplicate mode adds `copyCategories/copyPaymentModes/copyEntries` toggles.
+- `project-mobile/app/(app)/business/book/email-reports.tsx` — new Email Reports settings screen. Toggle active/paused, frequency pills (Weekly Mondays / Monthly 1st), recipients textarea (comma-separated, max 10, validated), last-sent-at display, delete schedule action.
+- `project-mobile/app/(app)/business/members.tsx` — rewrote from read-only to full team management. Owner sees: invite FAB, pending invitations section with cancel action, change-role modal (editor ↔ viewer), remove member with confirmation. Non-owners see read-only list.
+- `project-mobile/app/(app)/billing.tsx` — new Billing WebView screen. `react-native-webview` installed via `npx expo install`. Loads `/settings/billing` URL from `GET /billing/checkout-url`. Banner explains one-time web login. Detects `?checkout=success` URL on navigation and calls `refreshUser()` + shows "Welcome to Pro!" toast.
+- `project-mobile/src/components/ReportsTab.tsx` — new Reports tab component. Uses `ReportData` from API. Period summary grid (Cash In / Cash Out / Net Balance cards). Horizontal-scrolling trend chart built with pure Views (no chart lib) — stacked in/out bars scaled to `trendMax`. `CategoryBars` sub-component for top 5 outflow / top 5 inflow / top 5 payment modes with horizontal bar fills. Free user sees gated preview.
+- `project-mobile/app/(app)/business/book/[id].tsx` — huge updates:
+  - Bulk selection mode via long-press (`selectedIds: Set<string>`). Bulk action bar appears at bottom with count + Select All + Move + Copy + Flip Type + Delete. `openBookPicker('move'|'copy')` fetches sibling books and shows a book picker modal. `handleBulkMoveTo()` calls the right endpoint.
+  - Custom date range filter: new `'custom'` chip in duration bar opens a modal with two `DatePickerInput`s. `customFrom/customTo` state flows into the filteredEntries memo.
+  - Reports tab now renders `AiInsightsCard` + `ReportsTab` component.
+  - Book settings header dropdown: Export PDF/CSV, Edit Book, Duplicate Book, Email Reports, Delete Book. Delete uses existing Alert with destructive confirm.
+  - **Device test fixes (round 2)**: comment icon wasn't clickable because it was a `TouchableOpacity` nested inside a parent `TouchableOpacity` (RN parent swallows press). Restructured entry row with sibling `Pressable`s — info zone + amount zone + comment button each handle their own presses independently. `commentBtn` got `hitSlop={10}`.
+  - **Device test fixes (round 2)**: settings icon (`⚙️` emoji) looked inconsistent/"fake". Replaced with a clean `⋯` kebab in a `headerBtn` styled as a 36×36 circular dark-card button. `hitSlop={12}`.
+  - **Device test fixes (round 3)**: tab bar was invisible on device — no explicit height, ScrollView was collapsing. Added `minHeight: 48, maxHeight: 48, backgroundColor: colors.dark`, bumped tab text to `fonts.headingSemi`, made inactive state `grayLight` instead of `gray` (higher contrast), thickened active indicator from 2px to 3px.
+  - **Device test fixes (round 3)**: duration filter chips were faded/grey — bumped font from 11 to 12, changed inactive text from `gray` to `grayLight`, active state `white` instead of `accent`, fully rounded pills, larger padding.
+  - **Device test fixes (round 3)**: filter row restructured — segmented control (All / Cash In / Cash Out) now full-width on its own row with `flex: 1` on each button; `filterStatus` row below with entry count + Clear filters link.
+  - **Device test fixes (round 3)**: back button was showing "index"/"Personal" (previous route slug). The fix used `headerBackTitleVisible` which **doesn't exist** in this Expo Router version (silent at runtime, TS error). Correct prop is `headerBackButtonDisplayMode: 'minimal'` — set at layout level in `(app)/_layout.tsx` and explicitly on each `Stack.Screen` override.
+- `project-mobile/app/(app)/business/[id].tsx` — **Device test fix (round 3)**: added header `⋯` button (owner only) with dropdown: Rename Business / Manage Team / Delete Business. Rename opens inline modal with TextInput + Cancel/Save actions. Delete uses Alert confirm.
+
+#### Phase D — Polish
+- `project-mobile/src/components/DatePickerInput.tsx` — cross-platform native date picker. Android uses inline default display, iOS uses modal sheet with dark-themed spinner + Cancel/Done header. Installed via `npx expo install @react-native-community/datetimepicker`. Wired into entry form, create-book, edit-book, and custom date range modal. Replaces all `YYYY-MM-DD` text inputs.
+- `project-mobile/src/components/AnnouncementBanner.tsx` — new component, reads `GET /announcement`, dismissal persisted via `SecureStore` keyed by `updatedAt` (so new announcements re-show). Info/warning/success type variants. Mounted in root layout after auth.
+- `project-mobile/src/components/NotificationsBell.tsx` — new component in dashboard header. Unread count badge. Tap opens slide-in panel from right with pull-to-refresh + mark-all-read + per-item delete. Empty state.
+- `project-mobile/src/components/Skeleton.tsx` — animated shimmer blocks using `Animated.loop` on opacity. `SkeletonCard` for business list, `SkeletonEntryRow` for ledger. Used in initial loading states of dashboard + ledger.
+
+#### Theme system (light + dark mode)
+- `project-mobile/src/theme/colors.ts` — split into `darkColors` and `lightColors` exports conforming to `ThemeColors` interface (typed as `Record<...>` with string values, not `as const`, so both palettes are assignable). Dark is the navy `#0a0f1e` aesthetic; light is `#f8fafc` bg with deeper `#1e40af` accents + `#15803d` green + `#b91c1c` red for WCAG contrast.
+- `project-mobile/src/context/ThemeContext.tsx` — new `ThemeProvider` + `useTheme()` + `useColors()` + `useThemedStyles(factory)` hooks. Mode persisted in `SecureStore` under `theme_mode`. `useThemedStyles` takes a `(colors: ThemeColors) => StyleSheet` factory and memoizes on colors change.
+- **Pattern:** each screen converts from `const styles = StyleSheet.create(...)` at module scope → `const makeStyles = (colors: ThemeColors) => StyleSheet.create(...)` + `const styles = useThemedStyles(makeStyles)` inside the component. Static `colors` import removed from the file; inline `colors.X` references in JSX use the destructured `colors` from `useTheme()`. Hardcoded `colors.white` on always-primary surfaces (FAB text, avatar text) replaced with literal `'#f8fafc'` so they stay white even in light mode.
+- **Converted so far:** profile (`(app)/profile/index.tsx`), dashboard (`(app)/index.tsx`), business detail (`(app)/business/[id].tsx`), ledger (`(app)/business/book/[id].tsx`), entry form (`(app)/business/book/entry.tsx`).
+- **Not yet converted:** auth screens, edit profile, edit book, email reports, create business, members, drawer menu, billing webview. These stay dark until Phase E.
+- Toggle lives in Profile → Dark Mode switch row with sun/moon icon.
+
+#### Backend bug fix (round 2 device test)
+- `project-web/app/Http/Resources/V1/BookResource.php` — **critical bug**: `whenAppended('total_in', ...)` only fires when attribute is in Eloquent's `$appends` array. But `BusinessController@books` sets totals as dynamic attributes (`$book->total_in = $book->totalIn()`), NOT appended. So mobile `GET /businesses/{id}/books` was returning `totalIn: null, totalOut: null, balance: null` → the books list on mobile showed zero everywhere. Fixed by switching to direct `isset()` checks + string casts. **Deployed and verified live on Railway.**
+
+#### Infrastructure / testing
+- Expo Go testing via tunnel mode (`npx expo start --tunnel`). Tunnel URL: `exp://erinsfw-anonymous-8081.exp.direct` (persistent during this session). User tested on iPhone via Expo Go.
+- Backend deployed to Railway; mobile app targets Railway URL via `app.json` → `expo.extra.apiUrl`.
+- Commits pushed to `github.com/Azeem5454/cashflow` main branch.
+
+### Key mobile patterns established this session
+- **Themed styles**: `const makeStyles = (colors: ThemeColors) => StyleSheet.create({...})` + `const styles = useThemedStyles(makeStyles)` at component top. Requires destructuring `colors` from `useTheme()` separately for inline JSX references. Hardcode brand constants (`#f8fafc` for text-on-primary) to survive theme switches.
+- **Back button on iOS**: use `headerBackButtonDisplayMode: 'minimal'` (not `headerBackTitleVisible`, which doesn't exist in this Expo Router version). Set at layout level AND each Stack.Screen — the layout default doesn't always win.
+- **Nested touchables**: RN parent `TouchableOpacity` swallows children's presses. Fix by using a wrapping `View` with sibling `Pressable` zones (one per interactive region). Each Pressable handles its own `onPress`/`onLongPress` independently.
+- **Tab bar visibility**: always set explicit `minHeight/maxHeight` on horizontal `ScrollView` tab bars or they collapse on device. Bump inactive text to `grayLight` for contrast on dark navy.
+- **API URL config**: single source in `app.json` → `expo.extra.apiUrl`, read via `Constants.expoConfig?.extra?.apiUrl`. No dev/prod forking — edit one line + reload Expo Go.
+- **Dynamic attributes on Eloquent resources**: `whenAppended()` requires actual `$appends` registration. For controller-assigned dynamic attributes, use `isset()` + direct access.
+- **RN FormData file upload**: shape `{ uri, type, name }` cast as `unknown as Blob`; set `Content-Type: multipart/form-data` header explicitly on the axios call.
+- **Toast over Alert.alert**: destructive confirmations (delete, sign out) + picker choice lists (image source) stay as `Alert.alert`. Everything else (success/error feedback) uses `toast.success()/error()/info()` from `useToast()`.
+- **Error sanitization**: every `catch` block calls `toast.error(errorMessage(e))` — the `errorMessage()` util strips SQL/stack traces and maps HTTP codes to friendly strings.
+
+### Pending for next session (Phase E — mobile polish round 2)
+- Convert remaining screens to themed styles: auth screens, edit profile, edit book, email reports, create business, members, drawer menu, billing webview, create-book, ActivityFeed, AiInsightsCard, RecurringTab, CommentsPanel, NotificationsBell, AnnouncementBanner, DatePickerInput, Skeleton, Toast, PickerDropdown, ReportsTab.
+- Date picker integration in edit-book.tsx + create.tsx if not already (verify).
+- Light mode fixes for any screens with hardcoded text-on-primary that doesn't survive theme flip.
+- Convert `app/(auth)/_layout.tsx` to use useTheme for contentStyle.
+- Skeleton loaders on business detail, members, reports.
+- Animation polish: balance count-up on save.
 
 ### Completed this session (2026-03-26)
 

@@ -32,9 +32,9 @@
     <meta name="description" content="{{ $ogDesc }}">
     <meta name="theme-color" content="#0a0f1e">
     <link rel="canonical" href="{{ $appUrl }}/">
-    <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/favicon.png">
+    @php $landingFaviconSrc = \App\Models\UploadedAsset::has('favicon') ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon') : asset('favicon.png'); @endphp
+    <link rel="icon" type="image/png" href="{{ $landingFaviconSrc }}">
+    <link rel="apple-touch-icon" href="{{ $landingFaviconSrc }}">
 
     {{-- Open Graph (Facebook, LinkedIn, WhatsApp, iMessage) --}}
     <meta property="og:type" content="website">
