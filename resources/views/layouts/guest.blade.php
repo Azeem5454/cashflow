@@ -365,8 +365,16 @@
         {{-- Mobile logo --}}
         <div class="lg:hidden mb-8 self-start">
             <a href="/" class="flex items-center gap-2.5">
-                @if(file_exists(public_path('brand/logo-dark.png')))
+                @if(file_exists(public_path('brand/logo-dark.png')) && file_exists(public_path('brand/logo-light.png')))
                     <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
+                         alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto hidden dark:block">
+                    <img src="{{ asset('brand/logo-light.png') }}?v={{ filemtime(public_path('brand/logo-light.png')) }}"
+                         alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto dark:hidden">
+                @elseif(file_exists(public_path('brand/logo-dark.png')))
+                    <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
+                         alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
+                @elseif(file_exists(public_path('brand/logo-light.png')))
+                    <img src="{{ asset('brand/logo-light.png') }}?v={{ filemtime(public_path('brand/logo-light.png')) }}"
                          alt="{{ config('app.name', 'CashFlow') }}" class="h-8 w-auto">
                 @else
                     <img src="/brand/cashflow_logo.png" alt="{{ config('app.name', 'CashFlow') }}"

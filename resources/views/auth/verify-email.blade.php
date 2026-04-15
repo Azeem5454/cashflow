@@ -45,7 +45,12 @@
 
     {{-- Logo --}}
     <a href="/" class="anim-fade-up relative z-10 mb-12">
-        <img src="/brand/cashflow_logo_horizontal.png" alt="CashFlow" class="h-9">
+        @if(file_exists(public_path('brand/logo-dark.png')))
+            <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
+                 alt="{{ config('app.name', 'CashFlow') }}" class="h-9 w-auto object-contain">
+        @else
+            <img src="/brand/cashflow_logo_horizontal.png" alt="{{ config('app.name', 'CashFlow') }}" class="h-9">
+        @endif
     </a>
 
     {{-- Card --}}

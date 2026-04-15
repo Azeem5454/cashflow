@@ -7,15 +7,29 @@
         'lg' => ['icon' => 'w-10 h-10', 'svg' => 'w-5 h-5',  'text' => 'text-2xl', 'img' => 'h-10'],
     ];
     $s = $sizes[$size] ?? $sizes['md'];
-    $hasCustomLogo = file_exists(public_path('brand/logo-dark.png'));
+
+    $darkPath  = public_path('brand/logo-dark.png');
+    $lightPath = public_path('brand/logo-light.png');
+    $hasDark   = file_exists($darkPath);
+    $hasLight  = file_exists($lightPath);
+
+    $darkUrl  = $hasDark  ? asset('brand/logo-dark.png')  . '?v=' . filemtime($darkPath)  : null;
+    $lightUrl = $hasLight ? asset('brand/logo-light.png') . '?v=' . filemtime($lightPath) : null;
 @endphp
 
 <div {{ $attributes->merge(['class' => 'flex items-center gap-3']) }}>
-    @if($hasCustomLogo)
-        <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
-             alt="{{ config('app.name', 'CashFlow') }}"
-             class="{{ $s['img'] }} w-auto object-contain">
+    @if($hasDark && $hasLight)
+        {{-- Both variants uploaded: swap based on theme --}}
+        <img src="{{ $darkUrl }}"  alt="{{ config('app.name', 'CashFlow') }}" class="{{ $s['img'] }} w-auto object-contain hidden dark:block">
+        <img src="{{ $lightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="{{ $s['img'] }} w-auto object-contain dark:hidden">
+    @elseif($hasDark)
+        {{-- Only dark uploaded: use it on both modes --}}
+        <img src="{{ $darkUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="{{ $s['img'] }} w-auto object-contain">
+    @elseif($hasLight)
+        {{-- Only light uploaded: use it on both modes --}}
+        <img src="{{ $lightUrl }}" alt="{{ config('app.name', 'CashFlow') }}" class="{{ $s['img'] }} w-auto object-contain">
     @else
+        {{-- No logo uploaded: fallback to default icon + text --}}
         <div class="{{ $s['icon'] }} rounded-lg bg-primary flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/30">
             <svg class="{{ $s['svg'] }} text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round"

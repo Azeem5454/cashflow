@@ -160,7 +160,7 @@
 <div class="header">
     <div class="header-top">
         <div>
-            <div class="brand-name">CashFlow</div>
+            <div class="brand-name">{{ config('app.name', 'CashFlow') }}</div>
             <div class="book-title">{{ $book->name }}</div>
             <div class="book-sub">
                 {{ $business->name }}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CashFlow — Your business balance. Live. Always.</title>
+    <title>{{ config('app.name', 'CashFlow') }} — Your business balance. Live. Always.</title>
     <meta name="description" content="Track every transaction, scan receipts with AI, and get cash flow insights. The smartest cash book for small businesses worldwide.">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
@@ -151,12 +151,17 @@
 <div id="nav-wrapper" class="sticky top-0 z-50">
     <nav id="main-nav" class="px-6 md:px-8 py-3.5 flex items-center justify-between">
         <a href="{{ route('home') }}" class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--primary)">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-            <span class="fd font-bold text-base text-white">CashFlow</span>
+            @if(file_exists(public_path('brand/logo-dark.png')))
+                <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
+                     alt="{{ config('app.name', 'CashFlow') }}" class="h-7 w-auto object-contain">
+            @else
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--primary)">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <span class="fd font-bold text-base text-white">{{ config('app.name', 'CashFlow') }}</span>
+            @endif
         </a>
         <div class="hidden md:flex items-center gap-8">
             @foreach([['#pain','Problem'],['#how','How it works'],['#features','Features'],['#pricing','Pricing']] as [$h,$l])
@@ -315,7 +320,7 @@
     <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-56 rounded-full blur-3xl pointer-events-none glow-pulse" style="background:rgba(26,86,219,0.1)"></div>
     <div class="relative max-w-5xl mx-auto">
         <div class="text-center mb-14">
-            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.35)">Before CashFlow</p>
+            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.35)">Before {{ config('app.name', 'CashFlow') }}</p>
             <h2 class="sr d1 fd font-black leading-tight" style="color:#fff;font-size:clamp(2.2rem,4.5vw,3.5rem)">
                 Sound familiar?
             </h2>
@@ -350,7 +355,7 @@
             @endforeach
         </div>
         <div class="text-center mt-12 sr d3">
-            <p class="text-base" style="color:rgba(255,255,255,0.4)">CashFlow solves all three. Setup takes <strong style="color:#f8fafc">2 minutes.</strong></p>
+            <p class="text-base" style="color:rgba(255,255,255,0.4)">{{ config('app.name', 'CashFlow') }} solves all three. Setup takes <strong style="color:#f8fafc">2 minutes.</strong></p>
         </div>
     </div>
 </section>
@@ -708,7 +713,7 @@
         </div>
         <div class="space-y-3">
             @foreach([
-                ['Do I need to know accounting to use this?','No. CashFlow is built for business owners, not accountants. You just record what happened — "received $500 from client" or "paid $120 for supplies". The balance is always worked out for you. No formulas, no jargon. Works in any currency.'],
+                ['Do I need to know accounting to use this?','No. ' . config('app.name', 'CashFlow') . ' is built for business owners, not accountants. You just record what happened — "received $500 from client" or "paid $120 for supplies". The balance is always worked out for you. No formulas, no jargon. Works in any currency.'],
                 ['Is my data safe?','Yes. Your data is stored securely, backed up automatically, and never shared with anyone. Only you and the people you explicitly invite can see your books.'],
                 ['Can I use this for multiple businesses?','Yes. Pro plan gives you unlimited businesses on one dashboard. Free plan supports one business. Switch between them with one click — no logging out, no separate accounts.'],
                 ['What if I want to cancel?','Cancel any time from your billing settings — no questions asked, no tricks, no guilt emails. Your data stays accessible on the free plan so you never lose your history.'],
@@ -776,14 +781,19 @@
 <footer style="background:var(--black);border-top:1px solid rgba(255,255,255,0.06)" class="px-6 pt-16 pb-10">
     <div class="max-w-6xl mx-auto">
         <div class="mb-10 text-center overflow-hidden">
-            <p class="fd font-black select-none" style="color:rgba(255,255,255,0.04);font-size:clamp(5rem,14vw,11rem);line-height:1;letter-spacing:-0.04em">CashFlow</p>
+            <p class="fd font-black select-none" style="color:rgba(255,255,255,0.04);font-size:clamp(5rem,14vw,11rem);line-height:1;letter-spacing:-0.04em">{{ config('app.name', 'CashFlow') }}</p>
         </div>
         <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6" style="border-top:1px solid rgba(255,255,255,0.07)">
             <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:var(--primary)">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-                <span class="fd font-bold text-sm" style="color:rgba(255,255,255,0.45)">CashFlow</span>
+                @if(file_exists(public_path('brand/logo-dark.png')))
+                    <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
+                         alt="{{ config('app.name', 'CashFlow') }}" class="h-6 w-auto object-contain opacity-60">
+                @else
+                    <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:var(--primary)">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <span class="fd font-bold text-sm" style="color:rgba(255,255,255,0.45)">{{ config('app.name', 'CashFlow') }}</span>
+                @endif
             </div>
             <div class="flex items-center gap-6">
                 @foreach([['#how','How it works'],['#features','Features'],['#pricing','Pricing'],['login','Sign in'],['register','Register']] as [$r,$l])
@@ -791,7 +801,7 @@
                    style="color:rgba(255,255,255,0.28)" onmouseover="this.style.color='rgba(255,255,255,0.65)'" onmouseout="this.style.color='rgba(255,255,255,0.28)'">{{ $l }}</a>
                 @endforeach
             </div>
-            <p class="text-xs" style="color:rgba(255,255,255,0.18)">© {{ date('Y') }} CashFlow</p>
+            <p class="text-xs" style="color:rgba(255,255,255,0.18)">© {{ date('Y') }} {{ config('app.name', 'CashFlow') }}</p>
         </div>
     </div>
 </footer>
