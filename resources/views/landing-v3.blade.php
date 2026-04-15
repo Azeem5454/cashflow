@@ -53,7 +53,7 @@
     <meta name="twitter:description" content="{{ $ogDesc }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
 
-    {{-- Schema.org JSON-LD. @context/@type collide with Blade directives in Laravel 11+; @verbatim escapes them. --}}
+    {{-- Schema.org JSON-LD. The "at-context" / "at-type" keys collide with Blade directives in Laravel 11+; verbatim blocks below escape them. --}}
     <script type="application/ld+json">
     @verbatim{
         "@context": "https://schema.org",
