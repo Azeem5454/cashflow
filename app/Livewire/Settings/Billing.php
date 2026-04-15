@@ -113,7 +113,16 @@ class Billing extends Component
             $url = auth()->user()->billingPortalUrl(route('billing'));
             $this->redirect($url);
         } catch (\Exception $e) {
-            $this->addError('stripe', 'Could not open billing portal. Please try again.');
+            // Log the full Stripe error for debugging
+            \Illuminate\Support\Facades\Log::error('Billing portal error', [
+                'user_id'   => auth()->id(),
+                'stripe_id' => auth()->user()->stripe_id,
+                'message'   => $e->getMessage(),
+                'class'     => get_class($e),
+            ]);
+
+            // Show the actual Stripe error to help diagnose (temporary — revert once stable).
+            $this->addError('stripe', 'Could not open billing portal: ' . $e->getMessage());
         }
     }
 
