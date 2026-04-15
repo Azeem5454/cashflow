@@ -936,6 +936,8 @@
                 @endif
             </div>
             <div class="flex items-center gap-5 sm:gap-6">
+                <a href="{{ route('blog.index') }}" class="text-xs transition-colors"
+                   style="color:rgba(255,255,255,0.55)" onmouseover="this.style.color='rgba(255,255,255,0.95)'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">Blog</a>
                 <a href="{{ route('terms') }}" class="text-xs transition-colors"
                    style="color:rgba(255,255,255,0.55)" onmouseover="this.style.color='rgba(255,255,255,0.95)'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">Terms</a>
                 <a href="{{ route('privacy') }}" class="text-xs transition-colors"

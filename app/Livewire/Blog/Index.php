@@ -31,9 +31,14 @@ class Index extends Component
             ? BlogCategory::where('slug', $this->categorySlug)->firstOrFail()
             : null;
 
-        // Featured post — only on "/blog" without filters so it doesn't
-        // duplicate when a category filter is active.
-        $featured = (! $category && $this->search === '')
+        // The big featured-hero layout only makes sense when there are enough
+        // posts to justify it. If there are 3 or fewer total, showing one as
+        // a full-width hero leaves the grid below sparse/empty. Below that
+        // threshold, every post goes into the equal-weight 3-column grid.
+        $totalPublished = BlogPost::published()->count();
+        $useFeaturedHero = ! $category && $this->search === '' && $totalPublished >= 4;
+
+        $featured = $useFeaturedHero
             ? BlogPost::published()->featured()->with(['category', 'author'])->first()
             : null;
 

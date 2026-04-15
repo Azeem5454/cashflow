@@ -321,6 +321,8 @@
     <div class="error-footer">
         <span>&copy; {{ date('Y') }} {{ config('app.name', 'TheCashFox') }}</span>
         <span class="sep">·</span>
+        <a href="{{ route('blog.index') }}">Blog</a>
+        <span class="sep">·</span>
         <a href="{{ route('terms') }}">Terms</a>
         <span class="sep">·</span>
         <a href="{{ route('privacy') }}">Privacy</a>

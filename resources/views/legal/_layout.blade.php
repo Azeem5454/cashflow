@@ -107,9 +107,10 @@
     <div class="footer">
         <span>&copy; {{ date('Y') }} {{ config('app.name', 'TheCashFox') }}</span>
         <span>
+            <a href="{{ url('/') }}">Home</a> &nbsp;·&nbsp;
+            <a href="{{ route('blog.index') }}">Blog</a> &nbsp;·&nbsp;
             <a href="{{ route('terms') }}">Terms</a> &nbsp;·&nbsp;
-            <a href="{{ route('privacy') }}">Privacy</a> &nbsp;·&nbsp;
-            <a href="{{ url('/') }}">Home</a>
+            <a href="{{ route('privacy') }}">Privacy</a>
         </span>
     </div>
 </body>
