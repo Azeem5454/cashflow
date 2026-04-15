@@ -2,15 +2,24 @@
 <html lang="en">
 <head>
     @php
-        $appName     = config('app.name', 'CashFlow');
-        $appUrl      = rtrim(\App\Helpers\Setting::get('app.url', config('app.url', url('/'))), '/');
-        $ogTitle     = $appName . ' — Your business balance. Live. Always.';
-        $ogDesc      = \App\Helpers\Setting::get('app.tagline', 'Track every transaction, scan receipts with AI, and get cash flow insights. The smartest cash book for small businesses worldwide.');
-        $hasOgImage  = file_exists(public_path('brand/og-image.png'));
-        $hasDarkLogo = file_exists(public_path('brand/logo-dark.png'));
-        $ogImage     = $hasOgImage  ? $appUrl . '/brand/og-image.png?v=' . filemtime(public_path('brand/og-image.png'))
-                       : ($hasDarkLogo ? $appUrl . '/brand/logo-dark.png?v=' . filemtime(public_path('brand/logo-dark.png'))
-                                       : $appUrl . '/brand/cashflow_logo.png');
+        // All values derived from config() — app.name and app.tagline are
+        // preloaded from the settings table in AppServiceProvider::boot().
+        // Views must never hit the DB on a cold-start healthcheck request.
+        $appName = config('app.name', 'CashFlow');
+        $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
+        $ogTitle = $appName . ' — Your business balance. Live. Always.';
+        $ogDesc  = config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights. The smartest cash book for small businesses worldwide.';
+
+        $ogImage = $appUrl . '/brand/cashflow_logo.png';
+        try {
+            if (file_exists(public_path('brand/og-image.png'))) {
+                $ogImage = $appUrl . '/brand/og-image.png?v=' . filemtime(public_path('brand/og-image.png'));
+            } elseif (file_exists(public_path('brand/logo-dark.png'))) {
+                $ogImage = $appUrl . '/brand/logo-dark.png?v=' . filemtime(public_path('brand/logo-dark.png'));
+            }
+        } catch (\Throwable $e) {
+            // keep default og image
+        }
     @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -39,22 +48,22 @@
     <meta name="twitter:description" content="{{ $ogDesc }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
 
-    {{-- Schema.org JSON-LD --}}
+    {{-- Schema.org JSON-LD. @context/@type collide with Blade directives in Laravel 11+; @@ escapes the @ sign. --}}
     <script type="application/ld+json">
-    {
+    @verbatim{
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
+        "@type": "SoftwareApplication",@endverbatim
         "name": @json($appName),
         "description": @json($ogDesc),
         "url": @json($appUrl . '/'),
         "image": @json($ogImage),
-        "applicationCategory": "BusinessApplication",
+        @verbatim"applicationCategory": "BusinessApplication",
         "operatingSystem": "Web, iOS, Android",
         "offers": [
             {"@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free"},
             {"@type": "Offer", "price": "5", "priceCurrency": "USD", "name": "Pro (monthly)"}
         ]
-    }
+    }@endverbatim
     </script>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -200,9 +209,9 @@
 <body>
 
 {{-- ══ NAV ═══════════════════════════════════════════════════════════ --}}
-<div id="nav-wrapper" class="sticky top-0 z-50" x-data="{ mobileOpen: false }" @keydown.escape.window="mobileOpen = false">
+<div id="nav-wrapper" class="sticky top-0 z-50" x-data="{ mobileOpen: false }" x-on:keydown.escape.window="mobileOpen = false">
     <nav id="main-nav" class="px-4 sm:px-6 md:px-8 py-3.5 flex items-center justify-between">
-        <a href="{{ route('home') }}" class="flex items-center gap-2.5" @click="mobileOpen = false">
+        <a href="{{ route('home') }}" class="flex items-center gap-2.5" x-on:click="mobileOpen = false">
             @if(file_exists(public_path('brand/logo-dark.png')))
                 <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
                      alt="{{ config('app.name', 'CashFlow') }}" class="h-7 w-auto object-contain">
@@ -229,7 +238,7 @@
             <a href="{{ route('register') }}" class="text-sm px-5 py-2 rounded-full btn-primary">Get started free</a>
         </div>
         {{-- Mobile hamburger --}}
-        <button @click="mobileOpen = !mobileOpen" class="md:hidden flex items-center justify-center w-10 h-10 rounded-lg" aria-label="Menu"
+        <button x-on:click="mobileOpen = !mobileOpen" class="md:hidden flex items-center justify-center w-10 h-10 rounded-lg" aria-label="Menu"
                 style="color:rgba(248,250,252,.85);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1)">
             <svg x-show="!mobileOpen" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
@@ -252,7 +261,7 @@
          style="background:rgba(7,11,22,0.96);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.13);box-shadow:0 20px 60px rgba(0,0,0,0.5)">
         <div class="flex flex-col gap-1 mb-4">
             @foreach([['#pain','Problem'],['#how','How it works'],['#features','Features'],['#pricing','Pricing']] as [$h,$l])
-            <a href="{{ $h }}" @click="mobileOpen = false"
+            <a href="{{ $h }}" x-on:click="mobileOpen = false"
                class="text-sm py-2.5 px-2 rounded-lg transition-colors"
                style="color:rgba(248,250,252,.75)"
                onmouseover="this.style.color='#f8fafc';this.style.background='rgba(255,255,255,0.04)'"

@@ -82,7 +82,8 @@
     <p>We may update this Policy from time to time. When we make material changes we will notify users by email or through the Service. The "last updated" date at the top of this page reflects the most recent revision.</p>
 
     <h2>12. Contact</h2>
-    <p>Questions about this Policy, or want to exercise your rights? Email <a href="mailto:{{ \App\Helpers\Setting::get('app.support_email', 'hello@' . parse_url(config('app.url', 'https://cashflow.app'), PHP_URL_HOST)) }}">{{ \App\Helpers\Setting::get('app.support_email', 'hello@' . parse_url(config('app.url', 'https://cashflow.app'), PHP_URL_HOST)) }}</a>.</p>
+    @php $support = config('app.support_email') ?: 'hello@' . (parse_url(config('app.url', 'https://cashflow.app'), PHP_URL_HOST) ?: 'cashflow.app'); @endphp
+    <p>Questions about this Policy, or want to exercise your rights? Email <a href="mailto:{{ $support }}">{{ $support }}</a>.</p>
 
     <div class="callout">
         This Policy is a general template. For production use with real customers, and especially if you operate in the EU, UK, California, or other jurisdictions with strict data-protection laws (GDPR, UK GDPR, CCPA), have a qualified lawyer tailor it to your data flows.

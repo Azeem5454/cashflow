@@ -34,11 +34,23 @@ class AppServiceProvider extends ServiceProvider
         // Override app name and mail config from settings table.
         // Wrapped in try-catch: during Railway build, the DB isn't reachable yet
         // (postgres.railway.internal only resolves at runtime, not build time).
+        // Keys preloaded here can then be read via config() in views — avoids
+        // hitting the DB on every public request (including the / healthcheck).
         try {
             if (Schema::hasTable('settings')) {
                 $appName = Setting::get('app.name');
                 if ($appName) {
                     Config::set('app.name', $appName);
+                }
+
+                $appTagline = Setting::get('app.tagline');
+                if ($appTagline) {
+                    Config::set('app.tagline', $appTagline);
+                }
+
+                $appSupportEmail = Setting::get('app.support_email');
+                if ($appSupportEmail) {
+                    Config::set('app.support_email', $appSupportEmail);
                 }
 
                 $mailName = Setting::get('mail.from_name');

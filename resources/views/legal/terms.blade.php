@@ -58,7 +58,8 @@
     <p>These Terms are governed by the laws of the jurisdiction in which {{ $app }} operates, without regard to conflict-of-law principles. Disputes will be resolved in the competent courts of that jurisdiction.</p>
 
     <h2>14. Contact</h2>
-    <p>Questions about these Terms? Email <a href="mailto:{{ \App\Helpers\Setting::get('app.support_email', 'hello@' . parse_url(config('app.url', 'https://cashflow.app'), PHP_URL_HOST)) }}">{{ \App\Helpers\Setting::get('app.support_email', 'hello@' . parse_url(config('app.url', 'https://cashflow.app'), PHP_URL_HOST)) }}</a>.</p>
+    @php $support = config('app.support_email') ?: 'hello@' . (parse_url(config('app.url', 'https://cashflow.app'), PHP_URL_HOST) ?: 'cashflow.app'); @endphp
+    <p>Questions about these Terms? Email <a href="mailto:{{ $support }}">{{ $support }}</a>.</p>
 
     <div class="callout">
         These Terms are provided as a general template and may not cover every scenario or jurisdiction. For production use, have a qualified lawyer review them against your specific business, location, and user base.

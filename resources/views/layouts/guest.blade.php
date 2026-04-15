@@ -6,14 +6,20 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @php
-        $appName     = config('app.name', 'CashFlow');
-        $appUrl      = rtrim(\App\Helpers\Setting::get('app.url', config('app.url', url('/'))), '/');
-        $ogDesc      = \App\Helpers\Setting::get('app.tagline', 'Track every transaction, scan receipts with AI, and get cash flow insights.');
-        $hasOgImage  = file_exists(public_path('brand/og-image.png'));
-        $hasDarkLogo = file_exists(public_path('brand/logo-dark.png'));
-        $ogImage     = $hasOgImage  ? $appUrl . '/brand/og-image.png?v=' . filemtime(public_path('brand/og-image.png'))
-                       : ($hasDarkLogo ? $appUrl . '/brand/logo-dark.png?v=' . filemtime(public_path('brand/logo-dark.png'))
-                                       : $appUrl . '/brand/cashflow_logo.png');
+        $appName = config('app.name', 'CashFlow');
+        $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
+        $ogDesc  = config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights.';
+
+        $ogImage = $appUrl . '/brand/cashflow_logo.png';
+        try {
+            if (file_exists(public_path('brand/og-image.png'))) {
+                $ogImage = $appUrl . '/brand/og-image.png?v=' . filemtime(public_path('brand/og-image.png'));
+            } elseif (file_exists(public_path('brand/logo-dark.png'))) {
+                $ogImage = $appUrl . '/brand/logo-dark.png?v=' . filemtime(public_path('brand/logo-dark.png'));
+            }
+        } catch (\Throwable $e) {
+            // keep default
+        }
     @endphp
     <title>{{ $appName }}</title>
     <meta name="description" content="{{ $ogDesc }}">
