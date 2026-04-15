@@ -183,7 +183,7 @@
                         <label class="block text-[11px] font-semibold dark:text-slate-400 text-gray-500 uppercase tracking-wider mb-1.5">Publish date</label>
                         <input type="datetime-local" wire:model="published_at"
                                class="w-full px-3 py-2 rounded-lg dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border dark:text-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                        <p class="mt-1 text-[11px] dark:text-slate-500 text-gray-400">Leave blank to auto-stamp when you publish.</p>
+                        <p class="mt-1 text-[11px] dark:text-slate-500 text-gray-400">Shown on the post as the publish date. Does not delay visibility — status controls that.</p>
                     </div>
 
                     <label class="flex items-center gap-2 cursor-pointer pt-2">

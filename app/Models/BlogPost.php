@@ -55,15 +55,17 @@ class BlogPost extends Model
 
     public function scopePublished(Builder $q): Builder
     {
-        // Treat status=published as sufficient. If published_at is set AND in
-        // the future, exclude (honours scheduled publishing). Null published_at
-        // is fail-open: trust status=published as the source of truth so a
-        // data anomaly never hides a post the admin meant to make live.
-        return $q->where('status', 'published')
-            ->where(function ($w) {
-                $w->whereNull('published_at')
-                  ->orWhere('published_at', '<=', now());
-            });
+        // status='published' is the single source of truth for visibility.
+        // published_at is metadata only (for display + ordering).
+        //
+        // Why not honour future published_at as "scheduled"? Because the
+        // datetime-local input in the admin has no timezone, Laravel stores
+        // it raw, and the server is UTC — so an admin in a +5 timezone
+        // entering "3 AM" accidentally schedules the post 5 hours into
+        // the future and it silently disappears. If we ever want true
+        // scheduled publishing, we'll add a dedicated status='scheduled'
+        // + a cron that flips it, not this foot-gun.
+        return $q->where('status', 'published');
     }
 
     public function scopeFeatured(Builder $q): Builder
