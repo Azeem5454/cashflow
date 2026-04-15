@@ -262,7 +262,7 @@
 
 {{-- Footer --}}
 <div class="footer">
-    <span>CashFlow · {{ $business->name }} · {{ $book->name }}</span>
+    <span>{{ config('app.name', 'CashFlow') }} · {{ $business->name }} · {{ $book->name }}</span>
     <span>Generated {{ now()->format('d M Y \a\t H:i') }}</span>
 </div>
 

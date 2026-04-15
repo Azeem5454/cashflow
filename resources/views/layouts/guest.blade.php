@@ -5,9 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'CashFlow') }}</title>
+    @php
+        $appName     = config('app.name', 'CashFlow');
+        $appUrl      = rtrim(\App\Helpers\Setting::get('app.url', config('app.url', url('/'))), '/');
+        $ogDesc      = \App\Helpers\Setting::get('app.tagline', 'Track every transaction, scan receipts with AI, and get cash flow insights.');
+        $hasOgImage  = file_exists(public_path('brand/og-image.png'));
+        $hasDarkLogo = file_exists(public_path('brand/logo-dark.png'));
+        $ogImage     = $hasOgImage  ? $appUrl . '/brand/og-image.png?v=' . filemtime(public_path('brand/og-image.png'))
+                       : ($hasDarkLogo ? $appUrl . '/brand/logo-dark.png?v=' . filemtime(public_path('brand/logo-dark.png'))
+                                       : $appUrl . '/brand/cashflow_logo.png');
+    @endphp
+    <title>{{ $appName }}</title>
+    <meta name="description" content="{{ $ogDesc }}">
+    <meta name="theme-color" content="#0a0f1e">
+
+    {{-- Open Graph --}}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ $appName }}">
+    <meta property="og:title" content="{{ $appName }}">
+    <meta property="og:description" content="{{ $ogDesc }}">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:image" content="{{ $ogImage }}">
+
+    {{-- Twitter --}}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $appName }}">
+    <meta name="twitter:description" content="{{ $ogDesc }}">
+    <meta name="twitter:image" content="{{ $ogImage }}">
 
     <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon.png">
 
     <!-- Brand Fonts — loaded from admin appearance settings -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,6 +46,9 @@
     @if(file_exists(public_path('brand/theme.css')))
         <link rel="stylesheet" href="{{ asset('brand/theme.css') }}?v={{ filemtime(public_path('brand/theme.css')) }}">
     @endif
+
+    {{-- Alpine.js — guest pages have no Livewire, so Alpine must be loaded standalone for password toggles etc. --}}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
     {{-- Auth pages are always dark to match the landing page. Dashboard theme toggle does not apply here. --}}
     <script>document.documentElement.classList.add('dark');</script>

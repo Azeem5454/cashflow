@@ -4315,11 +4315,12 @@
             @if(!$editingEntryId && $userRole !== 'viewer')
             <div x-data @open-ocr-picker.window="$refs.ocrInput.click()">
 
-                {{-- Hidden OCR file input --}}
+                {{-- OCR file input — visually hidden but focus/click-able so mobile Safari/Chrome can open
+                     camera + gallery picker. display:none blocks .click() on some mobile browsers. --}}
                 <input type="file"
                        wire:model="ocrFile"
-                       accept=".png,.jpg,.jpeg"
-                       class="hidden"
+                       accept="image/png,image/jpeg,image/jpg"
+                       style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"
                        x-ref="ocrInput">
 
                 {{-- Scanning state (shown while wire:loading on ocrFile) --}}
@@ -4403,8 +4404,12 @@
                         </div>
 
                     @else
-                        {{-- Default state — main Scan Receipt button --}}
-                        <button wire:click="prepareScan" type="button"
+                        {{-- Default state — main Scan Receipt button.
+                             Pro users: trigger the hidden file input DIRECTLY in the user gesture (mobile Safari/Chrome
+                             refuse to open the camera/gallery picker if the .click() is deferred through a Livewire
+                             round-trip). Free users: hit the server so prepareScan() can show the upgrade modal. --}}
+                        <button type="button"
+                                @if($business->isPro()) @click="$refs.ocrInput.click()" @else wire:click="prepareScan" @endif
                                 class="group w-full rounded-xl border transition-all duration-200
                                        dark:border-slate-700 border-gray-200
                                        dark:hover:border-violet-500 hover:border-violet-300

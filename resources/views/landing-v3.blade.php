@@ -1,10 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @php
+        $appName     = config('app.name', 'CashFlow');
+        $appUrl      = rtrim(\App\Helpers\Setting::get('app.url', config('app.url', url('/'))), '/');
+        $ogTitle     = $appName . ' — Your business balance. Live. Always.';
+        $ogDesc      = \App\Helpers\Setting::get('app.tagline', 'Track every transaction, scan receipts with AI, and get cash flow insights. The smartest cash book for small businesses worldwide.');
+        $hasOgImage  = file_exists(public_path('brand/og-image.png'));
+        $hasDarkLogo = file_exists(public_path('brand/logo-dark.png'));
+        $ogImage     = $hasOgImage  ? $appUrl . '/brand/og-image.png?v=' . filemtime(public_path('brand/og-image.png'))
+                       : ($hasDarkLogo ? $appUrl . '/brand/logo-dark.png?v=' . filemtime(public_path('brand/logo-dark.png'))
+                                       : $appUrl . '/brand/cashflow_logo.png');
+    @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config('app.name', 'CashFlow') }} — Your business balance. Live. Always.</title>
-    <meta name="description" content="Track every transaction, scan receipts with AI, and get cash flow insights. The smartest cash book for small businesses worldwide.">
+    <title>{{ $ogTitle }}</title>
+    <meta name="description" content="{{ $ogDesc }}">
+    <meta name="theme-color" content="#0a0f1e">
+    <link rel="canonical" href="{{ $appUrl }}/">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon.png">
+
+    {{-- Open Graph (Facebook, LinkedIn, WhatsApp, iMessage) --}}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ $appName }}">
+    <meta property="og:title" content="{{ $ogTitle }}">
+    <meta property="og:description" content="{{ $ogDesc }}">
+    <meta property="og:url" content="{{ $appUrl }}/">
+    <meta property="og:image" content="{{ $ogImage }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:locale" content="en_US">
+
+    {{-- Twitter / X --}}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $ogTitle }}">
+    <meta name="twitter:description" content="{{ $ogDesc }}">
+    <meta name="twitter:image" content="{{ $ogImage }}">
+
+    {{-- Schema.org JSON-LD --}}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": @json($appName),
+        "description": @json($ogDesc),
+        "url": @json($appUrl . '/'),
+        "image": @json($ogImage),
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web, iOS, Android",
+        "offers": [
+            {"@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free"},
+            {"@type": "Offer", "price": "5", "priceCurrency": "USD", "name": "Pro (monthly)"}
+        ]
+    }
+    </script>
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800;12..96,900&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -148,9 +200,9 @@
 <body>
 
 {{-- ══ NAV ═══════════════════════════════════════════════════════════ --}}
-<div id="nav-wrapper" class="sticky top-0 z-50">
-    <nav id="main-nav" class="px-6 md:px-8 py-3.5 flex items-center justify-between">
-        <a href="{{ route('home') }}" class="flex items-center gap-2.5">
+<div id="nav-wrapper" class="sticky top-0 z-50" x-data="{ mobileOpen: false }" @keydown.escape.window="mobileOpen = false">
+    <nav id="main-nav" class="px-4 sm:px-6 md:px-8 py-3.5 flex items-center justify-between">
+        <a href="{{ route('home') }}" class="flex items-center gap-2.5" @click="mobileOpen = false">
             @if(file_exists(public_path('brand/logo-dark.png')))
                 <img src="{{ asset('brand/logo-dark.png') }}?v={{ filemtime(public_path('brand/logo-dark.png')) }}"
                      alt="{{ config('app.name', 'CashFlow') }}" class="h-7 w-auto object-contain">
@@ -171,11 +223,47 @@
                onmouseout="this.style.color='rgba(248,250,252,.5)'">{{ $l }}</a>
             @endforeach
         </div>
-        <div class="flex items-center gap-3">
+        {{-- Desktop auth CTAs --}}
+        <div class="hidden md:flex items-center gap-3">
             <a href="{{ route('login') }}"    class="text-sm px-4 py-2 rounded-full btn-ghost">Sign in</a>
             <a href="{{ route('register') }}" class="text-sm px-5 py-2 rounded-full btn-primary">Get started free</a>
         </div>
+        {{-- Mobile hamburger --}}
+        <button @click="mobileOpen = !mobileOpen" class="md:hidden flex items-center justify-center w-10 h-10 rounded-lg" aria-label="Menu"
+                style="color:rgba(248,250,252,.85);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1)">
+            <svg x-show="!mobileOpen" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+            </svg>
+            <svg x-show="mobileOpen" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:none">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+            </svg>
+        </button>
     </nav>
+
+    {{-- Mobile drawer --}}
+    <div x-show="mobileOpen" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="md:hidden mx-4 mt-2 rounded-2xl p-5"
+         style="background:rgba(7,11,22,0.96);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.13);box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+        <div class="flex flex-col gap-1 mb-4">
+            @foreach([['#pain','Problem'],['#how','How it works'],['#features','Features'],['#pricing','Pricing']] as [$h,$l])
+            <a href="{{ $h }}" @click="mobileOpen = false"
+               class="text-sm py-2.5 px-2 rounded-lg transition-colors"
+               style="color:rgba(248,250,252,.75)"
+               onmouseover="this.style.color='#f8fafc';this.style.background='rgba(255,255,255,0.04)'"
+               onmouseout="this.style.color='rgba(248,250,252,.75)';this.style.background='transparent'">{{ $l }}</a>
+            @endforeach
+        </div>
+        <div class="flex flex-col gap-2 pt-3" style="border-top:1px solid rgba(255,255,255,.08)">
+            <a href="{{ route('login') }}"    class="text-sm px-4 py-2.5 rounded-full btn-ghost text-center">Sign in</a>
+            <a href="{{ route('register') }}" class="text-sm px-5 py-2.5 rounded-full btn-primary text-center">Get started free</a>
+        </div>
+    </div>
 </div>
 
 
@@ -781,7 +869,7 @@
 <footer style="background:var(--black);border-top:1px solid rgba(255,255,255,0.06)" class="px-6 pt-16 pb-10">
     <div class="max-w-6xl mx-auto">
         <div class="mb-10 text-center overflow-hidden">
-            <p class="fd font-black select-none" style="color:rgba(255,255,255,0.04);font-size:clamp(5rem,14vw,11rem);line-height:1;letter-spacing:-0.04em">{{ config('app.name', 'CashFlow') }}</p>
+            <p class="fd font-black select-none" style="color:rgba(255,255,255,0.13);font-size:clamp(5rem,14vw,11rem);line-height:1;letter-spacing:-0.04em">{{ config('app.name', 'CashFlow') }}</p>
         </div>
         <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6" style="border-top:1px solid rgba(255,255,255,0.07)">
             <div class="flex items-center gap-2">
@@ -796,12 +884,12 @@
                 @endif
             </div>
             <div class="flex items-center gap-6">
-                @foreach([['#how','How it works'],['#features','Features'],['#pricing','Pricing'],['login','Sign in'],['register','Register']] as [$r,$l])
+                @foreach([['#how','How it works'],['#features','Features'],['#pricing','Pricing'],['terms','Terms'],['privacy','Privacy'],['login','Sign in'],['register','Register']] as [$r,$l])
                 <a href="{{ str_starts_with($r,'#') ? $r : route($r) }}" class="text-xs transition-colors"
-                   style="color:rgba(255,255,255,0.28)" onmouseover="this.style.color='rgba(255,255,255,0.65)'" onmouseout="this.style.color='rgba(255,255,255,0.28)'">{{ $l }}</a>
+                   style="color:rgba(255,255,255,0.55)" onmouseover="this.style.color='rgba(255,255,255,0.95)'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">{{ $l }}</a>
                 @endforeach
             </div>
-            <p class="text-xs" style="color:rgba(255,255,255,0.18)">© {{ date('Y') }} {{ config('app.name', 'CashFlow') }}</p>
+            <p class="text-xs" style="color:rgba(255,255,255,0.42)">© {{ date('Y') }} {{ config('app.name', 'CashFlow') }}</p>
         </div>
     </div>
 </footer>

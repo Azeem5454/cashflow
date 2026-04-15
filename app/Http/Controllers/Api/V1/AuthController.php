@@ -28,8 +28,11 @@ class AuthController extends Controller
             'name'     => $validated['name'],
             'email'    => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'plan'     => 'free',
         ]);
+
+        // plan is not in $fillable (mass-assignment protection). Set explicitly.
+        $user->plan = 'free';
+        $user->save();
 
         $user->sendEmailVerificationNotification();
 

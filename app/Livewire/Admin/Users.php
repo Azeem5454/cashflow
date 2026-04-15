@@ -26,13 +26,35 @@ class Users extends Component
 
     public function forcePro(string $userId): void
     {
-        User::where('id', $userId)->update(['plan' => 'pro']);
+        abort_unless(auth()->check() && auth()->user()->is_admin, 403);
+
+        $user = User::findOrFail($userId);
+        $user->plan = 'pro';
+        $user->save();
     }
 
     public function forceFree(string $userId): void
     {
+        abort_unless(auth()->check() && auth()->user()->is_admin, 403);
+
         $user = User::findOrFail($userId);
-        $user->update(['plan' => 'free']);
+
+        // Cancel Stripe subscription first so the customer stops getting billed.
+        try {
+            $activeSub = $user->subscription('default');
+            if ($activeSub && ($activeSub->active() || $activeSub->onTrial())) {
+                $activeSub->cancelNow();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admin Users::forceFree Stripe cancel failed', [
+                'admin_id'  => auth()->id(),
+                'target_id' => $user->id,
+                'message'   => $e->getMessage(),
+            ]);
+        }
+
+        $user->plan = 'free';
+        $user->save();
 
         // Pause all recurring entries and email report schedules in books owned by this user
         $businessIds = $user->ownedBusinesses()->pluck('id');

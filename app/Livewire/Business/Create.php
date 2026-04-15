@@ -9,7 +9,7 @@ class Create extends Component
 {
     public string $name = '';
     public ?string $description = null;
-    public string $currency = 'PKR';
+    public string $currency = 'USD';
     public string $upgradeModalFeature = '';
 
     protected function rules(): array

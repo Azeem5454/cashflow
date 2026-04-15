@@ -2,7 +2,7 @@
 
     <div class="anim-fade-up mb-8">
         <h1 class="guest-display font-extrabold text-3xl text-slate-900 dark:text-white mb-2">Welcome back</h1>
-        <p class="guest-body text-sm text-slate-500 dark:text-slate-400">Sign in to your CashFlow account</p>
+        <p class="guest-body text-sm text-slate-500 dark:text-slate-400">Sign in to your {{ config('app.name', 'CashFlow') }} account</p>
     </div>
 
     {{-- Session Status --}}
@@ -115,7 +115,7 @@
             type="submit"
             class="anim-fade-up-d2 w-full guest-body font-medium text-sm text-white bg-primary hover:bg-accent rounded-lg px-4 py-3 transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-accent/30 hover:-translate-y-px mt-2"
         >
-            Sign in to CashFlow
+            Sign in to {{ config('app.name', 'CashFlow') }}
         </button>
 
         {{-- Divider --}}

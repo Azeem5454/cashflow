@@ -10,7 +10,9 @@
               document.documentElement.classList.toggle('dark', this.darkMode);
               window.setTimeout(() => document.documentElement.classList.remove('theme-transition'), 300);
           }
-      }">
+      }"
+      x-on:livewire:navigated.window="sidebarOpen = false"
+      x-on:popstate.window="sidebarOpen = false">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,7 +24,12 @@
     <script>document.addEventListener('livewire:navigated', function() { document.documentElement.classList.toggle('dark', (localStorage.getItem('cashflow_theme') ?? 'light') === 'dark'); });</script>
 
     <title>{{ config('app.name', 'CashFlow') }}</title>
+    <meta name="description" content="{{ \App\Helpers\Setting::get('app.tagline', 'Track every transaction, scan receipts with AI, and get cash flow insights.') }}">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#0a0f1e">
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ asset('favicon.png') }}">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -380,7 +387,9 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
                 </svg>
             </button>
-            <x-app-logo size="sm" />
+            <a href="{{ route('dashboard') }}" wire:navigate class="flex-shrink-0">
+                <x-app-logo size="sm" />
+            </a>
             <livewire:notification-bell wire:key="notification-bell-mobile" position="down" />
         </header>
 

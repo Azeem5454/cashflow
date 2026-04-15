@@ -32,13 +32,35 @@ class UserDetail extends Component
 
     public function forcePro(): void
     {
-        $this->user->update(['plan' => 'pro']);
+        abort_unless(auth()->check() && auth()->user()->is_admin, 403);
+
+        $this->user->plan = 'pro';
+        $this->user->save();
         $this->user->refresh();
     }
 
     public function forceFree(): void
     {
-        $this->user->update(['plan' => 'free']);
+        abort_unless(auth()->check() && auth()->user()->is_admin, 403);
+
+        // Cancel any active Stripe subscription FIRST — otherwise we'd flip
+        // the local plan to free while Stripe keeps charging the customer.
+        try {
+            $activeSub = $this->user->subscription('default');
+            if ($activeSub && ($activeSub->active() || $activeSub->onTrial())) {
+                $activeSub->cancelNow();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admin forceFree: Stripe cancel failed', [
+                'admin_id'  => auth()->id(),
+                'target_id' => $this->user->id,
+                'message'   => $e->getMessage(),
+            ]);
+            // Continue anyway — admin still wants the user downgraded locally.
+        }
+
+        $this->user->plan = 'free';
+        $this->user->save();
 
         // Pause all recurring entries and email report schedules in books owned by this user
         $businessIds = $this->user->ownedBusinesses()->pluck('id');

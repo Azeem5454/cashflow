@@ -81,9 +81,11 @@ class AppServiceProvider extends ServiceProvider
             $status = $object['status'] ?? '';
 
             if ($status === 'active') {
-                $user->update(['plan' => 'pro']);
+                $user->plan = 'pro';
+                $user->save();
             } elseif (in_array($status, ['canceled', 'unpaid', 'incomplete_expired'])) {
-                $user->update(['plan' => 'free']);
+                $user->plan = 'free';
+                $user->save();
 
                 // Pause all recurring entries and email report schedules in books owned by this user
                 $businessIds = $user->ownedBusinesses()->pluck('id');

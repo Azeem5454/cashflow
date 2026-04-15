@@ -156,9 +156,9 @@
         {{-- Terms note --}}
         <p class="guest-body text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
             By creating an account you agree to our
-            <a href="#" class="text-primary dark:text-blue-light hover:text-accent transition-colors underline underline-offset-2">Terms of Service</a>
+            <a href="{{ route('terms') }}" target="_blank" rel="noopener" class="text-primary dark:text-blue-light hover:text-accent transition-colors underline underline-offset-2">Terms of Service</a>
             and
-            <a href="#" class="text-primary dark:text-blue-light hover:text-accent transition-colors underline underline-offset-2">Privacy Policy</a>.
+            <a href="{{ route('privacy') }}" target="_blank" rel="noopener" class="text-primary dark:text-blue-light hover:text-accent transition-colors underline underline-offset-2">Privacy Policy</a>.
         </p>
 
         {{-- Submit --}}

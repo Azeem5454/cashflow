@@ -47,7 +47,7 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => env('SANCTUM_EXPIRATION', 43200), // minutes — default 30 days for mobile app convenience; override per-env.
 
     /*
     |--------------------------------------------------------------------------

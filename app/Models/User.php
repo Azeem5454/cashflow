@@ -19,12 +19,16 @@ class User extends Authenticatable implements MustVerifyEmail
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasUuids, Billable, HasRoles, HasApiTokens;
 
+    /**
+     * Mass-assignable attributes. NOTE: `plan` and `is_admin` are DELIBERATELY excluded —
+     * they must only be set via explicit property assignment after an authorization check
+     * (Stripe webhook, admin panel, etc.) to prevent privilege escalation via
+     * User::create($request->all()) style calls.
+     */
     protected $fillable = [
         'name',
         'email',
         'password',
-        'plan',
-        'is_admin',
         'last_login_at',
     ];
 

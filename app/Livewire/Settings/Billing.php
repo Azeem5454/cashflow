@@ -55,7 +55,8 @@ class Billing extends Component
             $hasActive = ! empty($stripeSubs->data);
 
             if ($hasActive && $user->plan !== 'pro') {
-                $user->update(['plan' => 'pro']);
+                $user->plan = 'pro';
+                $user->save();
             }
         } catch (\Throwable) {
             // Fall through — webhook will update eventually.
@@ -94,7 +95,7 @@ class Billing extends Component
                 'message'   => $e->getMessage(),
                 'class'     => get_class($e),
             ]);
-            $this->addError('stripe', 'Could not start checkout: ' . $e->getMessage());
+            $this->addError('stripe', 'Payment processing is temporarily unavailable. Please try again in a few minutes or contact support.');
         }
     }
 
@@ -105,7 +106,8 @@ class Billing extends Component
 
         if ($subscription && $subscription->onGracePeriod()) {
             $subscription->resume();
-            $user->update(['plan' => 'pro']);
+            $user->plan = 'pro';
+            $user->save();
             $user->refresh();
             $this->flash = 'resumed';
             return;
@@ -129,8 +131,7 @@ class Billing extends Component
                 'class'     => get_class($e),
             ]);
 
-            // Show the actual Stripe error to help diagnose (temporary — revert once stable).
-            $this->addError('stripe', 'Could not open billing portal: ' . $e->getMessage());
+            $this->addError('stripe', 'Could not open billing portal right now. Please try again in a few minutes or contact support.');
         }
     }
 

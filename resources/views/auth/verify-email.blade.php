@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>Verify Your Email — CashFlow</title>
+    <title>Verify Your Email — {{ config('app.name', 'CashFlow') }}</title>
 
     <link rel="icon" type="image/png" href="/favicon.png">
 
@@ -115,7 +115,7 @@
 
     {{-- Footer note --}}
     <p class="anim-fade-up-d3 relative z-10 mt-8 font-body text-xs text-slate-600 text-center">
-        Having trouble? <a href="mailto:support@cashflow.app" class="text-blue-light hover:text-accent transition-colors underline underline-offset-2">Contact support</a>
+        Having trouble? <a href="mailto:{{ \App\Helpers\Setting::get('app.support_email', 'hello@' . parse_url(config('app.url', 'https://cashflow.app'), PHP_URL_HOST)) }}" class="text-blue-light hover:text-accent transition-colors underline underline-offset-2">Contact support</a>
     </p>
 
 </body>
