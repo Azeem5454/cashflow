@@ -21,10 +21,13 @@ class Autopilot extends Component
     public string $newTitle        = '';
     public ?string $newCategoryId  = null;
     public bool   $generating      = false;
+    public string $productBrief    = '';
+    public bool   $briefEditOpen   = false;
 
     public function mount(): void
     {
-        $this->enabled = AutopilotService::isEnabled();
+        $this->enabled      = AutopilotService::isEnabled();
+        $this->productBrief = AutopilotService::productBrief();
     }
 
     public function render()
@@ -160,6 +163,36 @@ class Autopilot extends Component
                 $pos += 10;
             }
         });
+    }
+
+    // ─── Product brief ────────────────────────────────────────────────
+
+    public function saveBrief(): void
+    {
+        $this->validate([
+            'productBrief' => ['required', 'string', 'min:50', 'max:8000'],
+        ], [], ['productBrief' => 'product brief']);
+
+        // Only write to the Setting if it differs from the baked-in default —
+        // keeps the row out of the settings table when the admin hasn't
+        // customised anything.
+        $trimmed = trim($this->productBrief);
+        if ($trimmed === trim(AutopilotService::DEFAULT_PRODUCT_BRIEF)) {
+            Setting::forget('blog_autopilot.product_brief');
+        } else {
+            Setting::set('blog_autopilot.product_brief', $trimmed);
+        }
+
+        $this->briefEditOpen = false;
+        $this->dispatch('autopilot-toast', message: 'Product brief saved.');
+    }
+
+    public function resetBriefToDefault(): void
+    {
+        $this->productBrief = AutopilotService::DEFAULT_PRODUCT_BRIEF;
+        Setting::forget('blog_autopilot.product_brief');
+        $this->briefEditOpen = false;
+        $this->dispatch('autopilot-toast', message: 'Product brief reset to default.');
     }
 
     // ─── Run now ──────────────────────────────────────────────────────

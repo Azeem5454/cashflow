@@ -45,6 +45,44 @@ class BlogAutopilot
     public const MIN_WORDS = 800;
     public const MAX_WORDS = 2400;
 
+    /**
+     * Default product brief baked into the autopilot prompt so every generated
+     * post can reference real features (not hallucinated ones). Stored in the
+     * `settings` table under 'blog_autopilot.product_brief' — the admin can
+     * edit it from /admin/blog/autopilot without a deploy.
+     *
+     * Rules baked into the prompt prevent over-stuffing: max 2–3 product
+     * mentions per post, only when genuinely relevant, never forced.
+     */
+    public const DEFAULT_PRODUCT_BRIEF = <<<'BRIEF'
+**What it is:** TheCashFox is a cash-flow tracking SaaS for small business owners, freelancers, and their finance teams. Live at https://thecashfox.com.
+
+**Who it's for:** Solopreneurs, freelancers, small agencies, and small business teams who want a clean, AI-powered alternative to spreadsheets and heavyweight accounting software like QuickBooks.
+
+**Data model:** Users create Businesses → Books (e.g. by month/quarter/project) → Entries (Cash In / Cash Out). Live balance summary updates in real time.
+
+**Pricing:**
+- Free: 1 business, unlimited books + entries, 2 team members, entry attachments, book audit log
+- Pro: **$5 / month** — unlimited businesses, unlimited team, PDF + CSV export, book reports & charts, recurring entries, email reports, date range comparison, entry notes/comments, **all AI features**
+
+**Pro-only AI features:**
+- AI receipt OCR — snap a photo, AI auto-fills type / amount / date / description / category (200 scans/month)
+- AI auto-categorization — suggests the category as you type a description
+- AI cash flow insights — 3-bullet insight card with Healthy / Watch / Concern sentiment + 24h cache
+- Natural language entry — type "paid 5000 for rent yesterday" → AI parses into full entry
+- Voice input — dictate transactions on the go (Web Speech API, no cost)
+- Cash flow forecast — 30-day projection on Reports tab (trailing 90-day avg + active recurring entries)
+- Anomaly detection — flags entries ≥ 3× the trailing mean for the same (book, type, category)
+
+**Other Pro features:** recurring entries with catch-up (daily/weekly/monthly/yearly), auto-pause on downgrade, book-level reports (cash flow trend / category breakdown / payment mode breakdown), PDF + CSV export, weekly/monthly branded email reports, date-range comparison (vs previous period or same period last year), entry comments/notes for team collaboration, multi-business switcher, book audit log (who did what), bulk entry operations.
+
+**Mobile app:** iOS + Android via React Native + Expo. ~90% parity with web. Token-based auth via Laravel Sanctum. Camera + gallery receipt scanning. Offline-capable for read flows.
+
+**Trust & security:** Laravel 11 backend, PostgreSQL, Redis, Stripe live-mode billing, Google OAuth, Cloudflare Turnstile on signup, Sentry error monitoring, admin audit trail, role-based access (owner / editor / viewer), per-business data isolation, HSTS + CSP headers in production.
+
+**Brand voice:** Confident, accessible, honest, global. Short direct sentences. No accounting jargon. No filler words ("in today's fast-paced world", "unlock", "leverage", "delve"). No region-specific currency references in public copy.
+BRIEF;
+
     private string $apiKey;
     private string $model = 'claude-haiku-4-5-20251001';
 
@@ -64,6 +102,18 @@ class BlogAutopilot
     public static function isEnabled(): bool
     {
         return Setting::get('blog_autopilot.enabled') === '1';
+    }
+
+    /**
+     * The product brief that gets injected into every autopilot prompt.
+     * Admin can override via /admin/blog/autopilot; falls back to
+     * DEFAULT_PRODUCT_BRIEF so fresh installs still produce grounded posts.
+     */
+    public static function productBrief(): string
+    {
+        $custom = Setting::get('blog_autopilot.product_brief');
+        $custom = is_string($custom) ? trim($custom) : '';
+        return $custom !== '' ? $custom : self::DEFAULT_PRODUCT_BRIEF;
     }
 
     /**
@@ -184,12 +234,18 @@ class BlogAutopilot
 
             $categoryBlock = "- Category: pick the single best-fitting category by slug from this list:\n{$list}";
             $categoryJsonField = "\n  \"category_slug\":  \"one slug from the list above\",";
-            $categoryPickRule  = "11. category_slug MUST be exactly one of the slugs listed above — no inventions, no renaming.\n";
+            $categoryPickRule  = "13. category_slug MUST be exactly one of the slugs listed above — no inventions, no renaming.\n";
         }
+
+        $brief = self::productBrief();
 
         $prompt = <<<PROMPT
 You are a senior content writer for {$appName}, a cash-flow tracking SaaS at {$appUrl}.
 Write ONE practical, SEO-optimised blog post that small-business owners and freelancers will find genuinely useful — not generic AI fluff.
+
+=== PRODUCT FACTS (reference these when relevant, never invent features) ===
+{$brief}
+=== END PRODUCT FACTS ===
 
 Post brief:
 - Seed title (you may refine for SEO, keep the same topic): {$titleJson}
@@ -203,17 +259,22 @@ Rules:
    - Short intro (2–3 sentences, NO greeting, NO "in this post we'll cover").
    - 4–6 H2 sections (## headings). Each H2 should contain a related keyword phrase.
    - Use bullet lists where helpful. Use concrete numbers, not vague adjectives.
-   - Include 1–3 internal links to {$appUrl} where natural, using markdown link syntax. Examples:
-     * [AI receipt scanning]({$appUrl}/#features)
-     * [sign up free]({$appUrl}/register)
-     * [our blog]({$appUrl}/blog)
    - End with ONE final call-to-action sentence pointing to {$appUrl}/register.
-5. Do NOT mention you are an AI. Do NOT use: "in today's fast-paced world", "in conclusion", "unlock", "leverage", "delve", "elevate", "synergy", "harness", "embark", "journey".
-6. Do NOT include an H1 (#) — the title is rendered separately.
-7. Do NOT wrap body in code fences.
-8. No emojis. No table of contents.
-9. Slug: lowercase, hyphenated, 3–6 words, must contain the primary keyword from the title.
-10. SEO title may differ slightly from display title if it improves keyword density — both ≤ 60 chars.
+5. Product mentions — CRITICAL:
+   - Reference product features ONLY when they're genuinely relevant to the topic. Max 2–3 references per post. NEVER force them.
+   - When referenced, use concrete details from PRODUCT FACTS (e.g. "200 scans/month on Pro", not "some scans").
+   - NEVER invent features, numbers, or capabilities not in PRODUCT FACTS.
+   - For purely educational topics (e.g. "What is cash flow?"), you may write the post without any product mentions at all — a single CTA at the end is enough.
+6. Include 1–3 internal links to {$appUrl} where natural, using markdown link syntax. Examples:
+   * [AI receipt scanning]({$appUrl}/#features)
+   * [sign up free]({$appUrl}/register)
+   * [our blog]({$appUrl}/blog)
+7. Do NOT mention you are an AI. Do NOT use: "in today's fast-paced world", "in conclusion", "unlock", "leverage", "delve", "elevate", "synergy", "harness", "embark", "journey".
+8. Do NOT include an H1 (#) — the title is rendered separately.
+9. Do NOT wrap body in code fences.
+10. No emojis. No table of contents.
+11. Slug: lowercase, hyphenated, 3–6 words, must contain the primary keyword from the title.
+12. SEO title may differ slightly from display title if it improves keyword density — both ≤ 60 chars.
 {$categoryPickRule}
 Return ONLY this JSON object (no markdown fences, no prose outside JSON):
 

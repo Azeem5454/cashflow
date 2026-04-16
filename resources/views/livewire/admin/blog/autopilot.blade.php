@@ -50,6 +50,56 @@
         </div>
     </div>
 
+    {{-- Product brief --}}
+    <div class="dark:bg-slate-900 bg-white dark:border-slate-800 border border-gray-200 rounded-xl mb-5 overflow-hidden">
+        <button type="button" wire:click="$toggle('briefEditOpen')"
+                class="w-full flex items-center gap-3 px-5 py-4 text-left hover:dark:bg-slate-800/50 hover:bg-gray-50 transition-colors">
+            <svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-sm dark:text-white text-gray-900">Product brief</h3>
+                <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">
+                    Injected into every AI post so Claude references real features + pricing instead of inventing them.
+                    {{ \App\Helpers\Setting::get('blog_autopilot.product_brief') ? '· Custom brief active' : '· Using default' }}
+                </p>
+            </div>
+            <svg class="w-4 h-4 dark:text-slate-500 text-gray-400 transition-transform {{ $briefEditOpen ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+        </button>
+
+        @if($briefEditOpen)
+            <div class="px-5 pb-5 pt-1 border-t dark:border-slate-800 border-gray-100">
+                <p class="text-[11px] dark:text-slate-500 text-gray-500 mb-2.5 leading-relaxed">
+                    Keep it factual. Features, pricing, tiers, voice rules. Markdown-ish plain text is fine — it goes straight into the prompt as reference material.
+                    Claude is instructed to reference these facts only when relevant (max 2–3 per post), never to invent features beyond what's listed here.
+                </p>
+                <textarea wire:model.defer="productBrief" rows="14"
+                          class="w-full px-3 py-2.5 text-xs rounded-lg font-mono
+                                 dark:bg-slate-800 bg-white
+                                 dark:border-slate-700 border border-gray-200
+                                 dark:text-slate-200 text-gray-800
+                                 dark:placeholder-slate-500 placeholder-gray-400
+                                 focus:outline-none focus:border-primary/60 dark:focus:border-primary/60 resize-y leading-relaxed"></textarea>
+                @error('productBrief') <p class="mt-1.5 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+
+                <div class="mt-3 flex items-center gap-2 flex-wrap">
+                    <button type="button" wire:click="saveBrief"
+                            class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-primary hover:bg-accent text-white transition-colors inline-flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                        Save brief
+                    </button>
+                    <button type="button" wire:click="resetBriefToDefault"
+                            wire:confirm="Reset the product brief to the default? Your custom text will be replaced."
+                            class="px-3.5 py-2 text-xs font-medium rounded-lg dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700 dark:hover:bg-slate-700 hover:bg-gray-200 transition-colors">
+                        Reset to default
+                    </button>
+                    <button type="button" wire:click="$set('briefEditOpen', false)"
+                            class="px-3.5 py-2 text-xs font-medium rounded-lg dark:text-slate-400 text-gray-600 dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        @endif
+    </div>
+
     {{-- Add to queue --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
 
