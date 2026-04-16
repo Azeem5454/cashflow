@@ -53,4 +53,31 @@ class Entry extends Model
     {
         return $this->hasMany(EntryComment::class)->orderBy('created_at');
     }
+
+    /**
+     * Run synchronous anomaly detection after every save. Pro-only — free
+     * users never get the flag badge, so no point spending the DB query.
+     * Evaluate() swallows its own exceptions and uses saveQuietly() so it
+     * can't loop back into this hook or break the save.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (Entry $entry) {
+            // Skip if the only thing that changed was the flag itself —
+            // otherwise saveQuietly inside evaluate() would still bounce us.
+            if ($entry->wasChanged(['is_flagged', 'flag_reason', 'flagged_at'])
+                && ! $entry->wasChanged(['amount', 'category', 'type'])) {
+                return;
+            }
+
+            // Load the book's business via the book relation. Cheap if Entry
+            // was created via $book->entries()->create() (most paths).
+            $isPro = $entry->book?->business?->isPro() ?? false;
+            if (! $isPro) {
+                return;
+            }
+
+            app(\App\Services\AnomalyDetector::class)->evaluate($entry);
+        });
+    }
 }

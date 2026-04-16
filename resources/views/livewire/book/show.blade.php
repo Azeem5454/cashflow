@@ -1883,6 +1883,14 @@
                                     <div class="min-w-0 pr-3">
                                         <p class="text-sm font-medium dark:text-white text-gray-900 font-body truncate flex items-center gap-1.5">
                                             {{ $entry->description }}
+                                            @if($entry->is_flagged)
+                                                <span class="flex-shrink-0 inline-flex items-center text-amber-500 dark:text-amber-400"
+                                                      title="{{ $entry->flag_reason ?: 'Unusual amount for this category' }}">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                                                    </svg>
+                                                </span>
+                                            @endif
                                             @if($entry->recurring_entry_id)
                                                 <svg class="w-3.5 h-3.5 flex-shrink-0 dark:text-primary text-primary/70" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" title="Recurring entry">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3"/>
@@ -1990,6 +1998,14 @@
                                     <div class="flex-1 min-w-0">
                                         <p class="text-sm font-medium dark:text-white text-gray-900 font-body truncate flex items-center gap-1.5">
                                             {{ $entry->description }}
+                                            @if($entry->is_flagged)
+                                                <span class="flex-shrink-0 inline-flex items-center text-amber-500 dark:text-amber-400"
+                                                      title="{{ $entry->flag_reason ?: 'Unusual amount for this category' }}">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                                                    </svg>
+                                                </span>
+                                            @endif
                                             @if($entry->recurring_entry_id)
                                                 <svg class="w-3.5 h-3.5 flex-shrink-0 dark:text-primary text-primary/70" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" title="Recurring entry">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3"/>
