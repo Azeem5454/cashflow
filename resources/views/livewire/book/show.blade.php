@@ -4311,6 +4311,74 @@
         {{-- Form fields --}}
         <div class="px-6 py-5 space-y-4">
 
+            {{-- ── AI Natural Language Entry (new entries only, non-viewer) ── --}}
+            @if(!$editingEntryId && $userRole !== 'viewer')
+                <div class="rounded-xl p-4 transition-all"
+                     style="background:linear-gradient(135deg, rgba(139,92,246,0.06), rgba(59,130,246,0.04));border:1px solid rgba(139,92,246,0.2)">
+                    <div class="flex items-center gap-2 mb-2.5">
+                        <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(139,92,246,0.15)">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="color:#a78bfa"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
+                        </div>
+                        <p class="text-xs font-semibold font-body dark:text-violet-300 text-violet-700">Just type it</p>
+                        @if(!$business->isPro())
+                            <span class="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-500/20">PRO</span>
+                        @endif
+                    </div>
+
+                    <div class="relative">
+                        <input type="text"
+                               wire:model.defer="nlpInput"
+                               wire:keydown.enter.prevent="parseEntryText"
+                               placeholder='e.g. "Paid 5000 for office rent yesterday from HBL"'
+                               maxlength="500"
+                               class="w-full pl-3 pr-24 py-2.5 text-sm rounded-lg font-body
+                                      dark:bg-slate-900/60 bg-white
+                                      dark:border-slate-700/60 border border-gray-200
+                                      dark:text-white text-gray-900
+                                      dark:placeholder-slate-500 placeholder-gray-400
+                                      focus:outline-none focus:border-violet-400 dark:focus:border-violet-500
+                                      transition-all"
+                               wire:loading.attr="disabled" wire:target="parseEntryText">
+
+                        <button type="button"
+                                @if($business->isPro()) wire:click="parseEntryText" @else wire:click="$set('upgradeModalFeature', 'ai')" @endif
+                                wire:loading.attr="disabled" wire:target="parseEntryText"
+                                class="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md text-xs font-bold font-body
+                                       bg-violet-600 hover:bg-violet-500 dark:bg-violet-500/90 dark:hover:bg-violet-400
+                                       text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed
+                                       inline-flex items-center gap-1.5">
+                            <svg wire:loading wire:target="parseEntryText" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-30"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                            <svg wire:loading.remove wire:target="parseEntryText" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
+                            <span wire:loading.remove wire:target="parseEntryText">Parse</span>
+                            <span wire:loading wire:target="parseEntryText">…</span>
+                        </button>
+                    </div>
+
+                    {{-- Shimmer while parsing --}}
+                    <div wire:loading wire:target="parseEntryText" class="mt-2 text-[11px] font-body dark:text-violet-300/70 text-violet-700/70 animate-pulse">
+                        Understanding your transaction…
+                    </div>
+
+                    {{-- Success — briefly mention what was filled --}}
+                    @if(!empty($nlpFilledFields))
+                        <p class="mt-2 text-[11px] font-body dark:text-violet-300 text-violet-700 flex items-center gap-1.5"
+                           x-data="{s:true}" x-init="setTimeout(()=>s=false, 4500)" x-show="s" x-transition>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                            Filled {{ count($nlpFilledFields) }} field{{ count($nlpFilledFields) === 1 ? '' : 's' }}. Review and save.
+                        </p>
+                    @endif
+
+                    {{-- Error --}}
+                    @if($nlpError)
+                        <div class="mt-2 flex items-start gap-1.5 text-[11px] font-body dark:text-amber-300 text-amber-700">
+                            <svg class="w-3 h-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+                            <span>{{ $nlpError }}</span>
+                            <button wire:click="clearNlpError" class="ml-auto text-[10px] underline opacity-70 hover:opacity-100">dismiss</button>
+                        </div>
+                    @endif
+                </div>
+            @endif
+
             {{-- ── AI Scan Receipt (new entries only, non-viewer) ── --}}
             @if(!$editingEntryId && $userRole !== 'viewer')
             <div x-data @open-ocr-picker.window="$refs.ocrInput.click()">

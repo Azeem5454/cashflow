@@ -1550,6 +1550,140 @@ class Show extends Component
         $this->aiCategorySuggestion = '';
     }
 
+    // ── Natural Language Entry ───────────────────────────────────────────────
+
+    public string $nlpInput = '';            // user's "Paid 5000 for rent yesterday"
+    public bool   $nlpLoading = false;
+    public string $nlpError = '';
+    public array  $nlpFilledFields = [];     // which fields were auto-filled this round
+
+    /** Per-user daily + burst rate limits on NLP calls. */
+    public const NLP_DAILY_LIMIT  = 30;
+    public const NLP_BURST_LIMIT  = 10;
+    public const NLP_BURST_WINDOW = 60;     // seconds
+
+    public function parseEntryText(): void
+    {
+        $this->nlpError        = '';
+        $this->nlpFilledFields = [];
+
+        if (! $this->business->isPro()) {
+            $this->upgradeModalFeature = 'ai';
+            return;
+        }
+
+        $text = trim($this->nlpInput);
+        if (mb_strlen($text) < 4) {
+            $this->nlpError = 'Describe the transaction in a few words.';
+            return;
+        }
+        if (mb_strlen($text) > 500) {
+            $this->nlpError = 'Keep it under 500 characters.';
+            return;
+        }
+
+        // Burst rate limit: per-user, per-minute
+        $burstKey = 'nlp-burst:' . auth()->id();
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($burstKey, self::NLP_BURST_LIMIT)) {
+            $this->nlpError = 'You\'re parsing very quickly — wait a moment.';
+            return;
+        }
+
+        // Daily cap: count today's nlp calls from ai_usage_logs
+        $todayCount = \App\Models\AiUsageLog::where('user_id', auth()->id())
+            ->where('type', 'nlp')
+            ->whereDate('created_at', today())
+            ->count();
+        if ($todayCount >= self::NLP_DAILY_LIMIT) {
+            $this->nlpError = 'Daily AI parse limit reached. Type the entry manually, or try again tomorrow.';
+            return;
+        }
+
+        \Illuminate\Support\Facades\RateLimiter::hit($burstKey, self::NLP_BURST_WINDOW);
+
+        $this->nlpLoading = true;
+
+        try {
+            $categories   = $this->book->categories()->pluck('name')->toArray();
+            $paymentModes = $this->book->paymentModes()->pluck('name')->toArray();
+
+            $parsed = app(\App\Services\AiService::class)->parseNaturalLanguage(
+                $text,
+                $this->business->currency ?: 'USD',
+                $categories,
+                $paymentModes,
+            );
+
+            if (! $parsed) {
+                $this->nlpError = "Couldn't parse that. Try something like \"Paid 5000 for rent yesterday\" or fill the form manually.";
+                return;
+            }
+
+            $filled = [];
+
+            if (isset($parsed['type'])) {
+                $this->entryType = $parsed['type'];
+                $filled[]        = 'type';
+            }
+
+            if (isset($parsed['amount'])) {
+                $this->entryAmount = (string) $parsed['amount'];
+                $filled[]          = 'amount';
+            }
+
+            if (! empty($parsed['date'])) {
+                $this->entryDate = $parsed['date'];
+                $filled[]        = 'date';
+            }
+
+            if (! empty($parsed['description'])) {
+                $this->entryDescription = $parsed['description'];
+                $filled[]               = 'description';
+            }
+
+            if (! empty($parsed['category'])) {
+                $this->entryCategory = $parsed['category'];
+                $filled[]            = 'category';
+                // Auto-create if new
+                $exists = $this->book->categories()
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($parsed['category'])])
+                    ->exists();
+                if (! $exists) {
+                    $this->book->categories()->create(['name' => $parsed['category']]);
+                }
+            }
+
+            if (! empty($parsed['payment_mode'])) {
+                $this->entryPaymentMode = $parsed['payment_mode'];
+                $filled[]               = 'payment_mode';
+                $exists = $this->book->paymentModes()
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($parsed['payment_mode'])])
+                    ->exists();
+                if (! $exists) {
+                    $this->book->paymentModes()->create(['name' => $parsed['payment_mode']]);
+                }
+            }
+
+            if (! empty($parsed['reference'])) {
+                $this->entryReference = $parsed['reference'];
+                $filled[]             = 'reference';
+            }
+
+            $this->nlpFilledFields = $filled;
+            $this->nlpInput        = '';
+
+            // Dispatch an event so the UI can flash the "AI filled" badges.
+            $this->dispatch('nlp-parsed');
+        } finally {
+            $this->nlpLoading = false;
+        }
+    }
+
+    public function clearNlpError(): void
+    {
+        $this->nlpError = '';
+    }
+
     // ── Entry comments ───────────────────────────────────────────────────────
 
     public function openComments(string $entryId): void
