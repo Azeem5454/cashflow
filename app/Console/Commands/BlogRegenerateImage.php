@@ -22,7 +22,8 @@ class BlogRegenerateImage extends Command
     protected $signature = 'blog:regenerate-image
         {--slug= : Regenerate for this slug}
         {--latest : Regenerate for the most recent post}
-        {--all-missing : Regenerate for every published post missing an image}';
+        {--all-missing : Regenerate for every published post missing an image}
+        {--all : Regenerate every published post, overwriting existing images}';
 
     protected $description = 'Render the featured image for blog post(s)';
 
@@ -31,9 +32,10 @@ class BlogRegenerateImage extends Command
         $slug = $this->option('slug');
         $latest = (bool) $this->option('latest');
         $allMissing = (bool) $this->option('all-missing');
+        $all = (bool) $this->option('all');
 
-        if (! $slug && ! $latest && ! $allMissing) {
-            $this->error('Pass --slug=..., --latest, or --all-missing.');
+        if (! $slug && ! $latest && ! $allMissing && ! $all) {
+            $this->error('Pass --slug=..., --latest, --all-missing, or --all.');
             return self::FAILURE;
         }
 
@@ -42,6 +44,8 @@ class BlogRegenerateImage extends Command
             $query->where('slug', $slug);
         } elseif ($latest) {
             $query->latest('created_at')->limit(1);
+        } elseif ($all) {
+            $query->where('status', 'published');
         } else { // all-missing
             $query->whereNull('featured_image_key')->where('status', 'published');
         }

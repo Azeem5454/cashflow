@@ -57,7 +57,7 @@
             <a href="{{ route('blog.show', $featured->slug) }}"
                class="blog-card blog-card-hero group grid md:grid-cols-2 rounded-2xl overflow-hidden transition-all duration-300"
                style="background:#0d1526;border:1px solid rgba(255,255,255,0.07)">
-                <div class="relative aspect-[16/10] md:aspect-auto md:h-full overflow-hidden" style="background:rgba(255,255,255,0.02)">
+                <div class="relative aspect-[16/10] overflow-hidden" style="background:rgba(255,255,255,0.02)">
                     @if($featured->featuredImageUrl())
                         <img src="{{ $featured->featuredImageUrl() }}"
                              alt="{{ $featured->featured_image_alt ?: $featured->title }}"
