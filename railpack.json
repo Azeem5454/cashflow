@@ -3,5 +3,10 @@
         "version": "8.4",
         "extensions": ["bcmath", "ctype", "curl", "dom", "exif", "fileinfo", "gd", "mbstring", "openssl", "pcre", "pdo", "pdo_pgsql", "pgsql", "session", "tokenizer", "xml", "redis"]
     },
-    "packages": ["freetype", "libjpeg", "libpng", "libwebp"]
+    "packages": {
+        "freetype": "latest",
+        "libjpeg": "latest",
+        "libpng": "latest",
+        "libwebp": "latest"
+    }
 }
