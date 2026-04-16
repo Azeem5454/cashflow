@@ -172,4 +172,11 @@
         </table>
     </td></tr>
 
+    {{-- Fallback plain link --}}
+    <tr><td class="section-pad" style="padding:12px 32px 0;">
+        <div style="font-size:11px;color:#64748b;text-align:center;line-height:1.5;word-break:break-all;">
+            If the button doesn't work: <a href="{{ $bookUrl }}" style="color:#3b82f6;text-decoration:underline;">{{ $bookUrl }}</a>
+        </div>
+    </td></tr>
+
 @endcomponent

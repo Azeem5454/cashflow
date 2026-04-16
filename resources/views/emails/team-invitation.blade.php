@@ -70,6 +70,13 @@
         </table>
     </td></tr>
 
+    {{-- Fallback plain link (for email clients that strip styled buttons) --}}
+    <tr><td class="section-pad" style="padding:12px 32px 0;">
+        <div style="font-size:11px;color:#64748b;text-align:center;line-height:1.5;word-break:break-all;">
+            If the button doesn't work, copy this link: <a href="{{ route('invitations.accept', $invitation->token) }}" style="color:#3b82f6;text-decoration:underline;">{{ route('invitations.accept', $invitation->token) }}</a>
+        </div>
+    </td></tr>
+
     {{-- Expiry note --}}
     <tr><td class="section-pad" style="padding:16px 32px 0;">
         <div style="font-size:12px;color:#64748b;text-align:center;line-height:1.5;">
