@@ -120,17 +120,21 @@ class Book extends Model
         // ── Trailing 90-day baseline from real entries ───────────────────
         $since = now()->subDays(90)->startOfDay();
 
-        // Sum amounts per (day, type); days with zero flow count as 0.
+        // Sum amounts per (date, type). Using CAST() + ordinary columns keeps
+        // this portable across Postgres (prod) and SQLite (local/CI tests).
         $rows = $this->entries()
             ->where('date', '>=', $since->toDateString())
-            ->selectRaw('date::date as d, type, sum(amount)::float as total')
-            ->groupBy('d', 'type')
+            ->selectRaw('date as d, type, SUM(CAST(amount AS DECIMAL(18,2))) as total')
+            ->groupBy('date', 'type')
             ->get();
 
         $dailyIn  = array_fill(0, 90, 0.0);
         $dailyOut = array_fill(0, 90, 0.0);
+        $today    = now()->startOfDay();
         foreach ($rows as $r) {
-            $idx = 89 - \Carbon\Carbon::parse($r->d)->diffInDays(now(), false);
+            $daysAgo = (int) \Carbon\Carbon::parse($r->d)->startOfDay()
+                ->diffInDays($today, absolute: true);
+            $idx = 89 - $daysAgo;
             if ($idx < 0 || $idx > 89) continue;
             if ($r->type === 'in')  $dailyIn[$idx]  += (float) $r->total;
             if ($r->type === 'out') $dailyOut[$idx] += (float) $r->total;
@@ -166,7 +170,13 @@ class Book extends Model
         $projectedNet = $projectedIn - $projectedOut;
 
         // Confidence: 1 σ on the 30-day net, scaled by √30 from daily.
+        // Floor at 5% of absolute projected net so books with perfectly flat
+        // historical data don't render "± 0" and imply false certainty.
         $confidence = $stdDev * sqrt(30);
+        $floor      = abs($projectedNet) * 0.05;
+        if ($confidence < $floor) {
+            $confidence = $floor;
+        }
 
         return [
             'has_enough_history' => true,

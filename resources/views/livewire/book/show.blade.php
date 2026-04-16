@@ -349,6 +349,117 @@
             }
         };
     }
+
+    /**
+     * nlpVoice — Alpine component that wraps the NL entry field with optional
+     * voice input using the browser's Web Speech API. Zero backend cost: the
+     * transcription runs locally in the browser using the device's built-in
+     * recognition service (Google on Chrome/Android, Apple on Safari/iOS).
+     *
+     * Degrades gracefully:
+     *  - `supported=false` → mic button hidden, the plain text input is all
+     *    you get (Firefox, older browsers, no-mic devices).
+     *  - Permission denied → inline status message.
+     *  - Timeout / no speech → same.
+     */
+    function nlpVoice() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        return {
+            supported: !!SR,
+            listening: false,
+            voiceStatus: '',
+            _rec: null,
+            _finalText: '',
+            _silenceTimer: null,
+
+            init() {
+                if (!this.supported) return;
+                this._rec = new SR();
+                this._rec.continuous     = true;          // let the user pause mid-sentence
+                this._rec.interimResults = true;          // show text as they speak
+                this._rec.lang           = navigator.language || 'en-US';
+                this._rec.maxAlternatives = 1;
+
+                this._rec.onresult = (e) => {
+                    let finalSoFar = '';
+                    let interim    = '';
+                    for (let i = e.resultIndex; i < e.results.length; i++) {
+                        const r = e.results[i];
+                        if (r.isFinal) finalSoFar += r[0].transcript;
+                        else           interim    += r[0].transcript;
+                    }
+                    if (finalSoFar) this._finalText += (this._finalText ? ' ' : '') + finalSoFar.trim();
+                    const merged = (this._finalText + ' ' + interim).trim();
+                    // Push transcript into Livewire via the existing wire:model
+                    if (merged) {
+                        this.$wire.set('nlpInput', merged, false);
+                    }
+                    // Auto-stop after 1.5s of silence once we have some text
+                    if (this._finalText && !interim) {
+                        clearTimeout(this._silenceTimer);
+                        this._silenceTimer = setTimeout(() => this.stop(), 1500);
+                    }
+                };
+
+                this._rec.onerror = (e) => {
+                    this.listening = false;
+                    clearTimeout(this._silenceTimer);
+                    const map = {
+                        'not-allowed': 'Microphone blocked. Enable it in your browser settings.',
+                        'service-not-allowed': 'Microphone blocked by your OS privacy settings.',
+                        'no-speech':   'Didn\'t catch that — try again.',
+                        'audio-capture':'No microphone found on this device.',
+                        'network':     'Speech service unreachable — check your connection.',
+                    };
+                    this.voiceStatus = map[e.error] || 'Voice input failed. Please type instead.';
+                    setTimeout(() => { this.voiceStatus = ''; }, 4000);
+                };
+
+                this._rec.onend = () => {
+                    this.listening = false;
+                    clearTimeout(this._silenceTimer);
+                    this.voiceStatus = '';
+                    // If the user stopped naturally and we have text, auto-submit
+                    // so the full flow is one tap + speak + done.
+                    if (this._finalText.trim().length >= 4 && this.$wire.get('nlpInput')) {
+                        this.$wire.parseEntryText();
+                    }
+                };
+            },
+
+            toggle() { this.listening ? this.stop() : this.start(); },
+
+            start() {
+                if (!this._rec || this.listening) return;
+                this._finalText = '';
+                this.$wire.set('nlpInput', '', false);
+                this.$wire.set('nlpError', '', false);
+                this.voiceStatus = 'Listening — speak now…';
+                try {
+                    this._rec.start();
+                    this.listening = true;
+                } catch (err) {
+                    // start() throws if already started — reset and retry
+                    try { this._rec.abort(); } catch (_) {}
+                    this.listening = false;
+                    this.voiceStatus = 'Could not start recording.';
+                }
+            },
+
+            stop() {
+                if (!this._rec) return;
+                try { this._rec.stop(); } catch (_) {}
+                this.listening = false;
+                clearTimeout(this._silenceTimer);
+            },
+
+            teardown() {
+                if (this._rec) {
+                    try { this._rec.abort(); } catch (_) {}
+                }
+            },
+        };
+    }
     </script>
 
     {{-- ===== EDIT BOOK MODAL ===== --}}
@@ -1884,11 +1995,23 @@
                                         <p class="text-sm font-medium dark:text-white text-gray-900 font-body truncate flex items-center gap-1.5">
                                             {{ $entry->description }}
                                             @if($entry->is_flagged)
-                                                <span class="flex-shrink-0 inline-flex items-center text-amber-500 dark:text-amber-400"
-                                                      title="{{ $entry->flag_reason ?: 'Unusual amount for this category' }}">
+                                                <span x-data="{ open: false }"
+                                                      @click.stop.prevent="open = !open"
+                                                      @click.outside="open = false"
+                                                      @keydown.escape.window="open = false"
+                                                      class="relative flex-shrink-0 inline-flex items-center text-amber-500 dark:text-amber-400 cursor-pointer"
+                                                      aria-label="Flagged entry. Tap for details.">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
                                                     </svg>
+                                                    <span x-show="open"
+                                                          x-cloak
+                                                          x-transition.opacity.duration.150ms
+                                                          @click.stop
+                                                          class="absolute left-0 top-5 z-20 w-56 px-3 py-2 rounded-lg shadow-xl dark:bg-slate-900 bg-white border dark:border-amber-500/30 border-amber-300 text-[11px] font-body dark:text-amber-200 text-amber-800 whitespace-normal">
+                                                        <span class="block font-semibold mb-0.5">⚠ Flagged</span>
+                                                        {{ $entry->flag_reason ?: 'Unusual amount for this category' }}
+                                                    </span>
                                                 </span>
                                             @endif
                                             @if($entry->recurring_entry_id)
@@ -1999,11 +2122,23 @@
                                         <p class="text-sm font-medium dark:text-white text-gray-900 font-body truncate flex items-center gap-1.5">
                                             {{ $entry->description }}
                                             @if($entry->is_flagged)
-                                                <span class="flex-shrink-0 inline-flex items-center text-amber-500 dark:text-amber-400"
-                                                      title="{{ $entry->flag_reason ?: 'Unusual amount for this category' }}">
+                                                <span x-data="{ open: false }"
+                                                      @click.stop.prevent="open = !open"
+                                                      @click.outside="open = false"
+                                                      @keydown.escape.window="open = false"
+                                                      class="relative flex-shrink-0 inline-flex items-center text-amber-500 dark:text-amber-400 cursor-pointer"
+                                                      aria-label="Flagged entry. Tap for details.">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
                                                     </svg>
+                                                    <span x-show="open"
+                                                          x-cloak
+                                                          x-transition.opacity.duration.150ms
+                                                          @click.stop
+                                                          class="absolute left-0 top-5 z-20 w-56 px-3 py-2 rounded-lg shadow-xl dark:bg-slate-900 bg-white border dark:border-amber-500/30 border-amber-300 text-[11px] font-body dark:text-amber-200 text-amber-800 whitespace-normal">
+                                                        <span class="block font-semibold mb-0.5">⚠ Flagged</span>
+                                                        {{ $entry->flag_reason ?: 'Unusual amount for this category' }}
+                                                    </span>
                                                 </span>
                                             @endif
                                             @if($entry->recurring_entry_id)
@@ -4453,24 +4588,49 @@
             {{-- ── AI Natural Language Entry (new entries only, non-viewer) ── --}}
             @if(!$editingEntryId && $userRole !== 'viewer')
                 <div class="rounded-xl p-4 transition-all"
-                     style="background:linear-gradient(135deg, rgba(139,92,246,0.06), rgba(59,130,246,0.04));border:1px solid rgba(139,92,246,0.2)">
+                     style="background:linear-gradient(135deg, rgba(139,92,246,0.06), rgba(59,130,246,0.04));border:1px solid rgba(139,92,246,0.2)"
+                     x-data="nlpVoice()"
+                     @livewire:navigated.window="teardown()">
                     <div class="flex items-center gap-2 mb-2.5">
                         <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(139,92,246,0.15)">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="color:#a78bfa"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
                         </div>
-                        <p class="text-xs font-semibold font-body dark:text-violet-300 text-violet-700">Just type it</p>
+                        <p class="text-xs font-semibold font-body dark:text-violet-300 text-violet-700">Just type — or say it</p>
                         @if(!$business->isPro())
                             <span class="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-500/20">PRO</span>
                         @endif
                     </div>
 
                     <div class="relative">
+                        {{-- Mic button (hidden when browser has no SpeechRecognition support) --}}
+                        <button type="button"
+                                x-show="supported"
+                                x-cloak
+                                @click="toggle()"
+                                :aria-label="listening ? 'Stop listening' : 'Speak your entry'"
+                                :title="listening ? 'Tap to stop' : 'Tap to speak'"
+                                class="absolute left-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-md flex items-center justify-center transition-all"
+                                :class="listening
+                                    ? 'bg-red-500 text-white shadow-md shadow-red-500/30'
+                                    : 'dark:text-violet-300 text-violet-600 hover:dark:bg-violet-500/10 hover:bg-violet-50'">
+                            <svg x-show="!listening" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"/>
+                            </svg>
+                            {{-- Pulsing red square when listening --}}
+                            <span x-show="listening" class="relative flex items-center justify-center" x-cloak>
+                                <span class="absolute w-4 h-4 rounded-sm bg-white"></span>
+                                <span class="absolute w-6 h-6 rounded-full bg-red-400 opacity-50 animate-ping"></span>
+                            </span>
+                        </button>
+
                         <input type="text"
-                               wire:model.defer="nlpInput"
+                               x-ref="nlpField"
+                               wire:model="nlpInput"
                                wire:keydown.enter.prevent="parseEntryText"
-                               placeholder='e.g. "Paid 5000 for office rent yesterday from HBL"'
+                               :placeholder="listening ? 'Listening…' : 'e.g. &quot;Paid 5000 for office rent yesterday from HBL&quot;'"
                                maxlength="500"
-                               class="w-full pl-3 pr-24 py-2.5 text-sm rounded-lg font-body
+                               :class="supported ? 'pl-12' : 'pl-3'"
+                               class="w-full pr-24 py-2.5 text-sm rounded-lg font-body
                                       dark:bg-slate-900/60 bg-white
                                       dark:border-slate-700/60 border border-gray-200
                                       dark:text-white text-gray-900
@@ -4480,7 +4640,7 @@
                                wire:loading.attr="disabled" wire:target="parseEntryText">
 
                         <button type="button"
-                                @if($business->isPro()) wire:click="parseEntryText" @else wire:click="$set('upgradeModalFeature', 'ai')" @endif
+                                wire:click="parseEntryText"
                                 wire:loading.attr="disabled" wire:target="parseEntryText"
                                 class="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md text-xs font-bold font-body
                                        bg-violet-600 hover:bg-violet-500 dark:bg-violet-500/90 dark:hover:bg-violet-400
@@ -4492,6 +4652,12 @@
                             <span wire:loading wire:target="parseEntryText">…</span>
                         </button>
                     </div>
+
+                    {{-- Live status strip for voice --}}
+                    <p x-show="voiceStatus" x-cloak class="mt-1.5 text-[11px] font-body dark:text-violet-300/80 text-violet-700/80 flex items-center gap-1.5">
+                        <svg x-show="listening" class="w-3 h-3 text-red-500" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="3"/></svg>
+                        <span x-text="voiceStatus"></span>
+                    </p>
 
                     {{-- Shimmer while parsing --}}
                     <div wire:loading wire:target="parseEntryText" class="mt-2 text-[11px] font-body dark:text-violet-300/70 text-violet-700/70 animate-pulse">

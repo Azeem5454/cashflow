@@ -409,6 +409,11 @@ class Show extends Component
         $this->scanError             = null;
         $this->ocrOriginalAmount     = null;
         $this->ocrConvertedAt        = null;
+        // NLP state resets too — otherwise a previous parse's "Filled 3 fields"
+        // confirmation or stale error message persists on the next new entry.
+        $this->nlpInput              = '';
+        $this->nlpError              = '';
+        $this->nlpFilledFields       = [];
         $this->entryRecurring      = false;
         $this->entryFrequency      = 'weekly';
         $this->entryEndsAt         = $this->book->period_ends_at?->format('Y-m-d') ?? '';
@@ -1582,12 +1587,15 @@ class Show extends Component
             return;
         }
 
-        // Burst rate limit: per-user, per-minute
+        // Burst rate limit: per-user, per-minute. Increment BEFORE the daily-cap
+        // DB query so repeated error-path requests still count against the
+        // burst bucket (defends against spam-by-error).
         $burstKey = 'nlp-burst:' . auth()->id();
         if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($burstKey, self::NLP_BURST_LIMIT)) {
             $this->nlpError = 'You\'re parsing very quickly — wait a moment.';
             return;
         }
+        \Illuminate\Support\Facades\RateLimiter::hit($burstKey, self::NLP_BURST_WINDOW);
 
         // Daily cap: count today's nlp calls from ai_usage_logs
         $todayCount = \App\Models\AiUsageLog::where('user_id', auth()->id())
@@ -1598,8 +1606,6 @@ class Show extends Component
             $this->nlpError = 'Daily AI parse limit reached. Type the entry manually, or try again tomorrow.';
             return;
         }
-
-        \Illuminate\Support\Facades\RateLimiter::hit($burstKey, self::NLP_BURST_WINDOW);
 
         $this->nlpLoading = true;
 
@@ -1644,23 +1650,33 @@ class Show extends Component
             if (! empty($parsed['category'])) {
                 $this->entryCategory = $parsed['category'];
                 $filled[]            = 'category';
-                // Auto-create if new
-                $exists = $this->book->categories()
+                // Case-insensitive dedupe + atomic create. Prevents a race
+                // where two concurrent parses each think they need to insert
+                // the same category.
+                $existing = $this->book->categories()
                     ->whereRaw('LOWER(name) = ?', [mb_strtolower($parsed['category'])])
-                    ->exists();
-                if (! $exists) {
-                    $this->book->categories()->create(['name' => $parsed['category']]);
+                    ->first();
+                if (! $existing) {
+                    try {
+                        $this->book->categories()->create(['name' => $parsed['category']]);
+                    } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                        // Another save already inserted it — safe to ignore.
+                    }
                 }
             }
 
             if (! empty($parsed['payment_mode'])) {
                 $this->entryPaymentMode = $parsed['payment_mode'];
                 $filled[]               = 'payment_mode';
-                $exists = $this->book->paymentModes()
+                $existing = $this->book->paymentModes()
                     ->whereRaw('LOWER(name) = ?', [mb_strtolower($parsed['payment_mode'])])
-                    ->exists();
-                if (! $exists) {
-                    $this->book->paymentModes()->create(['name' => $parsed['payment_mode']]);
+                    ->first();
+                if (! $existing) {
+                    try {
+                        $this->book->paymentModes()->create(['name' => $parsed['payment_mode']]);
+                    } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                        // Another save already inserted it — safe to ignore.
+                    }
                 }
             }
 
