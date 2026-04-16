@@ -1,6 +1,6 @@
 {
     "php": {
         "version": "8.4",
-        "extensions": ["bcmath", "ctype", "curl", "dom", "fileinfo", "mbstring", "openssl", "pcre", "pdo", "pdo_pgsql", "pgsql", "session", "tokenizer", "xml", "redis"]
+        "extensions": ["bcmath", "ctype", "curl", "dom", "fileinfo", "gd", "mbstring", "openssl", "pcre", "pdo", "pdo_pgsql", "pgsql", "session", "tokenizer", "xml", "redis"]
     }
 }
