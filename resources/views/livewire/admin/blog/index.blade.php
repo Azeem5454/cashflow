@@ -154,6 +154,14 @@
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
                                             </a>
                                         @endif
+                                        <button wire:click="regenerateImage('{{ $p->id }}')"
+                                                wire:loading.attr="disabled"
+                                                wire:target="regenerateImage('{{ $p->id }}')"
+                                                title="Regenerate featured image"
+                                                class="p-1.5 rounded-md dark:text-slate-500 text-gray-400 dark:hover:text-violet-400 hover:text-violet-500 dark:hover:bg-slate-800 hover:bg-gray-100 transition-all disabled:opacity-50">
+                                            <svg wire:loading.remove wire:target="regenerateImage('{{ $p->id }}')" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75 7.41 10.59a2.25 2.25 0 0 1 3.18 0l5.16 5.16m-1.5-1.5 1.41-1.41a2.25 2.25 0 0 1 3.18 0l2.16 2.16m-16.5 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/></svg>
+                                            <svg wire:loading wire:target="regenerateImage('{{ $p->id }}')" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-30"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                                        </button>
                                         <button wire:click="deletePost('{{ $p->id }}')" wire:confirm="Delete this post? This cannot be undone." title="Delete"
                                                 class="p-1.5 rounded-md dark:text-slate-500 text-gray-400 dark:hover:text-red-400 hover:text-red-500 dark:hover:bg-slate-800 hover:bg-gray-100 transition-all">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
@@ -171,4 +179,31 @@
     @if($posts->hasPages())
         <div class="mt-5">{{ $posts->withQueryString()->links() }}</div>
     @endif
+
+    {{-- Toast (used by regenerateImage + any future actions that dispatch blog-toast) --}}
+    <div wire:ignore
+         x-data="{ show: false, msg: '', error: false, timer: null }"
+         x-on:blog-toast.window="
+            msg = $event.detail.message;
+            error = !!$event.detail.error;
+            show = true;
+            clearTimeout(timer);
+            timer = setTimeout(() => show = false, 4500);
+         "
+         x-show="show"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         class="fixed bottom-5 right-5 z-50 max-w-md"
+         x-cloak>
+        <div class="px-4 py-3 rounded-xl shadow-2xl border text-sm font-body flex items-center gap-2.5"
+             :class="error ? 'bg-red-500 border-red-400 text-white' : 'bg-gray-900 dark:bg-slate-800 border-slate-700 text-white'">
+            <svg x-show="!error" class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+            <svg x-show="error" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+            <span x-text="msg" class="flex-1"></span>
+        </div>
+    </div>
 </div>

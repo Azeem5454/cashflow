@@ -54,6 +54,26 @@ class Index extends Component
         BlogPost::findOrFail($id)->delete();
     }
 
+    /**
+     * Re-render the branded featured image for a single post via the GD
+     * renderer. Same code path the autopilot + CLI command use, just
+     * invoked per-row from the admin table.
+     */
+    public function regenerateImage(string $id): void
+    {
+        $post = BlogPost::with('category')->findOrFail($id);
+
+        try {
+            $key = app(\App\Services\BlogImageRenderer::class)
+                ->renderForPost($post->id, $post->title, $post->category);
+            $post->update(['featured_image_key' => $key]);
+            $this->dispatch('blog-toast', message: 'Image regenerated.');
+        } catch (\Throwable $e) {
+            report($e);
+            $this->dispatch('blog-toast', message: 'Failed: ' . $e->getMessage(), error: true);
+        }
+    }
+
     public function render()
     {
         $query = BlogPost::query()->with(['category', 'author']);

@@ -123,6 +123,32 @@ class Edit extends Component
         $this->removeFeaturedImage = true;
     }
 
+    /**
+     * Regenerate the branded AI featured image for the current post via the
+     * GD renderer. Only works on saved posts — we need the post id to key
+     * the uploaded asset. Reads the current title + category, so edit + save
+     * those first if you want new wording on the image.
+     */
+    public function regenerateImage(): void
+    {
+        if (! $this->post) {
+            $this->dispatch('blog-toast', message: 'Save the post first, then regenerate.', error: true);
+            return;
+        }
+
+        try {
+            $key = app(\App\Services\BlogImageRenderer::class)
+                ->renderForPost($this->post->id, $this->post->title, $this->post->category);
+            $this->post->update(['featured_image_key' => $key]);
+            $this->post->refresh();
+            $this->removeFeaturedImage = false;
+            $this->dispatch('blog-toast', message: 'Image regenerated.');
+        } catch (\Throwable $e) {
+            report($e);
+            $this->dispatch('blog-toast', message: 'Failed: ' . $e->getMessage(), error: true);
+        }
+    }
+
     protected function rules(): array
     {
         return [
