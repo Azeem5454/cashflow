@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.4",
         "ext-bcmath": "*",
+        "ext-gd": "*",
         "ext-pdo_pgsql": "*",
         "barryvdh/laravel-dompdf": "^3.1",
         "laravel/cashier": "^16.4",

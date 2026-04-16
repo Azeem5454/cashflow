@@ -1,7 +1,6 @@
 {
     "php": {
         "version": "8.4",
-        "extensions": ["bcmath", "ctype", "curl", "dom", "exif", "fileinfo", "gd", "mbstring", "openssl", "pcre", "pdo", "pdo_pgsql", "pgsql", "session", "tokenizer", "xml", "redis"]
-    },
-    "aptPackages": ["libfreetype6-dev", "libjpeg-dev", "libpng-dev", "libwebp-dev"]
+        "extensions": ["bcmath", "ctype", "curl", "dom", "fileinfo", "gd", "mbstring", "openssl", "pcre", "pdo", "pdo_pgsql", "pgsql", "session", "tokenizer", "xml", "redis"]
+    }
 }
