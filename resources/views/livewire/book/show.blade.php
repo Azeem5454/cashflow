@@ -2589,6 +2589,7 @@
                                 </div>
                             @endif
                         </div>
+                    @endif {{-- end @if(!empty($forecast)) --}}
 
                     {{-- ===== 1. HEALTH SCORE ===== --}}
                     @if(!empty($rHealth))
@@ -4590,7 +4591,7 @@
                 <div class="rounded-xl p-4 transition-all"
                      style="background:linear-gradient(135deg, rgba(139,92,246,0.06), rgba(59,130,246,0.04));border:1px solid rgba(139,92,246,0.2)"
                      x-data="nlpVoice()"
-                     @livewire:navigated.window="teardown()">
+                     x-on:livewire:navigated.window="teardown()">
                     <div class="flex items-center gap-2 mb-2.5">
                         <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(139,92,246,0.15)">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="color:#a78bfa"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
