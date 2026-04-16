@@ -2316,6 +2316,129 @@
 
                     @endif
 
+                    {{-- ===== 30-DAY CASH FLOW FORECAST ===== --}}
+                    @if(!empty($forecast))
+                        @php
+                            $fCurr = $business->currencySymbol();
+                            $fNet  = $forecast['projected_net_30d'] ?? 0;
+                            $fPositive = $fNet >= 0;
+                            $fBalance  = $forecast['projected_balance'] ?? 0;
+                            $fCurrent  = $forecast['current_balance']   ?? 0;
+                            $fBalancePositive = $fBalance >= 0;
+                            $fConf = $forecast['confidence_range'] ?? 0;
+                            $fLow  = $fBalance - $fConf;
+                            $fHigh = $fBalance + $fConf;
+                        @endphp
+
+                        <div class="dark:bg-slate-800 bg-white rounded-2xl border dark:border-slate-700 border-gray-200 overflow-hidden">
+                            <div class="px-5 py-4 flex items-center gap-3 border-b dark:border-slate-700 border-gray-100">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(59,130,246,0.12)">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="color:#3b82f6">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"/>
+                                    </svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">30-day cash flow forecast</h3>
+                                    <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">
+                                        Projected balance 30 days from today, based on your history + scheduled recurring entries.
+                                    </p>
+                                </div>
+                            </div>
+
+                            @if(! ($forecast['has_enough_history'] ?? false))
+                                {{-- Not enough history --}}
+                                <div class="px-5 py-8 text-center">
+                                    <div class="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center" style="background:rgba(59,130,246,0.08)">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:#3b82f6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                                    </div>
+                                    <p class="text-sm font-semibold dark:text-white text-gray-900">Keep logging — forecast unlocks at 21 days</p>
+                                    <p class="text-xs dark:text-slate-400 text-gray-500 mt-1 max-w-sm mx-auto font-body">
+                                        You have {{ $forecast['days_of_history'] }} day{{ $forecast['days_of_history'] === 1 ? '' : 's' }} of history.
+                                        Forecasts need at least three weeks of activity to be trustworthy.
+                                    </p>
+                                </div>
+                            @else
+                                {{-- Full forecast card --}}
+                                <div class="p-5 sm:p-6">
+                                    {{-- Hero: projected balance + confidence band --}}
+                                    <div class="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 pb-5 border-b dark:border-slate-700 border-gray-100">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-500 text-gray-400 mb-1.5">Projected balance in 30 days</p>
+                                            <div class="flex items-baseline gap-2 flex-wrap">
+                                                <span class="fm font-bold tracking-tight {{ $fBalancePositive ? 'dark:text-emerald-400 text-emerald-600' : 'dark:text-red-400 text-red-500' }}"
+                                                      style="font-size:clamp(1.8rem, 4vw, 2.6rem)">
+                                                    {{ $fCurr }}{{ number_format($fBalance, 0) }}
+                                                </span>
+                                                <span class="text-xs dark:text-slate-400 text-gray-500 font-body whitespace-nowrap">
+                                                    ± {{ $fCurr }}{{ number_format($fConf, 0) }}
+                                                </span>
+                                            </div>
+                                            <p class="text-[11px] dark:text-slate-500 text-gray-400 mt-1.5 font-body">
+                                                Likely range: {{ $fCurr }}{{ number_format($fLow, 0) }} — {{ $fCurr }}{{ number_format($fHigh, 0) }}
+                                            </p>
+                                        </div>
+
+                                        {{-- Trend arrow --}}
+                                        <div class="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl
+                                                    {{ $fPositive
+                                                        ? 'dark:bg-emerald-500/10 bg-emerald-50 dark:border-emerald-500/20 border-emerald-200'
+                                                        : 'dark:bg-red-500/10 bg-red-50 dark:border-red-500/20 border-red-200' }}
+                                                    border">
+                                            <svg class="w-4 h-4 {{ $fPositive ? 'dark:text-emerald-400 text-emerald-600' : 'dark:text-red-400 text-red-500' }} {{ $fPositive ? '' : 'rotate-180' }}" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18"/>
+                                            </svg>
+                                            <div>
+                                                <p class="text-[10px] font-bold uppercase tracking-wider {{ $fPositive ? 'dark:text-emerald-400 text-emerald-700' : 'dark:text-red-400 text-red-700' }}">
+                                                    {{ $fPositive ? 'Net gain' : 'Net drain' }}
+                                                </p>
+                                                <p class="fm font-bold text-sm {{ $fPositive ? 'dark:text-emerald-300 text-emerald-700' : 'dark:text-red-300 text-red-700' }}">
+                                                    {{ $fPositive ? '+' : '' }}{{ $fCurr }}{{ number_format($fNet, 0) }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- 3-col breakdown: starting, in, out --}}
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-px dark:bg-slate-700/50 bg-gray-100 rounded-xl overflow-hidden mt-5">
+                                        <div class="dark:bg-slate-800 bg-white px-4 py-3.5">
+                                            <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-500 text-gray-400 mb-1">Today's balance</p>
+                                            <p class="fm font-bold text-lg {{ $fCurrent >= 0 ? 'dark:text-white text-gray-900' : 'dark:text-red-300 text-red-600' }}">
+                                                {{ $fCurr }}{{ number_format($fCurrent, 0) }}
+                                            </p>
+                                        </div>
+                                        <div class="dark:bg-slate-800 bg-white px-4 py-3.5">
+                                            <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-1">Expected in</p>
+                                            <p class="fm font-bold text-lg dark:text-emerald-300 text-emerald-700">
+                                                +{{ $fCurr }}{{ number_format($forecast['projected_in_30d'], 0) }}
+                                            </p>
+                                            @if($forecast['recurring_in_30d'] > 0)
+                                                <p class="text-[10px] dark:text-slate-500 text-gray-400 mt-0.5 font-body">
+                                                    incl. {{ $fCurr }}{{ number_format($forecast['recurring_in_30d'], 0) }} recurring
+                                                </p>
+                                            @endif
+                                        </div>
+                                        <div class="dark:bg-slate-800 bg-white px-4 py-3.5">
+                                            <p class="text-[10px] font-bold uppercase tracking-widest text-red-600 dark:text-red-400 mb-1">Expected out</p>
+                                            <p class="fm font-bold text-lg dark:text-red-300 text-red-700">
+                                                −{{ $fCurr }}{{ number_format($forecast['projected_out_30d'], 0) }}
+                                            </p>
+                                            @if($forecast['recurring_out_30d'] > 0)
+                                                <p class="text-[10px] dark:text-slate-500 text-gray-400 mt-0.5 font-body">
+                                                    incl. {{ $fCurr }}{{ number_format($forecast['recurring_out_30d'], 0) }} recurring
+                                                </p>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    <p class="text-[11px] dark:text-slate-500 text-gray-400 mt-4 font-body leading-relaxed">
+                                        Built from your trailing 90-day activity {{ $forecast['days_of_history'] < 90 ? '(' . $forecast['days_of_history'] . ' days available)' : '' }}
+                                        plus active recurring entries. The range reflects how much your day-to-day numbers swing —
+                                        wider range means less predictable cash flow.
+                                    </p>
+                                </div>
+                            @endif
+                        </div>
+
                     {{-- ===== 1. HEALTH SCORE ===== --}}
                     @if(!empty($rHealth))
                     @php

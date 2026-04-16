@@ -2573,6 +2573,15 @@ class Show extends Component
             $reportData = $this->buildReportData($reportEntries, $allEntries);
         }
 
+        // 30-day cash flow forecast (pure statistics, no AI cost).
+        // Only computed on the Reports tab + Pro — same gate as the rest of
+        // the Reports panel. Uses the Book's own forecast method so the
+        // logic stays reusable (tests, API, etc.).
+        $forecast = [];
+        if ($this->activeTab === 'reports' && $this->business->isPro()) {
+            $forecast = $this->book->forecast30Days();
+        }
+
         // Build comparison data (Pro, custom date range only)
         $comparisonData = null;
         if ($this->business->isPro() && $this->compareEnabled && $this->filterDuration === 'custom'
@@ -2632,7 +2641,8 @@ class Show extends Component
         return view('livewire.book.show', compact(
             'entries', 'totalIn', 'totalOut', 'balance', 'categories', 'paymentModes', 'reportData',
             'activityLog', 'activityTotal', 'activityMembers',
-            'recurringEntries', 'commentThread', 'commentMembers', 'comparisonData'
+            'recurringEntries', 'commentThread', 'commentMembers', 'comparisonData',
+            'forecast'
         ));
     }
 }
