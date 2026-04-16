@@ -10,6 +10,18 @@
         <p class="text-sm dark:text-slate-400 text-gray-500 mt-1">Queue blog titles · AI writes the post + image · auto-publishes daily at 09:00 UTC.</p>
     </div>
 
+    {{-- Live image-render diagnostic (always current — independent of persisted error) --}}
+    <div class="rounded-xl mb-3 px-4 py-2.5 text-xs font-body flex flex-wrap items-center gap-x-4 gap-y-1
+                {{ $diag['allOk'] ? 'dark:bg-emerald-500/10 bg-emerald-50 dark:border-emerald-500/30 border border-emerald-200 dark:text-emerald-200 text-emerald-800' : 'dark:bg-rose-500/10 bg-rose-50 dark:border-rose-500/30 border border-rose-200 dark:text-rose-200 text-rose-800' }}">
+        <span class="font-semibold">
+            {{ $diag['allOk'] ? 'Image renderer ready' : 'Image renderer NOT ready' }}:
+        </span>
+        <span>GD: <strong>{{ $diag['gd'] ? '✓' : '✗' }}</strong></span>
+        <span>FreeType: <strong>{{ $diag['ft'] ? '✓' : '✗' }}</strong></span>
+        <span>Fonts: <strong>{{ $diag['fonts'] ? '✓' : '✗' }}</strong></span>
+        <span class="opacity-60 ml-auto">Live — refresh after a deploy.</span>
+    </div>
+
     {{-- Image render failure banner --}}
     @if($lastImageError || $missingImagesCount > 0)
         <div class="rounded-xl mb-5 overflow-hidden border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10">

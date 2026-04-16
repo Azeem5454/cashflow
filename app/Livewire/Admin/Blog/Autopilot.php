@@ -47,6 +47,16 @@ class Autopilot extends Component
             ->where('status', 'published')
             ->count();
 
+        // Live diagnostic — re-evaluated on every render so you always see
+        // the CURRENT container state, not whatever was true when the
+        // last_image_error was persisted yesterday.
+        $gdLoaded = extension_loaded('gd');
+        $ftLoaded = function_exists('imagettftext');
+        $fontDir  = storage_path('fonts');
+        $fontsOk  = is_file($fontDir . '/BricolageGrotesque-Bold.ttf')
+                 && is_file($fontDir . '/Outfit-Regular.ttf')
+                 && is_file($fontDir . '/Outfit-SemiBold.ttf');
+
         return view('livewire.admin.blog.autopilot', [
             'items'              => $items,
             'categories'         => BlogCategory::orderBy('name')->get(),
@@ -54,6 +64,12 @@ class Autopilot extends Component
             'nextRunHint'        => $this->describeNextRun(),
             'lastImageError'     => Setting::get('blog_autopilot.last_image_error'),
             'missingImagesCount' => $missingImagesCount,
+            'diag' => [
+                'gd'    => $gdLoaded,
+                'ft'    => $ftLoaded,
+                'fonts' => $fontsOk,
+                'allOk' => $gdLoaded && $ftLoaded && $fontsOk,
+            ],
         ]);
     }
 
