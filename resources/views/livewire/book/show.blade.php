@@ -351,19 +351,24 @@
     }
 
     /**
-     * nlpVoice — Alpine component that wraps the NL entry field with optional
-     * voice input using the browser's Web Speech API. Zero backend cost: the
-     * transcription runs locally in the browser using the device's built-in
-     * recognition service (Google on Chrome/Android, Apple on Safari/iOS).
+     * nlpVoice — Alpine component for voice input on the NL entry field,
+     * using the browser's Web Speech API. Zero backend cost: transcription
+     * runs locally (Google on Chrome/Android, Apple on Safari/iOS).
      *
-     * Degrades gracefully:
-     *  - `supported=false` → mic button hidden, the plain text input is all
-     *    you get (Firefox, older browsers, no-mic devices).
-     *  - Permission denied → inline status message.
-     *  - Timeout / no speech → same.
+     * Degradation:
+     *  - no SpeechRecognition class → mic hidden entirely (Firefox)
+     *  - permission denied / mic missing / network → visible amber status
+     *  - user closes slide-over mid-recording → abort() on teardown
+     *
+     * Debugging: append `?voice_debug=1` to the URL to log every state
+     * transition to the console. Use this when reproducing on a user's
+     * device — the logs identify exactly where the flow breaks.
      */
     function nlpVoice() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const DEBUG = new URLSearchParams(location.search).has('voice_debug');
+        const log = (...a) => DEBUG && console.log('[voice]', ...a);
+
         return {
             supported: !!SR,
             listening: false,
@@ -373,14 +378,33 @@
             _silenceTimer: null,
 
             init() {
-                if (!this.supported) return;
-                this._rec = new SR();
-                this._rec.continuous     = true;          // let the user pause mid-sentence
-                this._rec.interimResults = true;          // show text as they speak
-                this._rec.lang           = navigator.language || 'en-US';
-                this._rec.maxAlternatives = 1;
+                log('init', { supported: this.supported, secure: window.isSecureContext, ua: navigator.userAgent });
 
-                this._rec.onresult = (e) => {
+                // Web Speech requires a secure context (https). Firing from
+                // http:// will silently fail — tell the user up front.
+                if (this.supported && !window.isSecureContext) {
+                    this.supported = false;
+                    return;
+                }
+            },
+
+            _makeRec() {
+                // Build a fresh SpeechRecognition per session. Some browsers
+                // (mobile Safari) get into a bad state if reused after an
+                // error — safer to discard and rebuild each toggle.
+                const rec = new SR();
+                rec.continuous      = false;                   // single utterance — simpler, more reliable than continuous across devices
+                rec.interimResults  = true;
+                rec.lang            = navigator.language || 'en-US';
+                rec.maxAlternatives = 1;
+
+                rec.onstart = () => {
+                    log('onstart');
+                    this.listening = true;
+                    this.voiceStatus = 'Listening — speak now…';
+                };
+
+                rec.onresult = (e) => {
                     let finalSoFar = '';
                     let interim    = '';
                     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -390,73 +414,123 @@
                     }
                     if (finalSoFar) this._finalText += (this._finalText ? ' ' : '') + finalSoFar.trim();
                     const merged = (this._finalText + ' ' + interim).trim();
-                    // Push transcript into Livewire via the existing wire:model
-                    if (merged) {
-                        this.$wire.set('nlpInput', merged, false);
-                    }
-                    // Auto-stop after 1.5s of silence once we have some text
+                    log('onresult', { final: finalSoFar, interim, merged });
+
+                    // Write to BOTH the DOM input (for wire:model pickup) AND
+                    // the Livewire property — belt & braces so the value
+                    // survives whichever sync path fires first.
+                    this._setInput(merged);
+
+                    // Auto-stop after short silence once we have committed text
                     if (this._finalText && !interim) {
                         clearTimeout(this._silenceTimer);
-                        this._silenceTimer = setTimeout(() => this.stop(), 1500);
+                        this._silenceTimer = setTimeout(() => this.stop(), 1200);
                     }
                 };
 
-                this._rec.onerror = (e) => {
+                rec.onerror = (e) => {
+                    log('onerror', e.error);
                     this.listening = false;
                     clearTimeout(this._silenceTimer);
                     const map = {
-                        'not-allowed': 'Microphone blocked. Enable it in your browser settings.',
-                        'service-not-allowed': 'Microphone blocked by your OS privacy settings.',
-                        'no-speech':   'Didn\'t catch that — try again.',
-                        'audio-capture':'No microphone found on this device.',
-                        'network':     'Speech service unreachable — check your connection.',
+                        'not-allowed':         'Microphone blocked. Tap the lock icon in the address bar → allow microphone.',
+                        'service-not-allowed': 'Microphone blocked by your OS. Check System Settings → Privacy → Microphone.',
+                        'no-speech':           'Didn\'t catch that — try again.',
+                        'audio-capture':       'No microphone found on this device.',
+                        'network':             'Speech service unreachable — check your connection.',
+                        'aborted':             '', // user-initiated, don't show
+                        'language-not-supported': 'Your language isn\'t supported — set browser language to English and retry.',
                     };
-                    this.voiceStatus = map[e.error] || 'Voice input failed. Please type instead.';
-                    setTimeout(() => { this.voiceStatus = ''; }, 4000);
-                };
-
-                this._rec.onend = () => {
-                    this.listening = false;
-                    clearTimeout(this._silenceTimer);
-                    this.voiceStatus = '';
-                    // If the user stopped naturally and we have text, auto-submit
-                    // so the full flow is one tap + speak + done.
-                    if (this._finalText.trim().length >= 4 && this.$wire.get('nlpInput')) {
-                        this.$wire.parseEntryText();
+                    const msg = map[e.error] ?? 'Voice input failed. Please type instead.';
+                    if (msg) {
+                        this.voiceStatus = msg;
+                        // Keep error visible until user dismisses or starts again.
                     }
                 };
+
+                rec.onend = () => {
+                    log('onend', { finalText: this._finalText });
+                    this.listening = false;
+                    clearTimeout(this._silenceTimer);
+
+                    // Clear the transient "Listening…" status (but leave any
+                    // error message that onerror set).
+                    if (this.voiceStatus === 'Listening — speak now…') {
+                        this.voiceStatus = '';
+                    }
+
+                    // Auto-submit if we got a meaningful transcript
+                    if (this._finalText.trim().length >= 4) {
+                        log('auto-submit', this._finalText);
+                        // Small delay so the DOM→Livewire sync from _setInput lands first.
+                        setTimeout(() => this.$wire.parseEntryText(), 80);
+                    }
+                };
+
+                return rec;
             },
 
-            toggle() { this.listening ? this.stop() : this.start(); },
+            // Push transcript into the input element AND into Livewire state.
+            _setInput(value) {
+                // 1. Direct DOM update — visible to the user immediately,
+                //    bypasses any Livewire round-trip delay.
+                if (this.$refs.nlpField) {
+                    this.$refs.nlpField.value = value;
+                    // Fire input event so wire:model picks it up
+                    this.$refs.nlpField.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                // 2. Explicit Livewire set (defers server sync with `false`)
+                try { this.$wire.set('nlpInput', value, false); } catch (_) {}
+            },
+
+            toggle() {
+                log('toggle', { listening: this.listening });
+                this.listening ? this.stop() : this.start();
+            },
 
             start() {
-                if (!this._rec || this.listening) return;
+                if (!this.supported) {
+                    this.voiceStatus = 'Voice input isn\'t supported in this browser. Try Chrome or Safari.';
+                    return;
+                }
+                if (this.listening) return;
+
                 this._finalText = '';
-                this.$wire.set('nlpInput', '', false);
-                this.$wire.set('nlpError', '', false);
-                this.voiceStatus = 'Listening — speak now…';
+                this._setInput('');
+                try { this.$wire.set('nlpError', '', false); } catch (_) {}
+                this.voiceStatus = 'Starting microphone…';
+
+                // Rebuild per session for robustness
+                this._rec = this._makeRec();
+
                 try {
                     this._rec.start();
-                    this.listening = true;
+                    // listening=true happens in onstart for accuracy
                 } catch (err) {
-                    // start() throws if already started — reset and retry
-                    try { this._rec.abort(); } catch (_) {}
+                    log('start threw', err);
                     this.listening = false;
-                    this.voiceStatus = 'Could not start recording.';
+                    this.voiceStatus = 'Could not start microphone. Make sure no other tab is using it.';
                 }
             },
 
             stop() {
+                log('stop');
                 if (!this._rec) return;
                 try { this._rec.stop(); } catch (_) {}
                 this.listening = false;
                 clearTimeout(this._silenceTimer);
             },
 
+            dismissVoiceStatus() {
+                this.voiceStatus = '';
+            },
+
             teardown() {
+                log('teardown');
                 if (this._rec) {
                     try { this._rec.abort(); } catch (_) {}
                 }
+                clearTimeout(this._silenceTimer);
             },
         };
     }
@@ -4655,10 +4729,13 @@
                     </div>
 
                     {{-- Live status strip for voice --}}
-                    <p x-show="voiceStatus" x-cloak class="mt-1.5 text-[11px] font-body dark:text-violet-300/80 text-violet-700/80 flex items-center gap-1.5">
-                        <svg x-show="listening" class="w-3 h-3 text-red-500" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="3"/></svg>
-                        <span x-text="voiceStatus"></span>
-                    </p>
+                    <div x-show="voiceStatus" x-cloak class="mt-1.5 text-[11px] font-body dark:text-violet-300/80 text-violet-700/80 flex items-center gap-1.5">
+                        <svg x-show="listening" class="w-3 h-3 text-red-500 flex-shrink-0" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="3"/></svg>
+                        <span x-text="voiceStatus" class="flex-1"></span>
+                        <button type="button" x-show="!listening" @click="dismissVoiceStatus()" class="flex-shrink-0 p-0.5 rounded hover:bg-violet-500/10" aria-label="Dismiss">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
 
                     {{-- Shimmer while parsing --}}
                     <div wire:loading wire:target="parseEntryText" class="mt-2 text-[11px] font-body dark:text-violet-300/70 text-violet-700/70 animate-pulse">
