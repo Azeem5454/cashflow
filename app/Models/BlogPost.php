@@ -22,7 +22,7 @@ class BlogPost extends Model
         'featured_image_key', 'featured_image_alt',
         'category_id', 'author_id',
         'status', 'is_featured', 'published_at',
-        'seo_title', 'seo_description',
+        'seo_title', 'seo_description', 'auto_topic_key',
         'reading_time', 'view_count',
     ];
 

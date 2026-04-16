@@ -192,6 +192,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Blog CMS
     Route::get('/blog',              \App\Livewire\Admin\Blog\Index::class)->name('blog.index');
+    Route::get('/blog/autopilot',    \App\Livewire\Admin\Blog\Autopilot::class)->name('blog.autopilot');
     Route::get('/blog/create',       \App\Livewire\Admin\Blog\Edit::class)->name('blog.create');
     Route::get('/blog/categories',   \App\Livewire\Admin\Blog\Categories::class)->name('blog.categories');
     Route::get('/blog/{id}/edit',    \App\Livewire\Admin\Blog\Edit::class)->name('blog.edit');

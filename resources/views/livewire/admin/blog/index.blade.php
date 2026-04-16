@@ -6,7 +6,12 @@
             <h1 class="font-heading font-bold text-2xl dark:text-white text-gray-900">Blog Posts</h1>
             <p class="text-sm dark:text-slate-400 text-gray-500 mt-1">Write articles to drive search traffic and build authority.</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+            <a href="{{ route('admin.blog.autopilot') }}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg dark:bg-violet-500/15 bg-violet-50 dark:text-violet-300 text-violet-700 dark:border-violet-500/30 border border-violet-200 dark:hover:bg-violet-500/25 hover:bg-violet-100 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
+                Autopilot
+            </a>
             <a href="{{ route('admin.blog.categories') }}"
                class="px-3.5 py-2 text-xs font-medium rounded-lg dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700 dark:hover:bg-slate-700 hover:bg-gray-200 transition-colors">
                 Manage categories
