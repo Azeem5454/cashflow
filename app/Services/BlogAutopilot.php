@@ -175,15 +175,24 @@ BRIEF;
             'auto_topic_key'     => 'q-' . $item->id,
         ]);
 
-        // Featured image — failure here shouldn't block the post going live.
+        // Featured image — failure here shouldn't block the post going live,
+        // but it MUST be visible. report() sends the full exception to Sentry;
+        // the Setting record lets the admin UI surface "last image error" on
+        // the autopilot page without a separate log dive.
         try {
             $key = $this->renderer->renderForPost($post->id, $post->title, $category);
             $post->update(['featured_image_key' => $key]);
+            Setting::forget('blog_autopilot.last_image_error');
         } catch (\Throwable $e) {
+            report($e);
             Log::warning('BlogAutopilot: image render failed', [
                 'post_id' => $post->id,
                 'err'     => $e->getMessage(),
             ]);
+            Setting::set(
+                'blog_autopilot.last_image_error',
+                $e->getMessage() . ' @ ' . now()->toIso8601String()
+            );
         }
 
         // Consume the queue row + stamp last-run timestamp

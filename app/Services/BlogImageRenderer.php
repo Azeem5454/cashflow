@@ -182,12 +182,27 @@ class BlogImageRenderer
 
     private function assertReady(): void
     {
-        if (! extension_loaded('gd') || ! function_exists('imagettftext')) {
-            throw new \RuntimeException('GD with FreeType is required to render blog images.');
+        if (! extension_loaded('gd')) {
+            throw new \RuntimeException('GD extension not loaded — install php-gd on the server.');
+        }
+        if (! function_exists('imagettftext')) {
+            $info = function_exists('gd_info') ? gd_info() : [];
+            $freetype = $info['FreeType Support'] ?? false;
+            throw new \RuntimeException(
+                'GD present but FreeType missing (imagettftext unavailable). ' .
+                'FreeType Support = ' . ($freetype ? 'yes' : 'no') . '. ' .
+                'Rebuild PHP with --with-freetype.'
+            );
         }
         foreach ([$this->fontBold, $this->fontRegular, $this->fontSemi] as $f) {
             if (! is_file($f)) {
-                throw new \RuntimeException("Font missing: {$f}");
+                throw new \RuntimeException(
+                    'Font file missing at ' . $f . '. ' .
+                    'Check that storage/fonts/ is present in the deployed build.'
+                );
+            }
+            if (! is_readable($f)) {
+                throw new \RuntimeException('Font file not readable at ' . $f);
             }
         }
     }

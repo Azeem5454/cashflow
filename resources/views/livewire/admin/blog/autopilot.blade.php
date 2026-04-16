@@ -10,6 +10,47 @@
         <p class="text-sm dark:text-slate-400 text-gray-500 mt-1">Queue blog titles · AI writes the post + image · auto-publishes daily at 09:00 UTC.</p>
     </div>
 
+    {{-- Image render failure banner --}}
+    @if($lastImageError || $missingImagesCount > 0)
+        <div class="rounded-xl mb-5 overflow-hidden border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10">
+            <div class="px-5 py-4 flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-sm text-amber-900 dark:text-amber-200">
+                        @if($missingImagesCount > 0)
+                            {{ $missingImagesCount }} post{{ $missingImagesCount === 1 ? '' : 's' }} published without a featured image
+                        @else
+                            Last image render failed
+                        @endif
+                    </p>
+                    @if($lastImageError)
+                        <p class="text-xs text-amber-800 dark:text-amber-300 mt-1 font-mono break-all">{{ $lastImageError }}</p>
+                    @else
+                        <p class="text-xs text-amber-800 dark:text-amber-300 mt-1">The post was published but the GD render step didn't complete — probably a missing font or the GD extension on the server.</p>
+                    @endif
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                        @if($missingImagesCount > 0)
+                            <button type="button" wire:click="retryMissingImages"
+                                    wire:loading.attr="disabled" wire:target="retryMissingImages"
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-60">
+                                <svg wire:loading.remove wire:target="retryMissingImages" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                                <svg wire:loading wire:target="retryMissingImages" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-30"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                                <span wire:loading.remove wire:target="retryMissingImages">Retry all missing</span>
+                                <span wire:loading wire:target="retryMissingImages">Rendering…</span>
+                            </button>
+                        @endif
+                        @if($lastImageError)
+                            <button type="button" wire:click="clearImageError"
+                                    class="px-3 py-1.5 text-xs font-medium rounded-lg text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors">
+                                Dismiss
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Enable/disable + status --}}
     <div class="dark:bg-slate-900 bg-white dark:border-slate-800 border border-gray-200 rounded-xl p-5 mb-5 flex flex-wrap items-center gap-4">
         <div class="flex-1 min-w-0">

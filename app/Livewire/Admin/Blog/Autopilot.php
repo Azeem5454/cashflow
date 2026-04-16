@@ -40,11 +40,20 @@ class Autopilot extends Component
         $lastRunIso = Setting::get('blog_autopilot.last_run_at');
         $lastRun = $lastRunIso ? Carbon::parse($lastRunIso) : null;
 
+        // Count published posts that never got an image — lets the UI show
+        // a single-click retry link when the autopilot's GD step failed.
+        $missingImagesCount = \App\Models\BlogPost::query()
+            ->whereNull('featured_image_key')
+            ->where('status', 'published')
+            ->count();
+
         return view('livewire.admin.blog.autopilot', [
-            'items'         => $items,
-            'categories'    => BlogCategory::orderBy('name')->get(),
-            'lastRun'       => $lastRun,
-            'nextRunHint'   => $this->describeNextRun(),
+            'items'              => $items,
+            'categories'         => BlogCategory::orderBy('name')->get(),
+            'lastRun'            => $lastRun,
+            'nextRunHint'        => $this->describeNextRun(),
+            'lastImageError'     => Setting::get('blog_autopilot.last_image_error'),
+            'missingImagesCount' => $missingImagesCount,
         ]);
     }
 
@@ -209,6 +218,63 @@ class Autopilot extends Component
         } finally {
             $this->generating = false;
         }
+    }
+
+    /**
+     * Re-render featured images for every published post missing one.
+     * Same logic as `php artisan blog:regenerate-image --all-missing` but
+     * callable from the admin UI.
+     */
+    public function retryMissingImages(): void
+    {
+        $renderer = app(\App\Services\BlogImageRenderer::class);
+
+        $posts = \App\Models\BlogPost::query()
+            ->with('category')
+            ->whereNull('featured_image_key')
+            ->where('status', 'published')
+            ->get();
+
+        if ($posts->isEmpty()) {
+            $this->dispatch('autopilot-toast', message: 'No posts missing images.');
+            return;
+        }
+
+        $ok = 0;
+        $fail = 0;
+        $lastErr = null;
+
+        foreach ($posts as $post) {
+            try {
+                $key = $renderer->renderForPost($post->id, $post->title, $post->category);
+                $post->update(['featured_image_key' => $key]);
+                $ok++;
+            } catch (\Throwable $e) {
+                report($e);
+                $lastErr = $e->getMessage();
+                $fail++;
+            }
+        }
+
+        if ($fail === 0) {
+            Setting::forget('blog_autopilot.last_image_error');
+            $this->dispatch('autopilot-toast', message: "Rendered {$ok} image" . ($ok === 1 ? '' : 's') . '.');
+        } else {
+            Setting::set(
+                'blog_autopilot.last_image_error',
+                $lastErr . ' @ ' . now()->toIso8601String()
+            );
+            $this->dispatch('autopilot-toast',
+                message: "Rendered {$ok}, {$fail} failed — " . $lastErr,
+                error: true
+            );
+        }
+    }
+
+    public function clearImageError(): void
+    {
+        Setting::forget('blog_autopilot.last_image_error');
+        $this->dispatch('autopilot-toast', message: 'Error dismissed.');
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────
