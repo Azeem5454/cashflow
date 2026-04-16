@@ -89,17 +89,24 @@ class BlogAutopilot
             throw new \RuntimeException('Queue is empty — add titles at /admin/blog/autopilot.');
         }
 
-        // Resolve category — use queued category or fall back to first category
-        $category = $item->category_id
-            ? BlogCategory::find($item->category_id)
-            : BlogCategory::orderBy('name')->first();
-
-        if (! $category) {
+        $allCategories = BlogCategory::orderBy('name')->get();
+        if ($allCategories->isEmpty()) {
             throw new \RuntimeException('No blog categories exist — create at least one first.');
         }
 
-        $ai = $this->generateWithClaude($item->title, $category);
+        // Admin's choice (set on the queue row) overrides AI picking.
+        // If blank, Claude picks the best-fitting category as part of the
+        // generation call — same request, no extra cost.
+        $preselected = $item->category_id
+            ? $allCategories->firstWhere('id', $item->category_id)
+            : null;
+
+        $ai = $this->generateWithClaude($item->title, $allCategories, $preselected);
         $clean = $this->validate($ai, $item->title);
+
+        $category = $preselected
+            ?? $allCategories->firstWhere('slug', $clean['category_slug'] ?? null)
+            ?? $allCategories->first();
 
         $clean['slug'] = $this->uniqueSlug($clean['slug']);
 
@@ -144,8 +151,11 @@ class BlogAutopilot
 
     // ─── Claude call ───────────────────────────────────────────────────
 
-    private function generateWithClaude(string $titleSeed, BlogCategory $category): array
-    {
+    private function generateWithClaude(
+        string $titleSeed,
+        \Illuminate\Support\Collection $allCategories,
+        ?BlogCategory $preselected = null
+    ): array {
         if (empty($this->apiKey)) {
             throw new \RuntimeException('ANTHROPIC_API_KEY is not configured.');
         }
@@ -157,8 +167,25 @@ class BlogAutopilot
         $appUrl   = rtrim(config('app.url', 'https://thecashfox.com'), '/');
 
         // JSON-encode user-controlled strings to neutralise prompt injection
-        $titleJson    = json_encode($titleSeed,       JSON_UNESCAPED_UNICODE);
-        $categoryJson = json_encode($category->name,  JSON_UNESCAPED_UNICODE);
+        $titleJson = json_encode($titleSeed, JSON_UNESCAPED_UNICODE);
+
+        // Build the category instruction + JSON-schema addendum depending on
+        // whether the admin pre-selected a category on the queue row.
+        if ($preselected) {
+            $categoryBlock = '- Category (fixed, do not change): ' .
+                json_encode($preselected->name, JSON_UNESCAPED_UNICODE);
+            $categoryJsonField = ''; // not asked for; server uses preselected
+            $categoryPickRule  = '';
+        } else {
+            $list = $allCategories->map(function ($c) {
+                return '  * "' . $c->slug . '" — ' . $c->name
+                    . ($c->description ? ' (' . $c->description . ')' : '');
+            })->implode("\n");
+
+            $categoryBlock = "- Category: pick the single best-fitting category by slug from this list:\n{$list}";
+            $categoryJsonField = "\n  \"category_slug\":  \"one slug from the list above\",";
+            $categoryPickRule  = "11. category_slug MUST be exactly one of the slugs listed above — no inventions, no renaming.\n";
+        }
 
         $prompt = <<<PROMPT
 You are a senior content writer for {$appName}, a cash-flow tracking SaaS at {$appUrl}.
@@ -166,7 +193,7 @@ Write ONE practical, SEO-optimised blog post that small-business owners and free
 
 Post brief:
 - Seed title (you may refine for SEO, keep the same topic): {$titleJson}
-- Category: {$categoryJson}
+{$categoryBlock}
 
 Rules:
 1. Final display title ≤ 60 chars. Preserve the seed title's subject and primary keyword.
@@ -187,12 +214,12 @@ Rules:
 8. No emojis. No table of contents.
 9. Slug: lowercase, hyphenated, 3–6 words, must contain the primary keyword from the title.
 10. SEO title may differ slightly from display title if it improves keyword density — both ≤ 60 chars.
-
+{$categoryPickRule}
 Return ONLY this JSON object (no markdown fences, no prose outside JSON):
 
 {
   "title":           "display title",
-  "slug":            "primary-keyword-slug",
+  "slug":            "primary-keyword-slug",{$categoryJsonField}
   "excerpt":         "≤ 220 chars hook",
   "body_markdown":   "full markdown body",
   "seo_title":       "≤ 60 chars",
@@ -305,6 +332,17 @@ PROMPT;
         $body = preg_replace('/^\s*#\s+.*$/m', '', $body, 1) ?? $body;
         $body = trim($body);
 
+        // Optional category_slug — only present when admin didn't pre-select.
+        // Normalised to a simple slug string; run() resolves it to a model or
+        // falls back to the first category if Claude invented something.
+        $categorySlug = null;
+        if (isset($data['category_slug']) && is_string($data['category_slug'])) {
+            $cs = Str::slug(trim($data['category_slug']));
+            if ($cs !== '' && mb_strlen($cs) <= 120) {
+                $categorySlug = $cs;
+            }
+        }
+
         return [
             'title'           => $title,
             'slug'            => $slug,
@@ -312,6 +350,7 @@ PROMPT;
             'body_markdown'   => $body,
             'seo_title'       => $seoTitle,
             'seo_description' => $seoDescription,
+            'category_slug'   => $categorySlug,
         ];
     }
 
