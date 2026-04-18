@@ -358,7 +358,13 @@ class BookController extends Controller
     /**
      * GET /api/v1/books/{id}/export/{format}
      */
-    public function export(Request $request, string $id, string $format): JsonResponse
+    /**
+     * GET /api/v1/books/{id}/export/{format}
+     *
+     * Streams the PDF or CSV file directly with Sanctum auth so the mobile
+     * app can download it in-app without opening a browser + re-logging in.
+     */
+    public function export(Request $request, string $id, string $format)
     {
         $book = $this->findAuthorizedBook($request, $id);
 
@@ -366,11 +372,61 @@ class BookController extends Controller
             return response()->json(['message' => 'Pro subscription required for exports.'], 403);
         }
 
-        // Return the web URL for downloading (user opens in browser)
-        $business = $book->business;
-        $url = url("/businesses/{$business->id}/books/{$book->id}/export/{$format}");
+        if (! in_array($format, ['pdf', 'csv'], true)) {
+            return response()->json(['message' => 'Format must be pdf or csv.'], 422);
+        }
 
-        return response()->json(['url' => $url, 'format' => $format]);
+        $business = $book->business;
+        $entries  = $this->entriesWithRunningBalance($book);
+        $slug     = str()->slug($business->name) . '-' . str()->slug($book->name);
+
+        if ($format === 'pdf') {
+            $totalIn  = $book->totalIn();
+            $totalOut = $book->totalOut();
+            $balance  = $book->balance();
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.book-pdf', compact(
+                'business', 'book', 'entries', 'totalIn', 'totalOut', 'balance'
+            ))->setPaper('a4', 'landscape');
+
+            return $pdf->download("{$slug}.pdf");
+        }
+
+        // CSV
+        return response()->streamDownload(function () use ($entries) {
+            $handle = fopen('php://output', 'w');
+            fputs($handle, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+            fputcsv($handle, ['Date', 'Description', 'Reference', 'Category', 'Payment Mode', 'Cash In', 'Cash Out', 'Running Balance']);
+
+            foreach ($entries as $entry) {
+                fputcsv($handle, [
+                    $entry->date?->format('Y-m-d'),
+                    $entry->description,
+                    $entry->reference,
+                    $entry->category,
+                    $entry->payment_mode,
+                    $entry->type === 'in' ? $entry->amount : '',
+                    $entry->type === 'out' ? $entry->amount : '',
+                    $entry->running_balance,
+                ]);
+            }
+
+            fclose($handle);
+        }, "{$slug}.csv", ['Content-Type' => 'text/csv']);
+    }
+
+    /** Shared helper for export — entries ordered with running balance */
+    private function entriesWithRunningBalance(\App\Models\Book $book)
+    {
+        $entries = $book->entries()->orderBy('date', 'asc')->orderBy('created_at', 'asc')->get();
+        $running = '0.00';
+        foreach ($entries as $entry) {
+            $running = $entry->type === 'in'
+                ? bcadd($running, (string) $entry->amount, 2)
+                : bcsub($running, (string) $entry->amount, 2);
+            $entry->running_balance = $running;
+        }
+        return $entries;
     }
 
     /**
