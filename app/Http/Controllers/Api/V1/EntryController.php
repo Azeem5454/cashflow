@@ -124,17 +124,21 @@ class EntryController extends Controller
         }
 
         $request->validate([
-            'receipt' => ['required', 'file', 'max:5120', 'mimes:png,jpg,jpeg,pdf', 'mimetypes:image/png,image/jpeg,application/pdf'],
+            'receipt' => ['required', 'file', 'max:5120', 'mimes:png,jpg,jpeg,heic,heif,pdf', 'mimetypes:image/png,image/jpeg,image/heic,image/heif,application/pdf'],
         ]);
 
-        $path = $request->file('receipt')->store(
+        $file = $request->file('receipt');
+        $path = $file->store(
             "attachments/{$book->business_id}/{$book->id}",
             'local'
         );
 
         try {
             $result = app(\App\Services\AiService::class)->extractFromReceipt(
-                storage_path('app/private/' . $path)
+                storage_path('app/private/' . $path),
+                $file->getMimeType() ?: 'image/jpeg',
+                $book->business->currency ?? 'USD',
+                $book->categories()->pluck('name')->toArray()
             );
 
             return response()->json([
@@ -328,7 +332,7 @@ class EntryController extends Controller
         $entry = $this->findAuthorizedEntry($request, $id, requireEditor: true);
 
         $request->validate([
-            'file' => ['required', 'file', 'max:2048', 'mimes:png,jpg,jpeg,pdf', 'mimetypes:image/png,image/jpeg,application/pdf'],
+            'file' => ['required', 'file', 'max:2048', 'mimes:png,jpg,jpeg,heic,heif,pdf', 'mimetypes:image/png,image/jpeg,image/heic,image/heif,application/pdf'],
         ]);
 
         // Delete existing attachment if any
