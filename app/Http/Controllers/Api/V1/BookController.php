@@ -351,13 +351,11 @@ class BookController extends Controller
 
             return response()->json($result);
         } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => 'Failed to generate insights.'], 500);
+            report($e); // → Sentry so we see the actual failure
+            return response()->json(['status' => 'error', 'message' => 'Failed to generate insights. Please try again.'], 500);
         }
     }
 
-    /**
-     * GET /api/v1/books/{id}/export/{format}
-     */
     /**
      * GET /api/v1/books/{id}/export/{format}
      *
