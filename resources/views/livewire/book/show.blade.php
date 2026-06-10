@@ -114,7 +114,7 @@
 
             {{-- Add Entry (primary CTA in header) --}}
             @if($userRole !== 'viewer')
-                <button wire:click="openAddEntry('in')"
+                <button wire:click="openAddEntry('in')" x-on:click="$dispatch('open-entry-panel')"
                         class="inline-flex items-center gap-1.5 px-3.5 py-2
                                bg-primary hover:bg-accent text-white
                                text-sm font-semibold font-body rounded-xl
@@ -1944,7 +1944,7 @@
                                   transition-all duration-150">
                 </div>
                 @if($userRole !== 'viewer')
-                    <button wire:click="openAddEntry('in')"
+                    <button wire:click="openAddEntry('in')" x-on:click="$dispatch('open-entry-panel')"
                             class="flex items-center gap-1.5 px-4 py-2.5 flex-shrink-0
                                    bg-emerald-500/10 text-emerald-400
                                    hover:bg-emerald-500 hover:text-white
@@ -1955,7 +1955,7 @@
                         </svg>
                         <span class="hidden sm:block">Cash In</span>
                     </button>
-                    <button wire:click="openAddEntry('out')"
+                    <button wire:click="openAddEntry('out')" x-on:click="$dispatch('open-entry-panel')"
                             class="flex items-center gap-1.5 px-4 py-2.5 flex-shrink-0
                                    bg-red-500/10 text-red-400
                                    hover:bg-red-500 hover:text-white
@@ -1985,14 +1985,14 @@
                     </p>
                     @if($userRole !== 'viewer')
                         <div class="flex items-center justify-center gap-3">
-                            <button wire:click="openAddEntry('in')"
+                            <button wire:click="openAddEntry('in')" x-on:click="$dispatch('open-entry-panel')"
                                     class="flex items-center gap-2 px-4 py-2.5
                                            bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white
                                            border border-emerald-500/25 text-sm font-semibold font-body rounded-xl transition-all duration-200">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                                 Cash In
                             </button>
-                            <button wire:click="openAddEntry('out')"
+                            <button wire:click="openAddEntry('out')" x-on:click="$dispatch('open-entry-panel')"
                                     class="flex items-center gap-2 px-4 py-2.5
                                            bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white
                                            border border-red-500/25 text-sm font-semibold font-body rounded-xl transition-all duration-200">
@@ -4588,7 +4588,8 @@
     </div>
 
     {{-- ===== ENTRY SLIDE-OVER ===== --}}
-    <div x-data="{ show: $wire.entangle('showEntryPanel').live }">
+    <div x-data="{ show: $wire.entangle('showEntryPanel').live }"
+         x-on:open-entry-panel.window="show = true">
 
     {{-- Backdrop --}}
     <div x-cloak
@@ -5378,7 +5379,9 @@
                             <p class="text-[11px] dark:text-slate-600 text-gray-400 font-body mt-0.5">Repeats within this book only</p>
                         </div>
                         <button type="button"
-                                wire:click="{{ $entryRecurring ? "\$toggle('entryRecurring')" : "enableRecurring" }}"
+                                wire:click="toggleRecurring"
+                                wire:loading.attr="disabled"
+                                wire:target="toggleRecurring"
                                 class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
                                        {{ $entryRecurring ? 'bg-primary' : 'dark:bg-slate-700 bg-gray-200' }}"
                                 role="switch"

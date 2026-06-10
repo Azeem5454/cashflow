@@ -126,6 +126,10 @@ class Show extends Component
     // AI auto-categorization
     public string $aiCategorySuggestion = '';
     public bool   $showCategoryChip     = false;
+    // Last description we already asked the AI about — prevents the same
+    // (blocking) Claude call from re-firing on every focus-out/blur, which
+    // used to stack 10s requests ahead of the user's Save click.
+    public string $aiSuggestedFor       = '';
 
     // AI cash flow insights
     public bool   $aiInsightsLoading      = false;
@@ -420,6 +424,7 @@ class Show extends Component
         $this->entryRunForever     = false;
         $this->aiCategorySuggestion = '';
         $this->showCategoryChip     = false;
+        $this->aiSuggestedFor       = '';
         $this->resetErrorBag();
         $this->showEntryPanel      = true;
         $this->dispatch('entry-date-updated', date: $this->entryDate);
@@ -1514,6 +1519,14 @@ class Show extends Component
             return;
         }
 
+        // Already asked the AI about this exact description — don't fire the
+        // blocking API call again (blur fires every time focus leaves the
+        // field, e.g. when the user clicks Save or the recurring toggle).
+        if ($desc === $this->aiSuggestedFor) {
+            return;
+        }
+        $this->aiSuggestedFor = $desc;
+
         $categories = $this->book->categories()->pluck('name')->toArray();
 
         try {
@@ -1821,6 +1834,29 @@ class Show extends Component
 
     public function enableRecurring(): void
     {
+        if (! $this->business->isPro()) {
+            $this->upgradeModalFeature = 'recurring';
+            return;
+        }
+
+        $this->entryRecurring = true;
+    }
+
+    /**
+     * Single, stable toggle for the "Repeat this entry" switch.
+     *
+     * The button previously swapped its wire:click expression between
+     * enableRecurring / $toggle based on server state, which Livewire's DOM
+     * morph did not rebind reliably — making the toggle feel unresponsive
+     * (especially when turning it back off). One stable action fixes that.
+     */
+    public function toggleRecurring(): void
+    {
+        if ($this->entryRecurring) {
+            $this->entryRecurring = false;
+            return;
+        }
+
         if (! $this->business->isPro()) {
             $this->upgradeModalFeature = 'recurring';
             return;
@@ -2478,8 +2514,12 @@ class Show extends Component
         // Three-level sort: date → created_at → id ensures a fully stable order
         // even when multiple entries share the same date or the same timestamp
         // (PostgreSQL returns non-deterministic order without a unique tiebreaker).
+        // Only the comment COUNT is needed for the ledger list (badge); the full
+        // comment thread is loaded separately in $commentThread when the panel
+        // opens. Eager-loading every entry's full comments on every round-trip
+        // was pure waste and made each interaction slower.
         $allEntries = $this->book->entries()
-            ->with(['creator', 'comments'])
+            ->with('creator')
             ->withCount('comments')
             ->orderBy('date', 'asc')
             ->orderBy('created_at', 'asc')
@@ -2608,9 +2648,18 @@ class Show extends Component
         // Reverse for display: newest first
         $entries = $entries->reverse()->values();
 
-        $totalIn  = $this->book->totalIn();
-        $totalOut = $this->book->totalOut();
-        $balance  = $this->book->balance();
+        // Compute totals from the already-loaded collection instead of firing
+        // 4 more aggregate queries (totalIn + totalOut + balance(which re-runs
+        // both)) on every single round-trip. bcadd keeps decimal precision exact.
+        $totalIn = $totalOut = '0.00';
+        foreach ($allEntries as $entry) {
+            if ($entry->type === 'in') {
+                $totalIn = bcadd($totalIn, (string) $entry->amount, 2);
+            } else {
+                $totalOut = bcadd($totalOut, (string) $entry->amount, 2);
+            }
+        }
+        $balance = bcsub(bcadd((string) ($this->book->opening_balance ?? '0.00'), $totalIn, 2), $totalOut, 2);
 
         $categories   = $this->book->categories()->get();
         $paymentModes = $this->book->paymentModes()->get();

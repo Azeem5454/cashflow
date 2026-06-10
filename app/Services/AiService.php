@@ -223,7 +223,7 @@ PROMPT;
                 'x-api-key'         => $this->apiKey,
                 'anthropic-version' => '2023-06-01',
                 'content-type'      => 'application/json',
-            ])->timeout(10)->post('https://api.anthropic.com/v1/messages', [
+            ])->connectTimeout(4)->timeout(6)->post('https://api.anthropic.com/v1/messages', [
                 'model'      => $this->model,
                 'max_tokens' => 60,
                 'messages'   => [[
