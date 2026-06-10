@@ -320,6 +320,9 @@
                                               dark:hover:bg-primary/5 hover:bg-blue-50/50
                                               rounded-xl transition-all duration-150 min-w-0">
                                         <div class="min-w-0 flex-1">
+                                            <p class="text-[10px] font-body font-medium uppercase tracking-wide dark:text-slate-500 text-gray-400 truncate leading-none mb-1">
+                                                {{ $rb->_business->name }}
+                                            </p>
                                             <p class="font-heading font-bold text-sm dark:text-white text-gray-900 truncate">
                                                 {{ $rb->name }}
                                             </p>
