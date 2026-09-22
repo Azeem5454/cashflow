@@ -29,7 +29,7 @@ class BusinessResource extends JsonResource
             // Team-size limit for the owner's plan (owner included); null = unlimited.
             'memberLimit'    => $this->memberLimit(),
             'pendingInvitesCount' => (int) ($this->pending_invitations_count
-                ?? $this->invitations()->whereNull('accepted_at')->where('expires_at', '>', now())->count()),
+                ?? $this->pendingInvitations()->count()),
             'createdAt'      => $this->created_at->toIso8601String(),
         ];
     }

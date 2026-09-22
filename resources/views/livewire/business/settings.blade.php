@@ -246,7 +246,7 @@
                         </div>
                     @endif
 
-                    @if($memberLimit !== null && $members->count() >= $memberLimit)
+                    @if($memberLimit !== null && ($members->count() + $business->pendingInvitations()->count()) >= $memberLimit)
                         <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 mb-4 rounded-xl
                                     bg-amber-50 dark:bg-slate-800 border border-amber-200 dark:border-slate-700">
                             <p class="text-sm text-amber-800 dark:text-slate-300">
@@ -363,7 +363,7 @@
                     </div>
                     @if($memberLimit !== null)
                         @php
-                            $usedCount = $members->count();
+                            $usedCount = $members->count() + $business->pendingInvitations()->count();
                             $isFull    = $usedCount >= $memberLimit;
                             $ratio     = $memberLimit > 0 ? min($usedCount / $memberLimit, 1) : 1;
                             $barWidth  = $ratio >= 1 ? 'w-full' : ($ratio >= 0.75 ? 'w-3/4' : ($ratio >= 0.5 ? 'w-1/2' : ($ratio >= 0.25 ? 'w-1/4' : 'w-0')));
@@ -372,7 +372,10 @@
                             <p class="text-xs dark:text-slate-400 text-gray-500">
                                 <span class="font-mono font-semibold dark:text-slate-200 text-gray-700">{{ $usedCount }}</span>
                                 of <span class="font-mono font-semibold dark:text-slate-200 text-gray-700">{{ $memberLimit }}</span>
-                                members used · Free plan
+                                seats used · Free plan
+                            </p>
+                            <p class="text-[11px] dark:text-slate-500 text-gray-400">
+                                Members and pending invitations both use a seat
                             </p>
                             <div class="mt-1.5 ml-auto w-32 h-1 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
                                 <div class="h-1 rounded-full {{ $barWidth }} {{ $isFull ? 'bg-amber-500' : 'bg-primary' }}"></div>

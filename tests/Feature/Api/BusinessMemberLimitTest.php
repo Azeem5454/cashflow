@@ -57,7 +57,7 @@ class BusinessMemberLimitTest extends ApiTestCase
             ->assertForbidden();
 
         Livewire::actingAs($owner)->test(Settings::class, ['business' => $business])
-            ->assertSee('members used · Free plan')
+            ->assertSee('seats used · Free plan')
             ->set('inviteEmail', 'third@example.com')->call('sendInvite')
             ->assertSet('upgradeModalFeature', 'team');
 

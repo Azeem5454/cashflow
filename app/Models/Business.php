@@ -87,6 +87,38 @@ class Business extends Model
         return $this->isPro() ? null : self::FREE_MEMBER_LIMIT;
     }
 
+    /** Invitations that are still open (not accepted, not expired) — each holds a seat. */
+    public function pendingInvitations(): HasMany
+    {
+        return $this->invitations()
+            ->whereNull('accepted_at')
+            ->where('expires_at', '>', now());
+    }
+
+    /** Seats taken on this plan: members (owner included) + open invitations. */
+    public function seatsUsed(): int
+    {
+        return $this->members()->count() + $this->pendingInvitations()->count();
+    }
+
+    /**
+     * Can the owner send an invitation to $email under the plan's seat limit?
+     * Re-sending an invitation that is already open doesn't take a new seat.
+     */
+    public function canInvite(string $email): bool
+    {
+        $limit = $this->memberLimit();
+        if ($limit === null) {
+            return true;
+        }
+
+        $alreadyInvited = $this->pendingInvitations()
+            ->whereRaw('LOWER(email) = ?', [\Illuminate\Support\Str::lower(trim($email))])
+            ->exists();
+
+        return $alreadyInvited || $this->seatsUsed() < $limit;
+    }
+
     public function userRole(User $user): ?string
     {
         $member = $this->members()->where('users.id', $user->id)->first();

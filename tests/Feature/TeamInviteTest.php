@@ -61,4 +61,43 @@ class TeamInviteTest extends ApiTestCase
         $this->assertSame('editor', $business->invitations()->first()->role);
         Mail::assertSent(TeamInvitation::class, 2);
     }
+
+    public function test_free_plan_pending_invitations_take_a_seat(): void
+    {
+        Mail::fake();
+        $owner    = $this->makeUser(); // Free: 2 seats, owner uses one
+        $business = $this->makeBusiness($owner);
+        $this->actingAsUser($owner);
+        $url = "/api/v1/businesses/{$business->id}/invitations";
+
+        $this->postJson($url, ['email' => 'one@example.com', 'role' => 'viewer'])->assertCreated();
+
+        // Seat now held by the pending invite — a second person is refused
+        $this->postJson($url, ['email' => 'two@example.com', 'role' => 'viewer'])
+            ->assertForbidden()->assertJsonPath('code', 'seat_limit');
+
+        // Re-sending the open invitation doesn't need a new seat
+        $this->postJson($url, ['email' => 'ONE@example.com', 'role' => 'editor'])
+            ->assertOk()->assertJsonPath('resent', true);
+
+        // An expired invitation frees its seat
+        $business->invitations()->update(['expires_at' => now()->subHour()]);
+        $this->postJson($url, ['email' => 'two@example.com', 'role' => 'viewer'])->assertCreated();
+
+        $this->assertSame(1, $business->pendingInvitations()->count());
+    }
+
+    public function test_web_free_plan_pending_invitation_blocks_another_invite(): void
+    {
+        Mail::fake();
+        $owner    = $this->makeUser();
+        $business = $this->makeBusiness($owner);
+
+        Livewire::actingAs($owner)->test(Settings::class, ['business' => $business])
+            ->set('inviteEmail', 'one@example.com')->set('inviteRole', 'viewer')->call('sendInvite')
+            ->set('inviteEmail', 'two@example.com')->call('sendInvite')
+            ->assertSet('upgradeModalFeature', 'team');
+
+        $this->assertSame(1, $business->invitations()->count());
+    }
 }

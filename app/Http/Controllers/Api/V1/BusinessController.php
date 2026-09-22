@@ -197,17 +197,19 @@ class BusinessController extends Controller
 
         $this->ensureOwner($request, $business);
 
-        // Free plan limit: 2 members total
-        if (($limit = $business->memberLimit()) !== null && $business->members()->count() >= $limit) {
-            return response()->json([
-                'message' => 'The Free plan includes up to 2 team members. More are available on the Pro plan.',
-            ], 403);
-        }
-
         $validated = $request->validate([
             'email' => ['required', 'string', 'email', 'max:255'],
             'role'  => ['required', 'in:editor,viewer'],
         ]);
+
+        // Plan seat limit: members + open invitations (re-sending an open invite is fine)
+        if (! $business->canInvite($validated['email'])) {
+            $limit = $business->memberLimit();
+            return response()->json([
+                'message' => "Your plan allows up to {$limit} members, including pending invitations.",
+                'code'    => 'seat_limit',
+            ], 403);
+        }
 
         $inviter = app(\App\Services\TeamInviter::class);
         if ($inviter->isMember($business, $validated['email'])) {

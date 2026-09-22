@@ -58,8 +58,9 @@ class Settings extends Component
             'inviteRole'  => 'required|in:editor,viewer',
         ]);
 
-        // Free plan: max Business::FREE_MEMBER_LIMIT members (owner included)
-        if (! auth()->user()->isPro() && $this->business->members()->count() >= Business::FREE_MEMBER_LIMIT) {
+        // Plan seat limit: members (owner included) + open invitations.
+        // Re-sending an invitation that's already open doesn't take a new seat.
+        if (! $this->business->canInvite($this->inviteEmail)) {
             $this->upgradeModalFeature = 'team';
             return;
         }
