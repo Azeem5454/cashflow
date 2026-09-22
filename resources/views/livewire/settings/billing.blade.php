@@ -40,21 +40,8 @@
             </div>
         @endif
 
-        {{-- Pro billed through the App Store / Google Play --}}
-        @if($storeBilled)
-            <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl bg-primary/10 border border-primary/30">
-                <svg class="w-5 h-5 text-primary dark:text-blue-light flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/>
-                </svg>
-                <div>
-                    <p class="text-sm font-semibold text-primary dark:text-blue-light">Your Pro plan is billed through {{ $storeName }}.</p>
-                    <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">Manage it on your device.</p>
-                </div>
-            </div>
-        @endif
-
         {{-- Grace period warning --}}
-        @if($subscription && $subscription->onGracePeriod() && ! $storeBilled)
+        @if($subscription && $subscription->onGracePeriod())
             <div class="flex items-start justify-between gap-4 px-4 py-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
                 <div class="flex items-start gap-3">
                     <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
@@ -65,7 +52,6 @@
                         <p class="text-xs text-amber-400/70 mt-0.5">After this date your extra businesses will be locked and you'll revert to the Free plan.</p>
                     </div>
                 </div>
-                @unless($hasStoreEntitlement)
                 <button
                     wire:click="resume"
                     wire:loading.attr="disabled"
@@ -76,7 +62,6 @@
                     <span wire:loading.remove wire:target="resume">Resume Plan</span>
                     <span wire:loading wire:target="resume">Resuming…</span>
                 </button>
-                @endunless
             </div>
         @endif
 
@@ -111,9 +96,7 @@
                         </p>
                         <p class="text-sm dark:text-slate-400 text-gray-500 mt-0.5">
                             @if($user->isPro())
-                                @if($storeBilled)
-                                    Billed through {{ $storeName }}
-                                @elseif($subscription && $subscription->ends_at)
+                                @if($subscription && $subscription->ends_at)
                                     Cancels {{ $subscription->ends_at->format('M j, Y') }}
                                 @elseif($subscription)
                                     Active subscription — {{ \App\Support\Pricing::proMonthly() }}/month
@@ -127,7 +110,7 @@
                     </div>
                 </div>
 
-                @if($user->isPro() && ! $storeBilled)
+                @if($user->isPro())
                     <button
                         wire:click="openPortal"
                         wire:loading.attr="disabled"
@@ -295,8 +278,8 @@
 
         </div>
 
-        {{-- ===== PRO: BILLING MANAGEMENT (Stripe only) ===== --}}
-        @if($user->isPro() && ! $storeBilled)
+        {{-- ===== PRO: BILLING MANAGEMENT ===== --}}
+        @if($user->isPro())
             <div class="dark:bg-[#1e293b] bg-white dark:border dark:border-slate-700/60 border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                 <div class="px-6 py-4 dark:border-b dark:border-slate-700/40 border-b border-gray-100 flex items-center gap-3">
                     <div class="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center flex-shrink-0">
