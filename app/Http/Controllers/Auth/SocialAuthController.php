@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Services\MobileSocialLogin;
+use App\Services\SocialAccountService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -32,14 +34,27 @@ use Laravel\Socialite\Facades\Socialite;
  *   - The callback is rate-limited (10/min per IP) to slow down abuse.
  *   - Provider/provider_id are NOT in User::$fillable; set explicitly.
  *   - We never store the access token — we only need the subject ID.
+ *
+ * Mobile: GET /auth/google/mobile starts the same Google flow but, on the
+ * callback, redirects to the app's deep link with a one-time code (see
+ * App\Services\MobileSocialLogin) instead of logging the browser in.
  */
 class SocialAuthController extends Controller
 {
     private const SUPPORTED_PROVIDERS = ['google'];
 
-    public function redirect(string $provider): RedirectResponse
+    public function __construct(
+        private readonly SocialAccountService $accounts,
+        private readonly MobileSocialLogin $mobileLogin,
+    ) {
+    }
+
+    public function redirect(Request $request, string $provider): RedirectResponse
     {
         abort_unless(in_array($provider, self::SUPPORTED_PROVIDERS, true), 404);
+
+        // A plain web sign-in must never inherit a stale, abandoned mobile flow.
+        $request->session()->forget(MobileSocialLogin::SESSION_KEY);
 
         if (empty(config("services.{$provider}.client_id"))) {
             return redirect()->route('login')->withErrors([
@@ -50,21 +65,77 @@ class SocialAuthController extends Controller
         return Socialite::driver($provider)->redirect();
     }
 
+    /**
+     * GET /auth/google/mobile?redirect_uri=thecashfox://...[&code_challenge=...]
+     *
+     * Entry point for the mobile app (opened in an in-app browser). Guest-
+     * agnostic: a logged-in browser session doesn't matter here — we never
+     * log the browser in on the mobile path.
+     */
+    public function mobileRedirect(Request $request): RedirectResponse|Response
+    {
+        $redirectUri = $request->query('redirect_uri');
+
+        if (! MobileSocialLogin::isAllowedRedirectUri($redirectUri)) {
+            // Never redirect to an unvalidated URI.
+            return response('Invalid redirect_uri.', 400);
+        }
+
+        $challenge = $request->query('code_challenge');
+        if ($challenge !== null) {
+            $method = $request->query('code_challenge_method', 'S256');
+            if (! MobileSocialLogin::isValidChallenge($challenge) || $method !== 'S256') {
+                return redirect()->away(MobileSocialLogin::appendQuery($redirectUri, ['error' => 'failed']));
+            }
+        }
+
+        if (empty(config('services.google.client_id'))) {
+            return redirect()->away(MobileSocialLogin::appendQuery($redirectUri, ['error' => 'failed']));
+        }
+
+        $request->session()->put(MobileSocialLogin::SESSION_KEY, [
+            'mobile'         => 1,
+            'redirect_uri'   => $redirectUri,
+            'code_challenge' => $challenge,
+        ]);
+
+        return Socialite::driver('google')->redirect();
+    }
+
     public function callback(Request $request, string $provider): RedirectResponse
     {
         abort_unless(in_array($provider, self::SUPPORTED_PROVIDERS, true), 404);
 
+        // Mobile flow? Pull (and forget) the flag up-front so every exit path
+        // below goes back to the app, and it can never be replayed.
+        $mobile = $request->session()->pull(MobileSocialLogin::SESSION_KEY);
+        if (! is_array($mobile) || empty($mobile['mobile'])
+            || ! MobileSocialLogin::isAllowedRedirectUri($mobile['redirect_uri'] ?? null)) {
+            $mobile = null;
+        }
+
+        // Web flow keeps the old `guest` middleware behaviour (the route now
+        // sits outside the guest group so the mobile path works even when the
+        // in-app browser already has a web session).
+        if (! $mobile && Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+
         $rateKey = 'social-callback:' . $request->ip();
         if (RateLimiter::tooManyAttempts($rateKey, 10)) {
-            return redirect()->route('login')->withErrors([
-                'social' => 'Too many sign-in attempts. Please wait a minute and try again.',
-            ]);
+            return $mobile
+                ? $this->mobileError($mobile, 'failed')
+                : redirect()->route('login')->withErrors([
+                    'social' => 'Too many sign-in attempts. Please wait a minute and try again.',
+                ]);
         }
         RateLimiter::hit($rateKey, 60);
 
         // Handle user-cancel / provider error gracefully.
         if ($request->has('error')) {
-            return redirect()->route('login')->with('status', 'Sign-in was cancelled.');
+            return $mobile
+                ? $this->mobileError($mobile, 'cancelled')
+                : redirect()->route('login')->with('status', 'Sign-in was cancelled.');
         }
 
         try {
@@ -72,49 +143,44 @@ class SocialAuthController extends Controller
         } catch (\Throwable $e) {
             Log::warning('Social OAuth callback failed', [
                 'provider' => $provider,
+                'mobile'   => (bool) $mobile,
                 'ip'       => $request->ip(),
                 'message'  => $e->getMessage(),
             ]);
-            return redirect()->route('login')->withErrors([
-                'social' => 'We couldn\'t complete sign-in with ' . ucfirst($provider) . '. Please try again or use email.',
-            ]);
+
+            return $mobile
+                ? $this->mobileError($mobile, 'failed')
+                : redirect()->route('login')->withErrors([
+                    'social' => 'We couldn\'t complete sign-in with ' . ucfirst($provider) . '. Please try again or use email.',
+                ]);
         }
 
         $email = $social->getEmail();
         if (! $email) {
-            return redirect()->route('login')->withErrors([
-                'social' => ucfirst($provider) . ' didn\'t share an email address with us. Please sign up with your email.',
-            ]);
+            return $mobile
+                ? $this->mobileError($mobile, 'failed')
+                : redirect()->route('login')->withErrors([
+                    'social' => ucfirst($provider) . ' didn\'t share an email address with us. Please sign up with your email.',
+                ]);
         }
 
-        $user = User::where('email', $email)->first();
+        $user = $this->accounts->resolveGoogleUser((string) $social->getId(), $email, $social->getName());
 
-        if ($user) {
-            // Existing user — log in, stamp provider columns the first time.
-            if (! $user->provider_id && ! $user->provider) {
-                $user->provider    = $provider;
-                $user->provider_id = $social->getId();
-                $user->save();
-            }
-        } else {
-            // New user — create with verified email.
-            $user = new User();
-            $user->name              = $social->getName() ?: trim(explode('@', $email)[0]);
-            $user->email             = $email;
-            $user->password          = bcrypt(bin2hex(random_bytes(16))); // unusable until they reset
-            $user->email_verified_at = now();
-            $user->save();
+        if ($mobile) {
+            // Don't log the browser in — hand the app a one-time code instead.
+            $code = $this->mobileLogin->issueCode($user->id, $mobile['code_challenge'] ?? null);
 
-            // plan + provider are NOT fillable; set explicitly.
-            $user->plan        = 'free';
-            $user->provider    = $provider;
-            $user->provider_id = $social->getId();
-            $user->save();
+            return redirect()->away(MobileSocialLogin::appendQuery($mobile['redirect_uri'], ['code' => $code]));
         }
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));
+    }
+
+    private function mobileError(array $mobile, string $error): RedirectResponse
+    {
+        return redirect()->away(MobileSocialLogin::appendQuery($mobile['redirect_uri'], ['error' => $error]));
     }
 }

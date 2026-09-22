@@ -51,6 +51,17 @@ return [
         'redirect'      => env('GOOGLE_REDIRECT_URL'),
     ],
 
+    'apple' => [
+        // Sign in with Apple (native iOS): expected `aud` of identity tokens.
+        'bundle_id' => env('APPLE_BUNDLE_ID', 'com.thecashfox.app'),
+    ],
+
+    'mobile' => [
+        // Accept Expo Go deep links (exp://, exps://) and the Expo Go Apple
+        // audience (host.exp.Exponent). Dev only — keep false in production.
+        'allow_expo_go' => (bool) env('MOBILE_ALLOW_EXPO_GO', false),
+    ],
+
     'turnstile' => [
         'site_key'   => env('TURNSTILE_SITE_KEY'),
         'secret_key' => env('TURNSTILE_SECRET_KEY'),

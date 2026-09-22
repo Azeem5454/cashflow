@@ -78,10 +78,21 @@ Route::middleware('guest')->group(function () {
     Route::get('/auth/{provider}/redirect',  [\App\Http\Controllers\Auth\SocialAuthController::class, 'redirect'])
         ->whereIn('provider', ['google'])
         ->name('social.redirect');
-    Route::get('/auth/{provider}/callback',  [\App\Http\Controllers\Auth\SocialAuthController::class, 'callback'])
-        ->whereIn('provider', ['google'])
-        ->name('social.callback');
 });
+
+// The callback is shared by the web and mobile flows, so it sits OUTSIDE the
+// guest group (an in-app browser may already hold a web session). The web
+// path re-applies the guest redirect inside the controller.
+Route::get('/auth/{provider}/callback',  [\App\Http\Controllers\Auth\SocialAuthController::class, 'callback'])
+    ->whereIn('provider', ['google'])
+    ->name('social.callback');
+
+// Mobile app entry point for Google sign-in (guest-agnostic). Validates the
+// deep-link redirect_uri, then runs the same Google flow; the callback hands
+// the app a one-time code redeemable at POST /api/v1/auth/social/exchange.
+Route::get('/auth/google/mobile', [\App\Http\Controllers\Auth\SocialAuthController::class, 'mobileRedirect'])
+    ->middleware('throttle:20,1')
+    ->name('social.mobile');
 
 
 Route::get('/dashboard', \App\Livewire\Dashboard::class)

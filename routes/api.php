@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\EntryController;
 use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\SocialAuthController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +29,13 @@ Route::prefix('v1')->group(function () {
 
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])
         ->middleware('throttle:5,1');
+
+    // Mobile social sign-in (public; same response shape as auth/login)
+    Route::post('auth/social/exchange', [SocialAuthController::class, 'exchange'])
+        ->middleware('throttle:10,1');
+
+    Route::post('auth/apple', [SocialAuthController::class, 'apple'])
+        ->middleware('throttle:10,1');
 
     // ── Protected (auth:sanctum) ────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
