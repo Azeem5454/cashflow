@@ -526,13 +526,13 @@
                 The Free plan includes <strong class="dark:text-white text-gray-900">1 business</strong>.
                 Upgrade to Pro to manage unlimited businesses, team members, and more.
             </p>
-            <p class="text-xs dark:text-slate-500 text-gray-400 mb-7">Just $5/month — cancel anytime.</p>
+            <p class="text-xs dark:text-slate-500 text-gray-400 mb-7">Just {{ \App\Support\Pricing::proMonthly() }}/month — cancel anytime.</p>
             <div class="flex flex-col gap-3">
                 <a href="{{ route('billing') }}" wire:navigate
                    class="inline-flex items-center justify-center gap-2 w-full px-6 py-3
                           bg-amber-400 hover:brightness-105 text-gray-900 shadow-lg shadow-amber-400/25 hover:shadow-xl
                           text-sm font-bold rounded-xl transition-all duration-200">
-                    Upgrade to Pro — $5/mo
+                    Upgrade to Pro — {{ \App\Support\Pricing::proMonthly() }}/mo
                 </a>
                 <button type="button" @click="show = false"
                         class="w-full px-4 py-2.5 text-sm font-medium rounded-xl dark:text-slate-400 text-gray-500

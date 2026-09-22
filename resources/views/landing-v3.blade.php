@@ -25,7 +25,16 @@
         } catch (\Throwable $e) {
             // keep default og image
         }
-    @endphp
+        // FAQ — single source for the on-page accordion AND the FAQPage JSON-LD.
+    $faqs = [
+                ['Do I need to know accounting to use this?','No. ' . config('app.name', 'TheCashFox') . ' is built for business owners, not accountants. You just record what happened — "received $500 from client" or "paid $120 for supplies". The balance is always worked out for you. No formulas, no jargon. Works in any currency.'],
+                ['Is my data safe?','Yes. Your data is stored securely, sent over encrypted connections, and never sold or shared. Only you and the people you explicitly invite can see your books.'],
+                ['Can I use this for multiple businesses?','Yes. Pro plan gives you unlimited businesses on one dashboard. Free plan supports one business. Switch between them with one click — no logging out, no separate accounts.'],
+                ['What if I want to cancel?','Cancel any time from your billing settings — no questions asked, no tricks, no guilt emails. Your data stays accessible on the free plan so you never lose your history.'],
+                ['Does it work on my phone?','Yes. The app works in any mobile browser — adding an entry takes about 10 seconds on a phone. A dedicated mobile app is on the roadmap.'],
+                ['How does the photo receipt feature work?','Take a photo of any receipt inside the app, or upload one from your phone. The app reads the amount, what it was for, and the date — then fills the entry form for you automatically. You just check it and tap Save. No typing needed.'],
+            ];
+@endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $ogTitle }}</title>
@@ -66,7 +75,9 @@
         "operatingSystem": "Web",
         "offers": [
             {"@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free"},
-            {"@type": "Offer", "price": "5", "priceCurrency": "USD", "name": "Pro (monthly)"}
+            {"@type": "Offer", "price": @endverbatim
+@json((string) \App\Support\Pricing::proMonthlyAmount())
+@verbatim, "priceCurrency": "USD", "name": "Pro (monthly)"}
         ]
     }@endverbatim
     </script>
@@ -79,20 +90,15 @@
         "logo": @json($ogImage)@verbatim
     }@endverbatim
     </script>
-    <script type="application/ld+json">
-    @verbatim{
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": [
-            {"@type": "Question", "name": "Do I need to know accounting to use this?", "acceptedAnswer": {"@type": "Answer", "text": "No. @endverbatim{{ $appName }}@verbatim is built for business owners, not accountants. You just record what happened and the balance updates automatically."}},
-            {"@type": "Question", "name": "Is my data safe?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Your data is stored securely, backed up automatically, and never shared with anyone. Only you and the people you explicitly invite can see your books."}},
-            {"@type": "Question", "name": "Can I use this for multiple businesses?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Pro plan gives you unlimited businesses on one dashboard. Free plan supports one business."}},
-            {"@type": "Question", "name": "What if I want to cancel?", "acceptedAnswer": {"@type": "Answer", "text": "Cancel any time from your billing settings. Your data stays accessible on the free plan so you never lose your history."}},
-            {"@type": "Question", "name": "Does it work on my phone?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The app works in any mobile browser — adding an entry takes about 10 seconds on a phone."}},
-            {"@type": "Question", "name": "How does the photo receipt feature work?", "acceptedAnswer": {"@type": "Answer", "text": "Take a photo of any receipt inside the app. The app reads the amount, what it was for, and the date, then fills the entry form for you."}}
-        ]
-    }@endverbatim
-    </script>
+    <script type="application/ld+json">{!! json_encode([
+        '@context'   => 'https://schema.org',
+        '@type'      => 'FAQPage',
+        'mainEntity' => collect($faqs)->map(fn ($f) => [
+            '@type'          => 'Question',
+            'name'           => $f[0],
+            'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f[1]],
+        ])->values()->all(),
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}</script>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
@@ -748,7 +754,7 @@
             <div class="sr d1 rounded-2xl p-8 text-left relative overflow-hidden" style="background:#0a1428;border:1px solid rgba(59,130,246,0.5);box-shadow:0 0 60px rgba(26,86,219,0.15)">
                 <p class="text-sm font-semibold mb-2" style="color:var(--accent)">Pro</p>
                 <div class="mb-0">
-                    <span class="fm font-bold" style="color:#f8fafc;font-size:2.5rem">$5</span>
+                    <span class="fm font-bold" style="color:#f8fafc;font-size:2.5rem">{{ \App\Support\Pricing::proMonthly() }}</span>
                     <span class="text-sm" style="color:rgba(248,250,252,0.55)">/month</span>
                 </div>
                 <p class="text-xs mb-7 mt-1" style="color:rgba(248,250,252,0.55)">Billed monthly · Cancel any time</p>
@@ -790,14 +796,7 @@
             </h2>
         </div>
         <div class="space-y-3">
-            @foreach([
-                ['Do I need to know accounting to use this?','No. ' . config('app.name', 'TheCashFox') . ' is built for business owners, not accountants. You just record what happened — "received $500 from client" or "paid $120 for supplies". The balance is always worked out for you. No formulas, no jargon. Works in any currency.'],
-                ['Is my data safe?','Yes. Your data is stored securely, backed up automatically, and never shared with anyone. Only you and the people you explicitly invite can see your books.'],
-                ['Can I use this for multiple businesses?','Yes. Pro plan gives you unlimited businesses on one dashboard. Free plan supports one business. Switch between them with one click — no logging out, no separate accounts.'],
-                ['What if I want to cancel?','Cancel any time from your billing settings — no questions asked, no tricks, no guilt emails. Your data stays accessible on the free plan so you never lose your history.'],
-                ['Does it work on my phone?','Yes. The app works in any mobile browser — adding an entry takes about 10 seconds on a phone. A dedicated mobile app is on the roadmap.'],
-                ['How does the photo receipt feature work?','Take a photo of any receipt inside the app, or upload one from your phone. The app reads the amount, what it was for, and the date — then fills the entry form for you automatically. You just check it and tap Save. No typing needed.'],
-            ] as $idx=>[$q,$a])
+            @foreach($faqs as $idx=>[$q,$a])
             <div class="sr d{{ min($idx+1,5) }} rounded-2xl overflow-hidden" style="background:#0d1526;border:1px solid rgba(255,255,255,0.07)" x-data="{open:false}">
                 <button @click="open=!open" class="w-full flex items-center justify-between px-6 py-5 text-left"
                         style="background:transparent;transition:background 0.15s"
@@ -850,7 +849,7 @@
                 I have an account
             </a>
         </div>
-        <p class="sr d4 mt-5 text-xs" style="color:rgba(248,250,252,0.55)">No credit card required · Free plan available · Pro at $5/month</p>
+        <p class="sr d4 mt-5 text-xs" style="color:rgba(248,250,252,0.55)">No credit card required · Free plan available · Pro at {{ \App\Support\Pricing::proMonthly() }}/month</p>
     </div>
 </section>
 

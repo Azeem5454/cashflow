@@ -6,7 +6,7 @@
         @if($intendedPlan === 'pro')
             <div class="inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full text-xs font-semibold"
                  style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)">
-                ⭐ Pro plan · $5/month
+                Pro plan · {{ \App\Support\Pricing::proMonthly() }}/month
             </div>
             <h1 class="guest-display font-extrabold text-3xl text-slate-900 dark:text-white mb-2">Start with Pro</h1>
             <p class="guest-body text-sm text-slate-500 dark:text-slate-400">Create your account — you'll go to checkout right after.</p>

@@ -36,7 +36,7 @@
         default        => [],
     };
 
-    $ctaLabel = $isTeam ? 'View Plans' : 'Upgrade to Pro — $5/mo';
+    $ctaLabel = $isTeam ? 'View Plans' : 'Upgrade to Pro — ' . \App\Support\Pricing::proMonthly() . '/mo';
 
     // Non-owners (editors/viewers) can't upgrade someone else's business:
     // no billing link, no price — just who to ask.
@@ -162,7 +162,7 @@
             @endif
 
             @if($isOwner)
-            <p class="text-xs dark:text-slate-500 text-gray-400 mb-7">Just $5/month — cancel anytime.</p>
+            <p class="text-xs dark:text-slate-500 text-gray-400 mb-7">Just {{ \App\Support\Pricing::proMonthly() }}/month — cancel anytime.</p>
             @endif
 
             {{-- Feature list --}}
