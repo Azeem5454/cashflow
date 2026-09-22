@@ -25,7 +25,11 @@ class BusinessResource extends JsonResource
                 ? BusinessLock::isLocked($request->user(), $this->resource, $role)
                 : false,
             'booksCount'     => $this->whenCounted('books'),
-            'membersCount'   => $this->whenCounted('members'),
+            'membersCount'   => (int) ($this->members_count ?? $this->members()->count()),
+            // Team-size limit for the owner's plan (owner included); null = unlimited.
+            'memberLimit'    => $this->memberLimit(),
+            'pendingInvitesCount' => (int) ($this->pending_invitations_count
+                ?? $this->invitations()->whereNull('accepted_at')->where('expires_at', '>', now())->count()),
             'createdAt'      => $this->created_at->toIso8601String(),
         ];
     }

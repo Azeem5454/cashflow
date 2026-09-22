@@ -233,6 +233,10 @@ class EntryController extends Controller
      */
     public function scan(Request $request, string $bookId): JsonResponse
     {
+        // Upload + Claude vision + currency conversion can exceed PHP's default
+        // 30s limit on slow mobile networks; the app waits up to 90s.
+        set_time_limit(90);
+
         $book = $this->findAuthorizedBook($request, $bookId, requireEditor: true);
 
         // Pro gate

@@ -51,6 +51,12 @@
         </div>
     </div>
 
+    @php
+        $authUser      = auth()->user();
+        $providerLabel = $authUser->providerLabel();
+        $hasPassword   = (bool) ($authUser->has_password ?? true);
+    @endphp
+
     {{-- ===== CONTENT ===== --}}
     <div class="px-6 lg:px-8 py-7 max-w-2xl mx-auto space-y-6">
 
@@ -75,6 +81,18 @@
                             <p class="text-sm dark:text-slate-400 text-gray-500 truncate mt-0.5">
                                 {{ auth()->user()->email }}
                             </p>
+                            @if($providerLabel)
+                                <span class="inline-flex items-center gap-1.5 mt-2 mr-1 text-xs px-2 py-0.5 rounded font-medium
+                                             dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border border-gray-200
+                                             dark:text-slate-300 text-gray-600">
+                                    @if($authUser->authProvider() === 'google')
+                                        <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+                                    @else
+                                        <svg class="w-3.5 h-3.5 flex-shrink-0 dark:text-white text-gray-900" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 1.43c0 1.14-.42 2.2-1.12 2.98-.84.93-2.2 1.65-3.3 1.56-.14-1.1.41-2.26 1.1-3.02.77-.85 2.1-1.5 3.32-1.52zM20.6 17.27c-.55 1.27-.81 1.84-1.52 2.96-.99 1.57-2.38 3.52-4.1 3.53-1.53.02-1.93-.99-4-.98-2.08.01-2.51 1-4.04.98-1.72-.02-3.04-1.78-4.03-3.35C.13 16.06-.16 10.97 1.6 8.27c1.25-1.92 3.22-3.04 5.07-3.04 1.89 0 3.07 1.03 4.63 1.03 1.51 0 2.43-1.04 4.61-1.04 1.65 0 3.39.9 4.63 2.44-4.07 2.23-3.41 8.04.06 9.61z"/></svg>
+                                    @endif
+                                    Signed in with {{ $providerLabel }}
+                                </span>
+                            @endif
                             <span class="inline-flex items-center gap-1 mt-2 text-xs px-2 py-0.5 rounded font-semibold
                                          {{ auth()->user()->isPro()
                                              ? 'bg-primary/15 text-primary dark:text-blue-light'
@@ -118,18 +136,44 @@
                             <label class="block text-xs font-semibold dark:text-slate-400 text-gray-500 uppercase tracking-wider mb-2">
                                 Email Address
                             </label>
-                            <input
-                                type="email"
-                                wire:model="email"
-                                placeholder="you@example.com"
-                                class="w-full px-4 py-2.5 text-sm rounded-xl
-                                       dark:bg-navy bg-gray-50
-                                       dark:border-slate-700 border-gray-200 border
-                                       dark:text-white text-gray-900
-                                       dark:placeholder-slate-600 placeholder-gray-400
-                                       focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary
-                                       transition-all duration-150"
-                            >
+                            @if($providerLabel)
+                                <div class="relative">
+                                    <input
+                                        type="email"
+                                        value="{{ $authUser->email }}"
+                                        disabled
+                                        aria-describedby="email-managed-help"
+                                        class="w-full px-4 pr-11 py-2.5 text-sm rounded-xl
+                                               dark:bg-slate-800 bg-gray-100
+                                               dark:border-slate-700 border-gray-200 border
+                                               dark:text-slate-400 text-gray-500
+                                               cursor-not-allowed"
+                                    >
+                                    <span class="absolute inset-y-0 right-0 flex items-center justify-center w-11 pr-1">
+                                        @if($authUser->authProvider() === 'google')
+                                            <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+                                        @else
+                                            <svg class="w-4 h-4 flex-shrink-0 dark:text-white text-gray-900" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 1.43c0 1.14-.42 2.2-1.12 2.98-.84.93-2.2 1.65-3.3 1.56-.14-1.1.41-2.26 1.1-3.02.77-.85 2.1-1.5 3.32-1.52zM20.6 17.27c-.55 1.27-.81 1.84-1.52 2.96-.99 1.57-2.38 3.52-4.1 3.53-1.53.02-1.93-.99-4-.98-2.08.01-2.51 1-4.04.98-1.72-.02-3.04-1.78-4.03-3.35C.13 16.06-.16 10.97 1.6 8.27c1.25-1.92 3.22-3.04 5.07-3.04 1.89 0 3.07 1.03 4.63 1.03 1.51 0 2.43-1.04 4.61-1.04 1.65 0 3.39.9 4.63 2.44-4.07 2.23-3.41 8.04.06 9.61z"/></svg>
+                                        @endif
+                                    </span>
+                                </div>
+                                <p id="email-managed-help" class="mt-1.5 text-xs dark:text-slate-500 text-gray-400">
+                                    Managed by your {{ $providerLabel }} account.
+                                </p>
+                            @else
+                                <input
+                                    type="email"
+                                    wire:model="email"
+                                    placeholder="you@example.com"
+                                    class="w-full px-4 py-2.5 text-sm rounded-xl
+                                           dark:bg-navy bg-gray-50
+                                           dark:border-slate-700 border-gray-200 border
+                                           dark:text-white text-gray-900
+                                           dark:placeholder-slate-600 placeholder-gray-400
+                                           focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary
+                                           transition-all duration-150"
+                                >
+                            @endif
                             @error('email')
                                 <p class="mt-1.5 text-xs text-red-400">{{ $message }}</p>
                             @enderror
@@ -169,6 +213,65 @@
             {{-- ===== PASSWORD TAB ===== --}}
             <div x-show="tab === 'password'" x-cloak>
 
+                @if(! $hasPassword)
+                {{-- Social-created account: no known password yet --}}
+                <div class="dark:bg-[#1e293b] bg-white dark:border dark:border-slate-700/60 border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div class="px-6 py-4 dark:border-b dark:border-slate-700/40 border-b border-gray-100 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 text-primary dark:text-blue-light" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="font-heading font-bold text-base dark:text-white text-gray-900">Set a Password</h2>
+                            <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">Optional — {{ $providerLabel ?? 'social' }} sign-in keeps working either way</p>
+                        </div>
+                    </div>
+
+                    <div class="p-6 space-y-4">
+                        <p class="text-sm dark:text-slate-300 text-gray-600 leading-relaxed">
+                            You sign in with {{ $providerLabel ?? 'a social account' }}. Set a password to also sign in with your email.
+                            We'll send a secure link to <span class="font-medium dark:text-white text-gray-900">{{ $authUser->email }}</span>.
+                        </p>
+
+                        @if($setPasswordStatus)
+                            <div class="flex items-start gap-2.5 px-4 py-3 rounded-xl text-sm
+                                        bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20
+                                        text-green-700 dark:text-green-400">
+                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"/>
+                                </svg>
+                                <span>{{ $setPasswordStatus }}</span>
+                            </div>
+                        @endif
+
+                        @error('setPassword')
+                            <p class="text-xs text-red-400">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="px-6 py-4 dark:border-t dark:border-slate-700/40 border-t border-gray-100 flex justify-end">
+                        <button
+                            wire:click="sendSetPasswordLink"
+                            wire:loading.attr="disabled"
+                            wire:target="sendSetPasswordLink"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold
+                                   bg-primary hover:bg-accent text-white rounded-xl
+                                   transition-all duration-200 shadow-md shadow-primary/25
+                                   disabled:opacity-70 disabled:cursor-wait">
+                            <svg wire:loading.remove wire:target="sendSetPasswordLink" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+                            </svg>
+                            <svg wire:loading wire:target="sendSetPasswordLink" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            <span wire:loading.remove wire:target="sendSetPasswordLink">{{ $setPasswordStatus ? 'Resend link' : 'Email me a link' }}</span>
+                            <span wire:loading wire:target="sendSetPasswordLink">Sending…</span>
+                        </button>
+                    </div>
+                </div>
+                @else
                 <div class="dark:bg-[#1e293b] bg-white dark:border dark:border-slate-700/60 border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
 
                     {{-- Header --}}
@@ -313,6 +416,7 @@
                         </button>
                     </div>
                 </div>
+                @endif
 
             </div>
 

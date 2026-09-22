@@ -14,6 +14,9 @@ class Business extends Model
 {
     use HasFactory, HasUuids;
 
+    /** Free plan: total members allowed, owner included. Pro is unlimited. */
+    public const FREE_MEMBER_LIMIT = 2;
+
     protected $fillable = [
         'owner_id',
         'name',
@@ -76,6 +79,12 @@ class Business extends Model
     public function isPro(): bool
     {
         return $this->owner->isPro();
+    }
+
+    /** Max members (owner included) for this business's plan, or null when unlimited. */
+    public function memberLimit(): ?int
+    {
+        return $this->isPro() ? null : self::FREE_MEMBER_LIMIT;
     }
 
     public function userRole(User $user): ?string

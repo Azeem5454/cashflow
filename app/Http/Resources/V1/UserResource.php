@@ -16,6 +16,10 @@ class UserResource extends JsonResource
             'plan'          => $this->plan,
             'isPro'         => $this->isPro(),
             'emailVerified' => ! is_null($this->email_verified_at),
+            // 'google' | 'apple' | null — when set, the email is managed by the provider.
+            'authProvider'  => $this->authProvider(),
+            // false for social-created accounts that never set a password.
+            'hasPassword'   => (bool) ($this->has_password ?? true),
             'createdAt'     => $this->created_at->toIso8601String(),
         ];
     }

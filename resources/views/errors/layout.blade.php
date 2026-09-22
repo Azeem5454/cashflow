@@ -3,7 +3,7 @@
 <head>
     @php
         $faviconSrc = \App\Models\UploadedAsset::has('favicon')
-            ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon')
+            ? url('/brand-asset/favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon')
             : asset('favicon.png');
     @endphp
     <meta charset="utf-8">
@@ -305,7 +305,7 @@
 
     <a href="{{ url('/') }}" class="brand-strip">
         @if(\App\Models\UploadedAsset::has('logo-dark'))
-            <img src="{{ route('brand-asset', 'logo-dark') }}?v={{ \App\Models\UploadedAsset::cacheBuster('logo-dark') }}" alt="{{ config('app.name', 'TheCashFox') }}">
+            <img src="{{ url('/brand-asset/logo-dark') }}?v={{ \App\Models\UploadedAsset::cacheBuster('logo-dark') }}" alt="{{ config('app.name', 'TheCashFox') }}">
         @else
             <div class="brand-mark">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>

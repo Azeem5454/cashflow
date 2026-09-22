@@ -198,16 +198,10 @@ class BusinessController extends Controller
         $this->ensureOwner($request, $business);
 
         // Free plan limit: 2 members total
-        if (! $business->isPro() && $business->members()->count() >= 2) {
+        if (($limit = $business->memberLimit()) !== null && $business->members()->count() >= $limit) {
             return response()->json([
                 'message' => 'The Free plan includes up to 2 team members. More are available on the Pro plan.',
             ], 403);
-        }
-
-        // Rate limit: 5 invites/hour per user
-        $key = 'invite:' . $request->user()->id;
-        if (! \Illuminate\Support\Facades\RateLimiter::attempt($key, 5, fn () => true, 3600)) {
-            return response()->json(['message' => 'Too many invitations. Try again later.'], 429);
         }
 
         $validated = $request->validate([
@@ -215,31 +209,34 @@ class BusinessController extends Controller
             'role'  => ['required', 'in:editor,viewer'],
         ]);
 
-        // Don't invite existing members
-        $existing = $business->members()->where('users.email', $validated['email'])->exists();
-        if ($existing) {
-            return response()->json(['message' => 'That email is already a member.'], 422);
+        $inviter = app(\App\Services\TeamInviter::class);
+        if ($inviter->isMember($business, $validated['email'])) {
+            return response()->json(['message' => 'This person is already a team member.'], 422);
         }
 
-        $invitation = \App\Models\Invitation::create([
-            'business_id' => $business->id,
-            'email'       => $validated['email'],
-            'role'        => $validated['role'],
-        ]);
+        // Rate limit: 5 invites/hour per user (counted only for valid invites)
+        $key = 'invite:' . $request->user()->id;
+        if (! \Illuminate\Support\Facades\RateLimiter::attempt($key, 5, fn () => true, 3600)) {
+            return response()->json(['message' => 'Too many invitations. Try again later.'], 429);
+        }
+
+        [$invitation, $refreshed] = $inviter->invite($business, $validated['email'], $validated['role']);
 
         // Send the invitation email
         try {
-            \Illuminate\Support\Facades\Mail::to($validated['email'])
+            \Illuminate\Support\Facades\Mail::to($invitation->email)
                 ->queue(new \App\Mail\TeamInvitation($invitation));
         } catch (\Throwable) {
             // Mail failure shouldn't block the API response
         }
 
         return response()->json([
-            'id'    => $invitation->id,
-            'email' => $invitation->email,
-            'role'  => $invitation->role,
-        ], 201);
+            'id'        => $invitation->id,
+            'email'     => $invitation->email,
+            'role'      => $invitation->role,
+            'resent'    => $refreshed,
+            'message'   => $refreshed ? 'Invitation re-sent.' : 'Invitation sent.',
+        ], $refreshed ? 200 : 201);
     }
 
     /**

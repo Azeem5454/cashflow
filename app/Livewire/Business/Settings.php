@@ -53,41 +53,35 @@ class Settings extends Component
     {
         $this->inviteSent = false;
 
-        // Rate limit: max 5 invitations per hour per user
+        $this->validate([
+            'inviteEmail' => 'required|email|max:255',
+            'inviteRole'  => 'required|in:editor,viewer',
+        ]);
+
+        // Free plan: max Business::FREE_MEMBER_LIMIT members (owner included)
+        if (! auth()->user()->isPro() && $this->business->members()->count() >= Business::FREE_MEMBER_LIMIT) {
+            $this->upgradeModalFeature = 'team';
+            return;
+        }
+
+        $inviter = app(\App\Services\TeamInviter::class);
+
+        // Already a member? (case-insensitive — also stops inviting yourself)
+        if ($inviter->isMember($this->business, $this->inviteEmail)) {
+            $this->addError('inviteEmail', 'This person is already a team member.');
+            return;
+        }
+
+        // Rate limit: max 5 invitations per hour per user (valid invites only)
         $key = 'invite:' . auth()->id();
         if (!\Illuminate\Support\Facades\RateLimiter::attempt($key, 5, fn () => true, 3600)) {
             $this->addError('inviteEmail', 'Too many invitations sent. Please wait before sending more.');
             return;
         }
 
-        $this->validate([
-            'inviteEmail' => 'required|email|max:255',
-            'inviteRole'  => 'required|in:editor,viewer',
-        ]);
+        [$invitation] = $inviter->invite($this->business, $this->inviteEmail, $this->inviteRole, 'inviteEmail');
 
-        // Free plan: max 2 members
-        if (! auth()->user()->isPro() && $this->business->members()->count() >= 2) {
-            $this->upgradeModalFeature = 'team';
-            return;
-        }
-
-        // Already a member?
-        if ($this->business->members()->where('users.email', $this->inviteEmail)->exists()) {
-            $this->addError('inviteEmail', 'This person is already a team member.');
-            return;
-        }
-
-        $invitation = $this->business->invitations()->updateOrCreate(
-            ['email' => $this->inviteEmail],
-            [
-                'role'        => $this->inviteRole,
-                'token'       => Str::random(64),
-                'accepted_at' => null,
-                'expires_at'  => now()->addHours(72),
-            ]
-        );
-
-        Mail::to($this->inviteEmail)->send(new TeamInvitation($invitation));
+        Mail::to($invitation->email)->send(new TeamInvitation($invitation));
 
         $this->inviteEmail = '';
         $this->inviteSent  = true;
@@ -142,8 +136,9 @@ class Settings extends Component
             ->get();
 
         return view('livewire.business.settings', [
-            'members' => $members,
-            'pending' => $pending,
+            'members'     => $members,
+            'pending'     => $pending,
+            'memberLimit' => auth()->user()->isPro() ? null : Business::FREE_MEMBER_LIMIT,
         ]);
     }
 }

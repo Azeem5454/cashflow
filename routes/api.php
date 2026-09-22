@@ -42,6 +42,10 @@ Route::prefix('v1')->group(function () {
 
         // Auth + Profile
         Route::post('auth/logout',         [AuthController::class, 'logout']);
+        // Biometric (Face ID / fingerprint) sign-in — see AuthController for the contract
+        Route::post  ('auth/biometric-token', [AuthController::class, 'createBiometricToken'])->middleware('throttle:10,1');
+        Route::delete('auth/biometric-token', [AuthController::class, 'deleteBiometricToken'])->middleware('throttle:10,1');
+        Route::post  ('auth/biometric-login', [AuthController::class, 'biometricLogin'])->middleware('throttle:10,1');
         Route::post('auth/email/resend',   [AuthController::class, 'resendVerification']);
         Route::get ('user',                [AuthController::class, 'user']);
         Route::put ('profile',             [AuthController::class, 'updateProfile']);

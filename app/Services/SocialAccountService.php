@@ -86,6 +86,9 @@ class SocialAccountService
         $user->plan        = 'free';
         $user->provider    = $provider;
         $user->provider_id = $providerId;
+        // The random password above is unknown to the user — they can set a
+        // real one via the reset-link flow, which flips this back to true.
+        $user->has_password = false;
         $user->save();
 
         return $user;

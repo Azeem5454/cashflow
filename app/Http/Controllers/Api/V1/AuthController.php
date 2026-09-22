@@ -88,6 +88,80 @@ class AuthController extends Controller
     }
 
     /**
+     * Name prefix of the per-device, biometric-gated sign-in tokens.
+     * The full name is `mobile-biometric:{deviceId}`.
+     */
+    public const BIOMETRIC_TOKEN_PREFIX = 'mobile-biometric:';
+
+    /**
+     * POST /api/v1/auth/biometric-token — mint a long-lived token the app keeps
+     * in a Face ID / fingerprint-gated keychain item, so the user can sign back
+     * in with biometrics after signing out. One token per user per device:
+     * any previous token with the same device name is replaced.
+     *
+     * Body: { deviceId?: string (≤100) } → 201 { token }
+     */
+    public function createBiometricToken(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'deviceId' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9._\-]+$/'],
+        ]);
+
+        $user = $request->user();
+        if ($user->is_admin) {
+            return response()->json(['message' => 'Not available for this account.'], 403);
+        }
+
+        $name = self::BIOMETRIC_TOKEN_PREFIX . ($validated['deviceId'] ?? 'default');
+
+        $user->tokens()->where('name', $name)->delete();
+        $token = $user->createToken($name)->plainTextToken;
+
+        return response()->json(['token' => $token], 201);
+    }
+
+    /**
+     * DELETE /api/v1/auth/biometric-token — revoke this device's biometric token.
+     *
+     * Body: { deviceId?: string (≤100) } → 200 { message }
+     */
+    public function deleteBiometricToken(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'deviceId' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9._\-]+$/'],
+        ]);
+
+        $name = self::BIOMETRIC_TOKEN_PREFIX . ($validated['deviceId'] ?? 'default');
+        $request->user()->tokens()->where('name', $name)->delete();
+
+        return response()->json(['message' => 'Biometric sign-in removed.']);
+    }
+
+    /**
+     * POST /api/v1/auth/biometric-login — called WITH a biometric token as the
+     * bearer. Returns a fresh normal session token (same shape as auth/login),
+     * so signing out later revokes only that session and the biometric token
+     * keeps working. Any other token type gets 403.
+     */
+    public function biometricLogin(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $current = $user->currentAccessToken();
+        $name = is_object($current) && isset($current->name) ? (string) $current->name : '';
+
+        if (! str_starts_with($name, self::BIOMETRIC_TOKEN_PREFIX) || $user->is_admin) {
+            return response()->json(['message' => 'Biometric sign-in token required.'], 403);
+        }
+
+        $token = $user->createToken('mobile')->plainTextToken;
+
+        return response()->json([
+            'user'  => new UserResource($user),
+            'token' => $token,
+        ]);
+    }
+
+    /**
      * GET /api/v1/user
      */
     public function user(Request $request): UserResource
@@ -116,7 +190,7 @@ class AuthController extends Controller
     /**
      * PUT /api/v1/profile — update name / email
      */
-    public function updateProfile(Request $request): UserResource
+    public function updateProfile(Request $request): UserResource|JsonResponse
     {
         $user = $request->user();
 
@@ -124,6 +198,18 @@ class AuthController extends Controller
             'name'  => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
         ]);
+
+        // Social-linked accounts: the provider (Google / Apple) owns the email.
+        // Name changes are fine; an actual email change is refused.
+        if (isset($validated['email']) && $user->authProvider()) {
+            if (mb_strtolower($validated['email']) !== mb_strtolower($user->email)) {
+                return response()->json([
+                    'message' => 'Your email is managed by your ' . $user->providerLabel() . ' account.',
+                    'errors'  => ['email' => ['Your email is managed by your ' . $user->providerLabel() . ' account.']],
+                ], 422);
+            }
+            unset($validated['email']);
+        }
 
         $emailChanged = isset($validated['email']) && $validated['email'] !== $user->email;
 
@@ -145,6 +231,15 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        // Social-created accounts have no password they know. They set one via
+        // the emailed reset link (POST /auth/forgot-password), which proves
+        // mailbox ownership — never by setting one directly with a bearer token.
+        if (! $user->has_password) {
+            return response()->json([
+                'message' => "Use 'Set a password' — we'll email you a secure link.",
+            ], 422);
+        }
+
         $request->validate([
             'currentPassword' => ['required', 'string'],
             'password'        => ['required', 'confirmed', Password::defaults()],
@@ -156,9 +251,9 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user->update([
-            'password' => Hash::make($request->input('password')),
-        ]);
+        $user->password     = Hash::make($request->input('password'));
+        $user->has_password = true;
+        $user->save();
 
         // Revoke all OTHER tokens (keep current session alive)
         $currentTokenId = $request->user()->currentAccessToken()->id;
@@ -190,20 +285,37 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        $request->validate([
-            'password' => ['required', 'string'],
-        ]);
+        if ($user->has_password) {
+            $request->validate([
+                'password' => ['required', 'string'],
+            ]);
 
-        if (! Hash::check($request->input('password'), $user->password)) {
-            return response()->json(['message' => 'Password is incorrect.'], 422);
+            if (! Hash::check($request->input('password'), $user->password)) {
+                return response()->json(['message' => 'Password is incorrect.'], 422);
+            }
+        } else {
+            // Social-created account with no known password: confirm by typing
+            // the account email instead (same as the web Danger Zone).
+            $request->validate([
+                'confirmEmail' => ['required', 'string', 'max:255'],
+            ]);
+
+            if (mb_strtolower(trim($request->input('confirmEmail'))) !== mb_strtolower($user->email)) {
+                return response()->json(['message' => 'Email address does not match.'], 422);
+            }
         }
 
-        // Cancel any active subscription before deleting
+        // Stop billing before the account disappears — otherwise Stripe keeps
+        // charging a customer we no longer have a record of.
         if ($user->subscribed('default')) {
             try {
                 $user->subscription('default')->cancelNow();
-            } catch (\Throwable) {
-                // ignore
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json([
+                    'message' => 'We could not cancel your subscription. Please try again or contact support.',
+                ], 422);
             }
         }
 
