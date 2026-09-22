@@ -63,6 +63,45 @@
         </div>
     @endif
 
+    {{-- Last run failure (generation / validation / API) --}}
+    @if($lastError)
+        <div class="rounded-xl mb-5 overflow-hidden border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10">
+            <div class="px-5 py-4 flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-sm text-amber-900 dark:text-amber-200">Last autopilot run failed — nothing was published</p>
+                    <p class="text-xs text-amber-800 dark:text-amber-300 mt-1 font-mono break-all">{{ $lastError }}</p>
+                    <p class="text-xs text-amber-800 dark:text-amber-300 mt-1">The title stays in the queue and is retried on the next run. Full details are in Sentry.</p>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                        <button type="button" wire:click="clearRunError"
+                                class="px-3 py-1.5 text-xs font-medium rounded-lg text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors">
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Queue running low --}}
+    @if($enabled && $queueLow)
+        <div class="rounded-xl mb-5 overflow-hidden border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10">
+            <div class="px-5 py-4 flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-sm text-amber-900 dark:text-amber-200">
+                        @if($items->isEmpty())
+                            The queue is empty — no post will be published until you add titles.
+                        @else
+                            Only {{ $items->count() }} title{{ $items->count() === 1 ? '' : 's' }} left — that's {{ $items->count() }} more day{{ $items->count() === 1 ? '' : 's' }} of posts.
+                        @endif
+                    </p>
+                    <p class="text-xs text-amber-800 dark:text-amber-300 mt-1">Admins get one email a day while the queue is this low.</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Enable/disable + status --}}
     <div class="dark:bg-slate-900 bg-white dark:border-slate-800 border border-gray-200 rounded-xl p-5 mb-5 flex flex-wrap items-center gap-4">
         <div class="flex-1 min-w-0">
@@ -112,7 +151,7 @@
                 <h3 class="font-semibold text-sm dark:text-white text-gray-900">Product brief</h3>
                 <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">
                     Injected into every AI post so Claude references real features + pricing instead of inventing them.
-                    {{ \App\Helpers\Setting::get('blog_autopilot.product_brief') ? '· Custom brief active' : '· Using default' }}
+                    {{ $customBrief ? '· Custom brief active — check it still matches the product' : '· Using default' }}
                 </p>
             </div>
             <svg class="w-4 h-4 dark:text-slate-500 text-gray-400 transition-transform {{ $briefEditOpen ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
@@ -123,6 +162,7 @@
                 <p class="text-[11px] dark:text-slate-500 text-gray-500 mb-2.5 leading-relaxed">
                     Keep it factual. Features, pricing, tiers, voice rules. Markdown-ish plain text is fine — it goes straight into the prompt as reference material.
                     Claude is instructed to reference these facts only when relevant (max 2–3 per post), never to invent features beyond what's listed here.
+                    <code>{pro_price}</code> is replaced with the live Pro price. A short list of core facts (price, plan limits, recurring options, app availability) is always appended after this brief and wins on any conflict.
                 </p>
                 <textarea wire:model.defer="productBrief" rows="14"
                           class="w-full px-3 py-2.5 text-xs rounded-lg font-mono

@@ -27,7 +27,7 @@ class Autopilot extends Component
     public function mount(): void
     {
         $this->enabled      = AutopilotService::isEnabled();
-        $this->productBrief = AutopilotService::productBrief();
+        $this->productBrief = AutopilotService::rawProductBrief();
     }
 
     public function render()
@@ -63,6 +63,9 @@ class Autopilot extends Component
             'lastRun'            => $lastRun,
             'nextRunHint'        => $this->describeNextRun(),
             'lastImageError'     => Setting::get('blog_autopilot.last_image_error'),
+            'lastError'          => Setting::get('blog_autopilot.last_error'),
+            'queueLow'           => $items->count() <= AutopilotService::LOW_QUEUE_THRESHOLD,
+            'customBrief'        => AutopilotService::hasCustomProductBrief(),
             'missingImagesCount' => $missingImagesCount,
             'diag' => [
                 'gd'    => $gdLoaded,
@@ -81,7 +84,7 @@ class Autopilot extends Component
         Setting::set('blog_autopilot.enabled', $this->enabled ? '1' : '0');
 
         $this->dispatch('autopilot-toast',
-            message: $this->enabled ? 'Autopilot is ON — next run tomorrow at 09:00 UTC.' : 'Autopilot is paused.'
+            message: $this->enabled ? 'Autopilot is ON — ' . lcfirst($this->describeNextRun()) : 'Autopilot is paused.'
         );
     }
 
@@ -98,8 +101,12 @@ class Autopilot extends Component
         ]);
 
         $title = trim($this->newTitle);
-        if (BlogAutopilotQueueItem::where('title', $title)->exists()) {
+        if ($this->queuedTitleExists($title)) {
             $this->addError('newTitle', 'That title is already in the queue.');
+            return;
+        }
+        if (AutopilotService::titleExists($title)) {
+            $this->addError('newTitle', 'A post with that title is already published.');
             return;
         }
 
@@ -135,7 +142,7 @@ class Autopilot extends Component
                 $skipped++;
                 continue;
             }
-            if (BlogAutopilotQueueItem::where('title', $title)->exists()) {
+            if ($this->queuedTitleExists($title) || AutopilotService::titleExists($title)) {
                 $skipped++;
                 continue;
             }
@@ -150,7 +157,7 @@ class Autopilot extends Component
         $this->bulkTitles = '';
         $this->dispatch('autopilot-toast',
             message: "Added {$added} title" . ($added === 1 ? '' : 's') .
-                     ($skipped > 0 ? " · {$skipped} skipped (duplicate or invalid)" : '')
+                     ($skipped > 0 ? " · {$skipped} skipped (duplicate, already published, or invalid)" : '')
         );
     }
 
@@ -229,7 +236,10 @@ class Autopilot extends Component
         try {
             $post = app(AutopilotService::class)->run(force: true);
             $this->dispatch('autopilot-toast', message: 'Published: ' . $post->title);
+        } catch (\App\Exceptions\BlogAutopilotSkipped $e) {
+            $this->dispatch('autopilot-toast', message: 'Skipped: ' . $e->getMessage(), error: true);
         } catch (\Throwable $e) {
+            // Already reported + recorded as last_error by the service.
             $this->dispatch('autopilot-toast', message: 'Failed: ' . $e->getMessage(), error: true);
         } finally {
             $this->generating = false;
@@ -285,6 +295,17 @@ class Autopilot extends Component
                 error: true
             );
         }
+    }
+
+    public function clearRunError(): void
+    {
+        Setting::forget('blog_autopilot.last_error');
+        $this->dispatch('autopilot-toast', message: 'Error dismissed.');
+    }
+
+    private function queuedTitleExists(string $title): bool
+    {
+        return BlogAutopilotQueueItem::whereRaw('LOWER(title) = ?', [mb_strtolower($title)])->exists();
     }
 
     public function clearImageError(): void

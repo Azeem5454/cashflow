@@ -37,7 +37,7 @@
                     </div>
                     <span>·</span>
                 @endif
-                <span>{{ $post->published_at?->format('M j, Y') }}</span>
+                <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ $post->published_at?->format('M j, Y') }}</time>
                 <span>·</span>
                 <span>{{ $post->reading_time }} min read</span>
             </div>

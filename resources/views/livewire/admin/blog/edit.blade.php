@@ -191,9 +191,14 @@
                         <div class="w-9 h-5 rounded-full relative transition-colors dark:bg-slate-700 bg-gray-300 peer-checked:bg-primary">
                             <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
                         </div>
-                        <span class="text-sm dark:text-slate-300 text-gray-700">Featured on blog homepage</span>
+                        <span class="text-sm dark:text-slate-300 text-gray-700">Pin as blog hero</span>
                     </label>
-                    <p class="text-[11px] dark:text-slate-500 text-gray-400 -mt-2 pl-11">Only one post is featured at a time. Toggling this unfeatures the current pinned post.</p>
+                    <p class="text-[11px] dark:text-slate-500 text-gray-400 -mt-2 pl-11">
+                        By default the newest post is the hero on /blog. A pin overrides that for {{ \App\Models\BlogPost::FEATURE_PIN_DAYS }} days, then expires on its own. Only one post can be pinned.
+                        @if($post && $post->hasActivePin())
+                            Pinned until {{ $post->featured_at->copy()->addDays(\App\Models\BlogPost::FEATURE_PIN_DAYS)->format('M j, Y') }}.
+                        @endif
+                    </p>
                 </div>
             </div>
 

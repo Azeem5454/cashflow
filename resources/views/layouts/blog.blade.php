@@ -9,6 +9,8 @@
     $ogImage         = $ogImage         ?? null;
     $articleMeta     = $articleMeta     ?? null;
     $postForSchema   = $postForSchema   ?? null;
+    $ogImageAlt      = $ogImageAlt      ?? $appName;
+    $robots          = $robots          ?? 'index,follow';
 
     // OG image fallback: post featured image → uploaded og-image → uploaded logo-dark → default
     if (! $ogImage) {
@@ -23,6 +25,15 @@
         } catch (\Throwable $e) {
             $ogImage = $appUrl . '/brand/cashflow_logo.png';
         }
+    }
+
+    // Publisher logo for JSON-LD — the brand mark, never the post image.
+    try {
+        $logoUrl = \App\Models\UploadedAsset::has('logo-dark')
+            ? $appUrl . route('brand-asset', 'logo-dark', false)
+            : $appUrl . '/brand/cashflow_logo.png';
+    } catch (\Throwable $e) {
+        $logoUrl = $appUrl . '/brand/cashflow_logo.png';
     }
 
     $fullTitle = str_contains($pageTitle, $appName) ? $pageTitle : ($pageTitle . ' — ' . $appName);
@@ -42,7 +53,7 @@
     <meta name="theme-color" content="#0a0f1e">
     <meta name="author" content="{{ $appName }}">
     <meta name="format-detection" content="telephone=no">
-    <meta name="robots" content="index,follow">
+    <meta name="robots" content="{{ $robots }}">
     <link rel="canonical" href="{{ $canonical }}">
 
     {{-- Open Graph --}}
@@ -54,7 +65,7 @@
     <meta property="og:image"            content="{{ $ogImage }}">
     <meta property="og:image:width"      content="1200">
     <meta property="og:image:height"     content="630">
-    <meta property="og:image:alt"        content="{{ $appName }}">
+    <meta property="og:image:alt"        content="{{ $ogImageAlt }}">
     <meta property="og:locale"           content="en_US">
     @if($articleMeta)
         @if($articleMeta['published_time'] ?? null)
@@ -77,32 +88,10 @@
     <meta name="twitter:description" content="{{ $pageDescription }}">
     <meta name="twitter:image"       content="{{ $ogImage }}">
 
-    {{-- BlogPosting JSON-LD (only on single-post pages) --}}
+    {{-- BlogPosting JSON-LD (single-post pages). Built + json_encoded in
+         BlogPost::articleSchema() so the output is always valid JSON. --}}
     @if($postForSchema)
-        <script type="application/ld+json">
-        @verbatim{
-            "@context": "https://schema.org",
-            "@type": "BlogPosting",@endverbatim
-            "mainEntityOfPage": @json($postForSchema->url()),
-            "headline": @json($postForSchema->title),
-            "description": @json($postForSchema->seoDescription()),
-            "image": @json($postForSchema->featuredImageUrl() ?: $ogImage),
-            "datePublished": @json(optional($postForSchema->published_at)->toIso8601String()),
-            "dateModified": @json($postForSchema->updated_at?->toIso8601String()),
-            @verbatim"author": {@endverbatim
-                @verbatim"@type": "Person",@endverbatim
-                "name": @json($postForSchema->author?->name ?: $appName)
-            },
-            @verbatim"publisher": {@endverbatim
-                @verbatim"@type": "Organization",@endverbatim
-                "name": @json($appName),
-                @verbatim"logo": {@endverbatim
-                    @verbatim"@type": "ImageObject",@endverbatim
-                    "url": @json($ogImage)
-                @verbatim}
-            }
-        }@endverbatim
-        </script>
+        <script type="application/ld+json">{!! $postForSchema->articleSchemaJson($ogImage, $logoUrl) !!}</script>
     @endif
 
     {{-- Feed discovery --}}

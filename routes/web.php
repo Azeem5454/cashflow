@@ -13,59 +13,8 @@ Route::get('/', function () {
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 
-// Dynamic sitemap — emits public URLs including every published blog post.
-Route::get('/sitemap.xml', function () {
-    $base  = rtrim(config('app.url', url('/')), '/');
-    $today = now()->format('Y-m-d');
-    $urls  = [
-        ['loc' => $base . '/',         'lastmod' => $today, 'priority' => '1.0', 'changefreq' => 'weekly'],
-        ['loc' => $base . '/login',    'lastmod' => $today, 'priority' => '0.6', 'changefreq' => 'yearly'],
-        ['loc' => $base . '/register', 'lastmod' => $today, 'priority' => '0.8', 'changefreq' => 'yearly'],
-        ['loc' => $base . '/blog',     'lastmod' => $today, 'priority' => '0.9', 'changefreq' => 'daily'],
-        ['loc' => $base . '/terms',    'lastmod' => $today, 'priority' => '0.4', 'changefreq' => 'yearly'],
-        ['loc' => $base . '/privacy',  'lastmod' => $today, 'priority' => '0.4', 'changefreq' => 'yearly'],
-    ];
-
-    // Blog posts — each published post
-    try {
-        \App\Models\BlogPost::published()
-            ->orderByDesc('published_at')
-            ->limit(500) // hard cap
-            ->get(['slug', 'updated_at'])
-            ->each(function ($p) use (&$urls, $base) {
-                $urls[] = [
-                    'loc'        => $base . '/blog/' . $p->slug,
-                    'lastmod'    => $p->updated_at->format('Y-m-d'),
-                    'priority'   => '0.7',
-                    'changefreq' => 'monthly',
-                ];
-            });
-        // Blog categories with at least one published post
-        \App\Models\BlogCategory::where('post_count', '>', 0)
-            ->get(['slug', 'updated_at'])
-            ->each(function ($c) use (&$urls, $base) {
-                $urls[] = [
-                    'loc'        => $base . '/blog/category/' . $c->slug,
-                    'lastmod'    => $c->updated_at->format('Y-m-d'),
-                    'priority'   => '0.5',
-                    'changefreq' => 'weekly',
-                ];
-            });
-    } catch (\Throwable $e) {
-        // DB unreachable — still serve the static URLs above.
-    }
-
-    $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
-         . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-    foreach ($urls as $u) {
-        $xml .= '  <url><loc>' . htmlspecialchars($u['loc'], ENT_XML1) . '</loc>'
-              . '<lastmod>' . $u['lastmod'] . '</lastmod>'
-              . '<changefreq>' . $u['changefreq'] . '</changefreq>'
-              . '<priority>' . $u['priority'] . '</priority></url>' . "\n";
-    }
-    $xml .= '</urlset>';
-    return response($xml, 200, ['Content-Type' => 'application/xml']);
-})->name('sitemap');
+// Dynamic sitemap — public pages, /blog, every published post + category.
+Route::get('/sitemap.xml', \App\Http\Controllers\SitemapController::class)->name('sitemap');
 
 // Admin-uploaded brand assets — served from DB so they survive redeploys.
 Route::get('/brand-asset/{key}', [\App\Http\Controllers\BrandAssetController::class, 'show'])

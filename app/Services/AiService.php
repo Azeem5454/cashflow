@@ -14,8 +14,8 @@ class AiService
     protected string $model = 'claude-haiku-4-5-20251001';
 
     // Haiku pricing (per token)
-    protected float $inputCostPerToken  = 0.0000008;  // $0.80 / 1M
-    protected float $outputCostPerToken = 0.000004;   // $4.00 / 1M
+    protected float $inputCostPerToken  = 0.000001;   // $1.00 / 1M (Claude Haiku 4.5)
+    protected float $outputCostPerToken = 0.000005;   // $5.00 / 1M (Claude Haiku 4.5)
 
     public function __construct()
     {

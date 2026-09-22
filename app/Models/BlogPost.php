@@ -17,11 +17,18 @@ class BlogPost extends Model
 {
     use HasUuids;
 
+    /**
+     * How long an admin "Feature" pin keeps a post in the blog hero slot.
+     * After this the hero falls back to the newest published post, so a
+     * forgotten pin can never bury fresh (autopilot) posts.
+     */
+    public const FEATURE_PIN_DAYS = 14;
+
     protected $fillable = [
         'slug', 'title', 'excerpt', 'body_markdown', 'body_html',
         'featured_image_key', 'featured_image_alt',
         'category_id', 'author_id',
-        'status', 'is_featured', 'published_at',
+        'status', 'is_featured', 'featured_at', 'published_at',
         'seo_title', 'seo_description', 'auto_topic_key',
         'reading_time', 'view_count',
     ];
@@ -30,6 +37,7 @@ class BlogPost extends Model
     {
         return [
             'published_at' => 'datetime',
+            'featured_at'  => 'datetime',
             'is_featured'  => 'boolean',
         ];
     }
@@ -68,9 +76,65 @@ class BlogPost extends Model
         return $q->where('status', 'published');
     }
 
+    /**
+     * Posts with an ACTIVE hero pin: flagged is_featured and pinned within
+     * the last FEATURE_PIN_DAYS days. A flag without featured_at (legacy
+     * rows) or an older pin is ignored.
+     */
     public function scopeFeatured(Builder $q): Builder
     {
-        return $q->where('is_featured', true);
+        return $q->where('is_featured', true)
+            ->whereNotNull('featured_at')
+            ->where('featured_at', '>=', now()->subDays(self::FEATURE_PIN_DAYS));
+    }
+
+    /** Newest first, with a stable tiebreaker for identical publish times. */
+    public function scopeLatestFirst(Builder $q): Builder
+    {
+        return $q->orderByDesc('published_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+    }
+
+    /**
+     * The post shown as the big hero on /blog: an actively pinned post if
+     * there is one (most recently pinned wins), otherwise the newest
+     * published post.
+     */
+    public static function heroPost(): ?self
+    {
+        return static::published()->featured()->with(['category', 'author'])
+                ->orderByDesc('featured_at')->first()
+            ?? static::published()->with(['category', 'author'])->latestFirst()->first();
+    }
+
+    /** Is this post currently holding an active hero pin? */
+    public function hasActivePin(): bool
+    {
+        return $this->is_featured
+            && $this->featured_at
+            && $this->featured_at->gte(now()->subDays(self::FEATURE_PIN_DAYS));
+    }
+
+    /** Pin (or unpin) this post as the blog hero. Caller saves. */
+    public function setPinned(bool $pinned): void
+    {
+        $this->is_featured = $pinned;
+        $this->featured_at = $pinned ? now() : null;
+    }
+
+    /**
+     * Count a public view without touching updated_at. updated_at is the
+     * "real edit" timestamp — it feeds sitemap <lastmod>, JSON-LD
+     * dateModified and article:modified_time — so it must never move on a
+     * page view. Query-builder increment (not Eloquent's, which adds
+     * updated_at automatically).
+     */
+    public static function recordView(string $id): void
+    {
+        \Illuminate\Support\Facades\DB::table((new static)->getTable())
+            ->where('id', $id)
+            ->increment('view_count');
     }
 
     // ─── Derived values for rendering ──────────────────────────────────
@@ -103,6 +167,62 @@ class BlogPost extends Model
         }
         return route('brand-asset', $this->featured_image_key)
              . '?v=' . UploadedAsset::cacheBuster($this->featured_image_key);
+    }
+
+    /**
+     * schema.org BlogPosting for the post page, built in PHP and emitted
+     * with json_encode (never hand-written JSON inside Blade).
+     */
+    public function articleSchema(?string $fallbackImage = null, ?string $logoUrl = null): array
+    {
+        $appName = config('app.name', 'TheCashFox');
+        $appUrl  = rtrim(config('app.url', 'https://thecashfox.com'), '/');
+        $image   = $this->featuredImageUrl() ?: $fallbackImage;
+
+        $publisher = [
+            '@type' => 'Organization',
+            'name'  => $appName,
+            'url'   => $appUrl,
+        ];
+        if ($logoUrl) {
+            $publisher['logo'] = ['@type' => 'ImageObject', 'url' => $logoUrl];
+        }
+
+        $schema = [
+            '@context'         => 'https://schema.org',
+            '@type'            => 'BlogPosting',
+            'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $this->url()],
+            'url'              => $this->url(),
+            'headline'         => Str::limit($this->title, 110, ''),
+            'description'      => $this->seoDescription(),
+            'datePublished'    => ($this->published_at ?? $this->created_at)?->toIso8601String(),
+            'dateModified'     => ($this->updated_at ?? $this->published_at)?->toIso8601String(),
+            // Autopilot posts have no human author — attribute them to the
+            // organisation rather than inventing a person.
+            'author'           => $this->author
+                ? ['@type' => 'Person', 'name' => $this->author->name]
+                : ['@type' => 'Organization', 'name' => $appName, 'url' => $appUrl],
+            'publisher'        => $publisher,
+            'inLanguage'       => 'en',
+            'wordCount'        => static::wordCount($this->body_markdown),
+        ];
+        if ($image) {
+            $schema['image'] = [$image];
+        }
+        if ($this->category) {
+            $schema['articleSection'] = $this->category->name;
+        }
+
+        return $schema;
+    }
+
+    /** JSON for a <script type="application/ld+json"> block — safe to echo raw. */
+    public function articleSchemaJson(?string $fallbackImage = null, ?string $logoUrl = null): string
+    {
+        return json_encode(
+            $this->articleSchema($fallbackImage, $logoUrl),
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+        ) ?: '{}';
     }
 
     // ─── Markdown rendering ────────────────────────────────────────────
@@ -144,8 +264,28 @@ class BlogPost extends Model
     public static function calcReadingTime(?string $md): int
     {
         if (! $md) return 1;
-        $words = max(1, str_word_count(strip_tags($md)));
+        $words = max(1, static::wordCount($md));
         return max(1, (int) ceil($words / 230));
+    }
+
+    /**
+     * Words a reader actually reads in a markdown body. Link URLs, image
+     * sources, HTML tags and markdown punctuation are dropped; numbers and
+     * amounts ("$5", "1,200", "30%") count as words (str_word_count()
+     * ignored them and split URLs into several "words").
+     */
+    public static function wordCount(?string $md): int
+    {
+        if (! $md) return 0;
+
+        $text = preg_replace('/!\[([^\]]*)\]\([^)]*\)/u', '$1', $md) ?? $md;   // images → alt text
+        $text = preg_replace('/\[([^\]]*)\]\([^)]*\)/u', '$1', $text) ?? $text; // links → anchor text
+        $text = preg_replace('/https?:\/\/\S+/u', ' ', $text) ?? $text;            // bare URLs
+        $text = strip_tags($text);
+
+        $tokens = preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return count(array_filter($tokens, fn ($t) => preg_match('/[\p{L}\p{N}]/u', $t)));
     }
 
     // ─── Lifecycle ─────────────────────────────────────────────────────
@@ -172,7 +312,11 @@ class BlogPost extends Model
 
         // Refresh denormalised category.post_count on save/delete.
         static::saved(function (self $p) {
-            $p->category?->refreshPostCount();
+            // Fresh lookup, not $p->category — the loaded relation can be the
+            // OLD category when category_id just changed.
+            if ($p->category_id) {
+                BlogCategory::find($p->category_id)?->refreshPostCount();
+            }
             if ($p->wasChanged('category_id')) {
                 // Old category needs a refresh too.
                 $oldId = $p->getOriginal('category_id');
@@ -183,7 +327,9 @@ class BlogPost extends Model
         });
 
         static::deleted(function (self $p) {
-            $p->category?->refreshPostCount();
+            if ($p->category_id) {
+                BlogCategory::find($p->category_id)?->refreshPostCount();
+            }
         });
     }
 

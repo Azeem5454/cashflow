@@ -97,8 +97,8 @@
                             <tr class="dark:hover:bg-slate-800/40 hover:bg-gray-50 transition-colors">
                                 <td class="px-5 py-4">
                                     <div class="flex items-center gap-3">
-                                        @if($p->is_featured)
-                                            <span class="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center" style="background:rgba(59,130,246,0.2)" title="Featured">
+                                        @if($p->hasActivePin())
+                                            <span class="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center" style="background:rgba(59,130,246,0.2)" title="Pinned as blog hero until {{ $p->featured_at->copy()->addDays(\App\Models\BlogPost::FEATURE_PIN_DAYS)->format('M j') }}">
                                                 <svg class="w-3 h-3" viewBox="0 0 20 20" fill="#3b82f6"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                                             </span>
                                         @endif
@@ -132,9 +132,9 @@
                                 <td class="px-5 py-4 text-right text-xs dark:text-slate-400 text-gray-500 font-mono">{{ number_format($p->view_count) }}</td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
-                                        <button wire:click="toggleFeatured('{{ $p->id }}')" title="{{ $p->is_featured ? 'Unfeature' : 'Feature' }}"
+                                        <button wire:click="toggleFeatured('{{ $p->id }}')" title="{{ $p->hasActivePin() ? 'Unpin from blog hero' : 'Pin as blog hero for ' . \App\Models\BlogPost::FEATURE_PIN_DAYS . ' days' }}"
                                                 class="p-1.5 rounded-md dark:text-slate-500 text-gray-400 dark:hover:text-amber-400 hover:text-amber-500 dark:hover:bg-slate-800 hover:bg-gray-100 transition-all">
-                                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="{{ $p->is_featured ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.5"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="{{ $p->hasActivePin() ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.5"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                                         </button>
                                         <button wire:click="togglePublish('{{ $p->id }}')" title="{{ $p->status === 'published' ? 'Unpublish' : 'Publish' }}"
                                                 class="p-1.5 rounded-md dark:text-slate-500 text-gray-400 dark:hover:text-emerald-400 hover:text-emerald-500 dark:hover:bg-slate-800 hover:bg-gray-100 transition-all">

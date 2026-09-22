@@ -2,13 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Exceptions\BlogAutopilotSkipped;
 use App\Services\BlogAutopilot;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Generate + publish one blog post from the top of the autopilot queue.
- * Scheduled daily at 09:00 UTC in routes/console.php.
+ * Scheduled daily at 09:00 (app timezone = UTC) in routes/console.php.
  *
  * Usage:
  *   php artisan blog:generate           # Respects the admin enable toggle
@@ -29,26 +29,19 @@ class BlogGenerate extends Command
             $this->info('Published: ' . $post->title);
             $this->line('  Slug:     ' . $post->slug);
             $this->line('  Category: ' . ($post->category?->name ?? '—'));
-            $this->line('  URL:      ' . rtrim(config('app.url', ''), '/') . '/blog/' . $post->slug);
+            $this->line('  Words:    ' . \App\Models\BlogPost::wordCount($post->body_markdown) . ' (' . $post->reading_time . ' min read)');
+            $this->line('  Image:    ' . ($post->featured_image_key ? 'yes' : 'MISSING — see /admin/blog/autopilot'));
+            $this->line('  URL:      ' . $post->url());
+            return self::SUCCESS;
+        } catch (BlogAutopilotSkipped $e) {
+            // Expected skips (disabled, empty queue, cooldown, run in progress)
+            // exit cleanly so the cron log doesn't fill with red noise.
+            $this->warn('Skipped: ' . $e->getMessage());
             return self::SUCCESS;
         } catch (\Throwable $e) {
-            // Expected skips (disabled, empty queue, cooldown) should exit cleanly
-            // so cron log doesn't fill with red noise.
-            $message = $e->getMessage();
-            $expected = str_contains($message, 'disabled')
-                || str_contains($message, 'empty')
-                || str_contains($message, 'cooldown');
-
-            if ($expected) {
-                $this->warn('Skipped: ' . $message);
-                return self::SUCCESS;
-            }
-
-            $this->error('Failed: ' . $message);
-            Log::error('BlogGenerate command failed', [
-                'err' => $message,
-                'force' => $force,
-            ]);
+            // Already reported to Sentry + recorded for the admin banner by
+            // BlogAutopilot::run().
+            $this->error('Failed: ' . $e->getMessage());
             return self::FAILURE;
         }
     }

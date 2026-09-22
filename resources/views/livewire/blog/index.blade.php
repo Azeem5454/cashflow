@@ -67,7 +67,7 @@
                             <svg class="w-16 h-16" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" style="color:rgba(255,255,255,0.3)"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Z"/></svg>
                         </div>
                     @endif
-                    <span class="absolute top-4 left-4 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full" style="background:rgba(59,130,246,0.95);color:#fff;box-shadow:0 4px 14px rgba(26,86,219,0.4)">★ Featured</span>
+                    <span class="absolute top-4 left-4 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full" style="background:rgba(59,130,246,0.95);color:#fff;box-shadow:0 4px 14px rgba(26,86,219,0.4)">{{ $heroIsPinned ? '★ Featured' : 'Latest' }}</span>
                 </div>
                 <div class="p-6 sm:p-8 md:p-10 flex flex-col justify-center">
                     <div class="flex items-center gap-3 mb-4">
@@ -77,7 +77,7 @@
                                 {{ $featured->category->name }}
                             </span>
                         @endif
-                        <span class="text-[11px]" style="color:rgba(255,255,255,0.4)">{{ $featured->published_at?->format('M j, Y') }}</span>
+                        <time datetime="{{ $featured->published_at?->toIso8601String() }}" class="text-[11px]" style="color:rgba(255,255,255,0.4)">{{ $featured->published_at?->format('M j, Y') }}</time>
                     </div>
                     <h2 class="fd font-black mb-3 transition-colors" style="color:#f8fafc;font-size:clamp(1.5rem,3vw,2.2rem);line-height:1.15;letter-spacing:-0.01em">{{ $featured->title }}</h2>
                     @if($featured->excerpt)
@@ -146,7 +146,7 @@
                                         {{ $post->category->name }}
                                     </span>
                                 @endif
-                                <span class="text-[11px]" style="color:rgba(255,255,255,0.38)">{{ $post->published_at?->format('M j, Y') }}</span>
+                                <time datetime="{{ $post->published_at?->toIso8601String() }}" class="text-[11px]" style="color:rgba(255,255,255,0.38)">{{ $post->published_at?->format('M j, Y') }}</time>
                             </div>
 
                             {{-- Title --}}

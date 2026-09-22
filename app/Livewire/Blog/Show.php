@@ -16,19 +16,37 @@ class Show extends Component
             ->with(['category', 'author'])
             ->firstOrFail();
 
-        // Best-effort view counter. Skips bot-like requests (no referer + HEAD etc.)
-        // and intentionally doesn't deduplicate per-user — this is a rough signal,
-        // not an analytics system. Real numbers come from GA4.
-        if (request()->isMethod('get') && ! $this->looksLikeBot()) {
-            // Increment via raw update to avoid touching updated_at.
-            BlogPost::where('id', $this->post->id)->increment('view_count');
+        // Best-effort view counter (real numbers come from GA4):
+        //  - GET only, skip crawlers / link-preview bots / scripts / admins
+        //  - once per post per session, so refreshes don't inflate it
+        //  - never touches updated_at (see BlogPost::recordView)
+        if (request()->isMethod('get') && ! $this->looksLikeBot() && ! auth()->user()?->is_admin) {
+            $seen = (array) session('blog_viewed', []);
+            if (! in_array($this->post->id, $seen, true)) {
+                BlogPost::recordView($this->post->id);
+                $seen[] = $this->post->id;
+                session(['blog_viewed' => array_slice($seen, -200)]);
+            }
         }
     }
 
+    /** Crawlers, link unfurlers, monitors and scripted clients. */
+    public const BOT_UA_NEEDLES = [
+        'bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'facebookexternalhit',
+        'facebookcatalog', 'embedly', 'quora link preview', 'whatsapp', 'telegram',
+        'skypeuripreview', 'discord', 'preview', 'headless', 'phantomjs', 'lighthouse',
+        'pagespeed', 'pingdom', 'uptime', 'monitor', 'statuscake', 'curl', 'wget',
+        'python', 'go-http-client', 'java/', 'okhttp', 'axios', 'node-fetch',
+        'libwww', 'httpclient', 'guzzle', 'scrapy', 'feedfetcher', 'rss',
+    ];
+
     private function looksLikeBot(): bool
     {
-        $ua = strtolower((string) request()->header('User-Agent', ''));
-        foreach (['bot', 'crawler', 'spider', 'headless', 'curl', 'wget'] as $needle) {
+        $ua = strtolower(trim((string) request()->header('User-Agent', '')));
+        if ($ua === '') {
+            return true;
+        }
+        foreach (self::BOT_UA_NEEDLES as $needle) {
             if (str_contains($ua, $needle)) return true;
         }
         return false;
@@ -40,7 +58,7 @@ class Show extends Component
             ? BlogPost::published()
                 ->where('category_id', $this->post->category_id)
                 ->where('id', '!=', $this->post->id)
-                ->orderByDesc('published_at')
+                ->latestFirst()
                 ->limit(3)
                 ->with('category')
                 ->get()
@@ -54,6 +72,7 @@ class Show extends Component
             'canonical'       => $this->post->url(),
             'ogType'          => 'article',
             'ogImage'         => $this->post->featuredImageUrl(),
+            'ogImageAlt'      => $this->post->featured_image_alt ?: $this->post->title,
             'articleMeta'     => [
                 'published_time' => $this->post->published_at?->toIso8601String(),
                 'modified_time'  => $this->post->updated_at?->toIso8601String(),

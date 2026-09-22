@@ -10,5 +10,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command('entries:generate-recurring')->daily();
 Schedule::command('reports:send')->dailyAt('09:00');
-Schedule::command('blog:generate')->dailyAt('09:00')->withoutOverlapping();
+// 09:00 in the app timezone (config/app.php → UTC). onOneServer: web + worker
+// services share the Redis lock store, so only one of them ever runs it.
+Schedule::command('blog:generate')->dailyAt('09:00')->withoutOverlapping()->onOneServer();
 Schedule::command('billing:expire-store')->hourly()->withoutOverlapping();

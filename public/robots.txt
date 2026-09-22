@@ -22,6 +22,11 @@ Disallow: /email/verify
 Disallow: /forgot-password
 Disallow: /reset-password/
 Disallow: /brand-asset/
+# ...but blog featured images + brand images must be crawlable for
+# Article rich results and link previews (longest rule wins).
+Allow: /brand-asset/blog-post-
+Allow: /brand-asset/og-image
+Allow: /brand-asset/logo-dark
 
 # Sitemap location
-Sitemap: /sitemap.xml
+Sitemap: https://thecashfox.com/sitemap.xml

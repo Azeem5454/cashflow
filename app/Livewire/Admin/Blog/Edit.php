@@ -51,7 +51,8 @@ class Edit extends Component
             $this->body_markdown      = $this->post->body_markdown ?? '';
             $this->category_id        = $this->post->category_id;
             $this->status             = $this->post->status ?? 'draft';
-            $this->is_featured        = (bool) $this->post->is_featured;
+            // Show the toggle as ON only while the hero pin is still active.
+            $this->is_featured        = $this->post->hasActivePin();
             $this->published_at       = $this->post->published_at?->format('Y-m-d\TH:i');
             $this->seo_title          = $this->post->seo_title ?? '';
             $this->seo_description    = $this->post->seo_description ?? '';
@@ -189,6 +190,10 @@ class Edit extends Component
             $this->post->author_id = auth()->id();
         }
 
+        // Hero pin: turning the toggle on (re)starts the FEATURE_PIN_DAYS
+        // window; leaving an active pin on keeps its original featured_at.
+        $wasPinned = ! $isNew && $this->post->hasActivePin();
+
         $this->post->fill([
             'title'              => $data['title'],
             'slug'               => $data['slug'],
@@ -196,18 +201,25 @@ class Edit extends Component
             'body_markdown'      => $data['body_markdown'] ?: null,
             'category_id'        => $data['category_id'] ?: null,
             'status'             => $data['status'],
-            'is_featured'        => $data['is_featured'],
             'published_at'       => $data['published_at'] ?: null,
             'seo_title'          => $data['seo_title'] ?: null,
             'seo_description'    => $data['seo_description'] ?: null,
             'featured_image_alt' => $data['featured_image_alt'] ?: null,
         ]);
 
-        // Enforce single-featured rule.
+        if ($data['is_featured'] && ! $wasPinned) {
+            $this->post->setPinned(true);
+        } elseif (! $data['is_featured']) {
+            $this->post->setPinned(false);
+        }
+
+        // Enforce single-pin rule (query builder — don't bump other posts'
+        // updated_at, which feeds sitemap lastmod).
         if ($this->post->is_featured) {
-            BlogPost::where('is_featured', true)
+            \Illuminate\Support\Facades\DB::table('blog_posts')
+                ->where('is_featured', true)
                 ->when($this->post->id, fn ($q) => $q->where('id', '!=', $this->post->id))
-                ->update(['is_featured' => false]);
+                ->update(['is_featured' => false, 'featured_at' => null]);
         }
 
         // Handle featured image upload / removal.

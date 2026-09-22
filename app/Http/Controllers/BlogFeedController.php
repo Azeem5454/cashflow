@@ -20,7 +20,7 @@ class BlogFeedController extends Controller
 
         $posts = BlogPost::published()
             ->with(['category', 'author'])
-            ->orderByDesc('published_at')
+            ->latestFirst()
             ->limit(20)
             ->get();
 
@@ -41,7 +41,8 @@ class BlogFeedController extends Controller
                 htmlspecialchars($p->url(), ENT_XML1),
                 htmlspecialchars($p->url(), ENT_XML1),
                 $p->published_at?->toRfc2822String() ?? now()->toRfc2822String(),
-                $p->excerpt ?: strip_tags((string) $p->body_html),
+                // "]]>" would terminate the CDATA section early.
+                str_replace(']]>', ']]]]><![CDATA[>', $p->excerpt ?: strip_tags((string) $p->body_html)),
                 $p->author ? '<dc:creator>' . htmlspecialchars($p->author->name, ENT_XML1) . '</dc:creator>' : '',
                 $p->category ? '<category>' . htmlspecialchars($p->category->name, ENT_XML1) . '</category>' : ''
             );
