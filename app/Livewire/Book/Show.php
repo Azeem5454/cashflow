@@ -267,16 +267,8 @@ class Show extends Component
                 return;
             }
 
-            $current  = $this->buildBookAggregates($this->book, $allEntries);
-            $previous = $this->buildPreviousBookAggregates();
-            $recurringCount = $this->book->recurringEntries()->where('status', 'active')->count();
-
-            $result = app(AiService::class)->generateInsights(
-                $current,
-                $previous,
-                $this->business->currency,
-                $recurringCount
-            );
+            // Shared with the mobile API (GET /api/v1/books/{id}/insights).
+            $result = app(\App\Services\BookInsightsService::class)->generate($this->book, $allEntries);
 
             if ($result) {
                 $this->aiInsightsData = $result;
@@ -315,76 +307,7 @@ class Show extends Component
 
     private function insightsDailyLimitReached(): bool
     {
-        return AiUsageLog::where('user_id', auth()->id())
-            ->where('type', 'insights')
-            ->whereDate('created_at', today())
-            ->count() >= 10;
-    }
-
-    private function buildBookAggregates(Book $book, $entries): array
-    {
-        $totalIn  = (float) $entries->where('type', 'in')->sum('amount');
-        $totalOut = (float) $entries->where('type', 'out')->sum('amount');
-        $balance  = $totalIn - $totalOut + (float) ($book->opening_balance ?? 0);
-
-        $topOut = $entries->where('type', 'out')->whereNotNull('category')
-            ->groupBy('category')
-            ->map(fn ($g) => $g->sum('amount'))
-            ->sortDesc()->take(5)
-            ->map(fn ($amt, $cat) => "{$cat} (" . number_format($amt, 0) . ")")
-            ->values()->toArray();
-
-        $topIn = $entries->where('type', 'in')->whereNotNull('category')
-            ->groupBy('category')
-            ->map(fn ($g) => $g->sum('amount'))
-            ->sortDesc()->take(3)
-            ->map(fn ($amt, $cat) => "{$cat} (" . number_format($amt, 0) . ")")
-            ->values()->toArray();
-
-        $period = ($book->period_starts_at && $book->period_ends_at)
-            ? $book->period_starts_at->format('d M Y') . ' to ' . $book->period_ends_at->format('d M Y')
-            : 'Custom period';
-
-        return [
-            'name'              => $book->name,
-            'period'            => $period,
-            'totalIn'           => number_format($totalIn, 2),
-            'totalOut'          => number_format($totalOut, 2),
-            'balance'           => number_format($balance, 2),
-            'entryCount'        => $entries->count(),
-            'topCategoriesOut'  => $topOut,
-            'topCategoriesIn'   => $topIn,
-        ];
-    }
-
-    private function buildPreviousBookAggregates(): ?array
-    {
-        // Require period dates on the current book — without them we cannot
-        // reliably determine which other book represents an earlier period.
-        // The created_at fallback produced backwards comparisons when books
-        // were created out of chronological order (e.g. February created before January).
-        if (! $this->book->period_starts_at) {
-            return null;
-        }
-
-        $prevBook = $this->business->books()
-            ->where('id', '!=', $this->book->id)
-            ->whereNotNull('period_ends_at')
-            ->where('period_ends_at', '<', $this->book->period_starts_at)
-            ->orderByDesc('period_ends_at')
-            ->first();
-
-        if (! $prevBook) {
-            return null;
-        }
-
-        $entries = $prevBook->entries()->get();
-
-        if ($entries->count() < 2) {
-            return null;
-        }
-
-        return $this->buildBookAggregates($prevBook, $entries);
+        return app(\App\Services\BookInsightsService::class)->dailyLimitReached((string) auth()->id());
     }
 
     public function openAddEntry(string $type = 'in'): void
@@ -1762,8 +1685,12 @@ class Show extends Component
 
         // Send mention notifications (load fresh for relations)
         $comment->load('user');
+        // Only notify members of this business — mention markup is user-supplied text.
+        $memberIds = $this->business->members()->pluck('users.id')->all();
+
         foreach ($mentionedIds as $userId) {
             if ($userId === auth()->id()) continue; // don't notify yourself
+            if (! in_array($userId, $memberIds, true)) continue;
             $mentionedUser = \App\Models\User::find($userId);
             if ($mentionedUser) {
                 $mentionedUser->notify(new MentionedInComment($comment, $entry));

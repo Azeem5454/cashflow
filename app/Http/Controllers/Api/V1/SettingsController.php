@@ -74,6 +74,8 @@ class SettingsController extends Controller
                 'id'         => $n->id,
                 'type'       => class_basename($n->type),
                 'data'       => $n->data,
+                'title'      => self::notificationTitle($n->data ?? []),
+                'message'    => self::notificationMessage($n->data ?? []),
                 'read'       => $n->read_at !== null,
                 'createdAt'  => $n->created_at->toIso8601String(),
                 'timeAgo'    => $n->created_at->diffForHumans(),
@@ -99,7 +101,48 @@ class SettingsController extends Controller
      */
     public function deleteNotification(Request $request, string $id): JsonResponse
     {
-        $request->user()->notifications()->where('id', $id)->delete();
+        if (\Illuminate\Support\Str::isUuid($id)) {
+            $request->user()->notifications()->where('id', $id)->delete();
+        }
         return response()->json(['message' => 'Deleted.']);
+    }
+
+    private static function notificationTitle(array $data): string
+    {
+        return match ($data['type'] ?? null) {
+            'mention' => 'New mention',
+            default   => (string) ($data['title'] ?? 'Notification'),
+        };
+    }
+
+    /**
+     * Human sentence for every notification type. Mention markup
+     * (@[Name]{uuid}) is never shown raw.
+     */
+    private static function notificationMessage(array $data): string
+    {
+        $plain = fn ($v) => trim(preg_replace('/@\[([^\]]+)\]\{[a-f0-9\-]{36}\}/i', '@$1', (string) $v));
+
+        switch ($data['type'] ?? null) {
+            case 'mention':
+                $who   = $plain($data['commenter_name'] ?? '') ?: 'Someone';
+                $entry = $plain($data['entry_description'] ?? '');
+                $book  = $plain($data['book_name'] ?? '');
+
+                $sentence = $entry !== ''
+                    ? "{$who} mentioned you in a comment on '{$entry}'"
+                    : "{$who} mentioned you in a comment";
+
+                return $book !== '' ? "{$sentence} in {$book}." : "{$sentence}.";
+
+            default:
+                foreach (['message', 'body', 'title'] as $key) {
+                    if (! empty($data[$key]) && is_string($data[$key])) {
+                        return $plain($data[$key]);
+                    }
+                }
+
+                return 'You have a new notification.';
+        }
     }
 }

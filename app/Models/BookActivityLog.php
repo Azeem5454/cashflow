@@ -56,6 +56,7 @@ class BookActivityLog extends Model
             'bulk_copy_opposite'       => "copied {$count} flipped {$noun} to " . ($meta['target_book'] ?? 'another book'),
             'bulk_change_category'     => 'set category to "' . ($meta['category'] ?? 'None') . '" on ' . "{$count} {$noun}",
             'bulk_change_payment_mode' => 'set payment mode to "' . ($meta['payment_mode'] ?? 'None') . '" on ' . "{$count} {$noun}",
+            'bulk_flip_type'           => "flipped Cash In/Cash Out on {$count} {$noun}",
             'comment_added'            => 'commented on "' . ($meta['entry_description'] ?? 'an entry') . '"',
             'comment_deleted'          => 'deleted a comment on "' . ($meta['entry_description'] ?? 'an entry') . '"',
             'attachment_added'         => 'attached a file to "' . ($meta['entry_description'] ?? 'an entry') . '"',
@@ -64,6 +65,7 @@ class BookActivityLog extends Model
             'recurring_deleted'        => 'deleted the recurring rule for "' . ($meta['description'] ?? 'an entry') . '"',
             'recurring_paused'         => 'paused the recurring rule for "' . ($meta['description'] ?? 'an entry') . '"',
             'recurring_resumed'        => 'resumed the recurring rule for "' . ($meta['description'] ?? 'an entry') . '"',
+            'recurring_updated'        => 'edited the recurring rule for "' . ($meta['description'] ?? 'an entry') . '"',
             default                    => str_replace('_', ' ', $this->action),
         };
     }
@@ -86,8 +88,10 @@ class BookActivityLog extends Model
             'bulk_move',
             'bulk_change_category',
             'bulk_change_payment_mode',
+            'bulk_flip_type',
             'recurring_paused',
-            'recurring_resumed'        => 'updated',   // blue  — something was changed
+            'recurring_resumed',
+            'recurring_updated'        => 'updated',   // blue  — something was changed
 
             'entry_deleted',
             'bulk_delete',

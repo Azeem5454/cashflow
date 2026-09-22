@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin'          => \App\Http\Middleware\AdminMiddleware::class,
             'redirect_admin' => \App\Http\Middleware\RedirectIfAdmin::class,
+            'api.verified'   => \App\Http\Middleware\EnsureApiEmailVerified::class,
+            'business.unlocked' => \App\Http\Middleware\EnsureBusinessUnlocked::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

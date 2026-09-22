@@ -24,6 +24,7 @@ class BookResource extends JsonResource
             'balance'        => isset($this->balance)   ? (string) $this->balance   : null,
             'entriesCount'   => $this->whenCounted('entries'),
             'createdAt'      => $this->created_at->toIso8601String(),
+            'updatedAt'      => $this->updated_at?->toIso8601String(),
         ];
     }
 }

@@ -2,15 +2,22 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Api\V1\Concerns\AuthorizesApiAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\BookResource;
 use App\Http\Resources\V1\EntryResource;
+use App\Models\RecurringEntry;
+use App\Services\BookInsightsService;
+use App\Services\BookLedger;
+use App\Support\BusinessLock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class BookController extends Controller
 {
+    use AuthorizesApiAccess;
+
     /**
      * GET /api/v1/books/{id}
      */
@@ -18,8 +25,8 @@ class BookController extends Controller
     {
         $book = $this->findAuthorizedBook($request, $id);
 
-        $book->total_in  = $book->totalIn();
-        $book->total_out = $book->totalOut();
+        $book->total_in  = BookLedger::money($book->totalIn());
+        $book->total_out = BookLedger::money($book->totalOut());
         $book->balance   = $book->balance();
         $book->loadCount('entries');
 
@@ -28,104 +35,119 @@ class BookController extends Controller
 
     /**
      * GET /api/v1/books/{id}/entries
+     * Newest first (date desc, created_at desc, id desc). Running balance is
+     * computed over the whole book from the opening balance, then filters are
+     * applied — identical to the web ledger.
      */
     public function entries(Request $request, string $id): AnonymousResourceCollection
     {
-        $book = $this->findAuthorizedBook($request, $id);
+        $book    = $this->findAuthorizedBook($request, $id);
+        $filters = $this->validatedFilters($request);
 
-        $query = $book->entries()
-            ->with('creator')
-            ->withCount('comments');
+        $request->validate([
+            'page'    => ['nullable', 'integer', 'min:1'],
+            'perPage' => ['nullable', 'integer', 'min:1'],
+        ]);
 
-        // Optional filters
-        if ($type = $request->query('type')) {
-            $query->where('type', $type);
-        }
+        $all      = BookLedger::chronological($book, ['creator'], withCommentsCount: true);
+        $filtered = BookLedger::applyFilters($all, $filters);
 
-        if ($category = $request->query('category')) {
-            $query->where('category', $category);
-        }
-
-        if ($paymentMode = $request->query('paymentMode')) {
-            $query->where('payment_mode', $paymentMode);
-        }
-
-        if ($search = $request->query('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('description', 'ilike', "%{$search}%")
-                  ->orWhere('reference', 'ilike', "%{$search}%");
-            });
-        }
-
-        if ($from = $request->query('from')) {
-            $query->where('date', '>=', $from);
-        }
-
-        if ($to = $request->query('to')) {
-            $query->where('date', '<=', $to);
-        }
-
-        // Fetch all matching entries in chronological order for running balance calc
-        $allFiltered = $query
-            ->orderBy('date', 'asc')
-            ->orderBy('created_at', 'asc')
-            ->orderBy('id', 'asc')
-            ->get();
-
-        // Compute running balance on chronological order
-        $runningBalance = (string) $book->opening_balance;
-
-        $allFiltered->each(function ($entry) use (&$runningBalance) {
-            if ($entry->type === 'in') {
-                $runningBalance = bcadd($runningBalance, (string) $entry->amount, 2);
-            } else {
-                $runningBalance = bcsub($runningBalance, (string) $entry->amount, 2);
-            }
-            $entry->running_balance = $runningBalance;
-        });
-
-        // Reverse for display (newest first) then paginate
-        $reversed = $allFiltered->reverse()->values();
-        $perPage  = (int) $request->query('perPage', 50);
-        $page     = (int) $request->query('page', 1);
-        $sliced   = $reversed->forPage($page, $perPage);
+        $reversed = $filtered->reverse()->values();
+        $perPage  = min(100, max(1, (int) $request->query('perPage', 50)));
+        $page     = max(1, (int) $request->query('page', 1));
+        $sliced   = $reversed->forPage($page, $perPage)->values();
 
         $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
             $sliced, $reversed->count(), $perPage, $page,
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        return EntryResource::collection($paginator);
+        // camelCase meta keys per the API contract, alongside Laravel's default
+        // snake_case keys (kept for backwards compatibility with older app builds).
+        // `total` is already present in Laravel's meta — adding it again would be
+        // merged recursively into an array.
+        return EntryResource::collection($paginator)->additional(['meta' => [
+            'currentPage' => $paginator->currentPage(),
+            'lastPage'    => $paginator->lastPage(),
+            'perPage'     => $paginator->perPage(),
+        ]]);
     }
 
     /**
      * GET /api/v1/books/{id}/summary
+     * Accepts the same filters as /entries; totals cover the filtered set.
      */
     public function summary(Request $request, string $id): JsonResponse
     {
-        $book = $this->findAuthorizedBook($request, $id);
+        $book    = $this->findAuthorizedBook($request, $id);
+        $filters = $this->validatedFilters($request);
 
-        $totalIn  = $book->totalIn();
-        $totalOut = $book->totalOut();
-        $balance  = $book->balance();
+        $all       = BookLedger::chronological($book);
+        $isFiltered = BookLedger::hasFilters($filters);
+        $entries   = $isFiltered ? BookLedger::applyFilters($all, $filters) : $all;
+        $totals    = BookLedger::totals($entries);
 
-        $entryCount = $book->entries()->count();
-        $daySpan    = $book->period_starts_at && $book->period_ends_at
-            ? $book->period_starts_at->diffInDays($book->period_ends_at) + 1
-            : ($entryCount > 0 ? $book->entries()->min('date') ? now()->parse($book->entries()->min('date'))->diffInDays(now()->parse($book->entries()->max('date'))) + 1 : 1 : 0);
+        $opening = BookLedger::money($book->opening_balance);
+        $net     = bcsub($totals['totalIn'], $totals['totalOut'], 2);
+        $balance = bcadd($opening, $net, 2);
+
+        $entryCount = $entries->count();
+        if ($book->period_starts_at && $book->period_ends_at && ! $isFiltered) {
+            $daySpan = (int) $book->period_starts_at->diffInDays($book->period_ends_at) + 1;
+        } elseif ($entryCount > 0) {
+            $min     = $entries->min(fn ($e) => $e->date->format('Y-m-d'));
+            $max     = $entries->max(fn ($e) => $e->date->format('Y-m-d'));
+            $daySpan = (int) \Carbon\Carbon::parse($min)->diffInDays(\Carbon\Carbon::parse($max)) + 1;
+        } else {
+            $daySpan = 0;
+        }
 
         return response()->json([
-            'totalIn'        => $totalIn,
-            'totalOut'       => $totalOut,
+            'totalIn'        => $totals['totalIn'],
+            'totalOut'       => $totals['totalOut'],
+            'net'            => $net,
             'balance'        => $balance,
-            'openingBalance' => $book->opening_balance,
+            'openingBalance' => $opening,
             'entryCount'     => $entryCount,
-            'inCount'        => $book->entries()->where('type', 'in')->count(),
-            'outCount'       => $book->entries()->where('type', 'out')->count(),
+            'inCount'        => $totals['inCount'],
+            'outCount'       => $totals['outCount'],
             'currency'       => $book->business->currency,
             'currencySymbol' => $book->business->currencySymbol(),
             'daySpan'        => $daySpan,
+            'filtered'       => $isFiltered,
         ]);
+    }
+
+    /**
+     * POST /api/v1/books/{id}/categories  {name}
+     */
+    public function addCategory(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id, requireEditor: true);
+        $name = $this->validatedListName($request);
+
+        $exists = $book->categories()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->exists();
+        if (! $exists) {
+            $book->categories()->create(['name' => $name]);
+        }
+
+        return response()->json(['data' => $book->categories()->pluck('name')->toArray()]);
+    }
+
+    /**
+     * POST /api/v1/books/{id}/payment-modes  {name}
+     */
+    public function addPaymentMode(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id, requireEditor: true);
+        $name = $this->validatedListName($request);
+
+        $exists = $book->paymentModes()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->exists();
+        if (! $exists) {
+            $book->paymentModes()->create(['name' => $name]);
+        }
+
+        return response()->json(['data' => $book->paymentModes()->pluck('name')->toArray()]);
     }
 
     /**
@@ -158,7 +180,12 @@ class BookController extends Controller
      */
     public function recentBooks(Request $request): JsonResponse
     {
-        $businessIds = $request->user()->businesses()->pluck('businesses.id');
+        $user = $request->user();
+
+        // Books of free-plan locked businesses are left out — they'd 403 on open.
+        $businessIds = $user->businesses()->get()
+            ->reject(fn ($b) => BusinessLock::isLocked($user, $b, $b->pivot?->role))
+            ->pluck('id');
 
         $recentBooks = \App\Models\Book::whereIn('business_id', $businessIds)
             ->with('business:id,name,currency')
@@ -167,9 +194,7 @@ class BookController extends Controller
             ->limit(6)
             ->get()
             ->map(function ($book) {
-                $totalIn  = (float) $book->totalIn();
-                $totalOut = (float) $book->totalOut();
-                $net      = $totalIn - $totalOut + (float) $book->opening_balance;
+                $net = $book->balance();
 
                 return [
                     'id'             => $book->id,
@@ -178,7 +203,7 @@ class BookController extends Controller
                     'businessName'   => $book->business->name,
                     'currency'       => $book->business->currency,
                     'currencySymbol' => $book->business->currencySymbol(),
-                    'netBalance'     => number_format($net, 2, '.', ''),
+                    'netBalance'     => $net,
                     'entriesCount'   => $book->entries_count,
                     'periodStartsAt' => $book->period_starts_at?->toDateString(),
                     'periodEndsAt'   => $book->period_ends_at?->toDateString(),
@@ -254,54 +279,109 @@ class BookController extends Controller
         $book = $this->findAuthorizedBook($request, $id);
 
         $entries = $book->recurringEntries()
+            ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END")
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn ($r) => [
-                'id'          => $r->id,
-                'type'        => $r->type,
-                'amount'      => $r->amount,
-                'description' => $r->description,
-                'category'    => $r->category,
-                'paymentMode' => $r->payment_mode,
-                'frequency'   => $r->frequency,
-                'status'      => $r->status,
-                'nextRunAt'   => $r->next_run_at?->toDateString(),
-                'endsAt'      => $r->ends_at?->toDateString(),
-                'createdAt'   => $r->created_at->toIso8601String(),
-            ]);
+            ->map(fn ($r) => $this->recurringPayload($r));
 
         return response()->json(['data' => $entries]);
     }
 
     /**
-     * PUT /api/v1/recurring/{id}/toggle
+     * PUT /api/v1/recurring/{id} — edit a recurring rule (Pro + editor).
+     * Already-generated entries are not touched; next_run_at is kept.
      */
-    public function toggleRecurring(Request $request, string $id): JsonResponse
+    public function updateRecurring(Request $request, string $id): JsonResponse
     {
-        $recurring = \App\Models\RecurringEntry::findOrFail($id);
-        $book = $this->findAuthorizedBook($request, $recurring->book_id);
+        [$recurring, $book] = $this->findAuthorizedRecurring($request, $id);
 
-        $newStatus = $recurring->status === 'active' ? 'paused' : 'active';
-        $recurring->update(['status' => $newStatus]);
+        if (! $book->business->isPro()) {
+            return response()->json(['message' => 'Recurring entries require a Pro subscription.'], 403);
+        }
 
-        return response()->json(['status' => $newStatus]);
+        $validated = $request->validate([
+            'type'        => ['sometimes', 'required', 'in:in,out'],
+            'amount'      => ['sometimes', 'required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'description' => ['sometimes', 'required', 'string', 'max:255'],
+            'category'    => ['sometimes', 'nullable', 'string', 'max:100'],
+            'paymentMode' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'reference'   => ['sometimes', 'nullable', 'string', 'max:100'],
+            'frequency'   => ['sometimes', 'required', 'in:' . implode(',', EntryController::RECURRING_FREQUENCIES)],
+            'endsAt'      => ['sometimes', 'nullable', 'date', 'after_or_equal:' . $recurring->starts_at->format('Y-m-d')],
+        ]);
+
+        $map = [
+            'type' => 'type', 'amount' => 'amount', 'description' => 'description',
+            'category' => 'category', 'paymentMode' => 'payment_mode', 'reference' => 'reference',
+            'frequency' => 'frequency', 'endsAt' => 'ends_at',
+        ];
+
+        $updates = [];
+        foreach ($map as $input => $column) {
+            if (array_key_exists($input, $validated)) {
+                $value = $validated[$input];
+                $updates[$column] = in_array($input, ['category', 'paymentMode', 'reference', 'endsAt'], true)
+                    ? ($value ?: null)
+                    : $value;
+            }
+        }
+
+        if ($updates) {
+            $recurring->update($updates);
+
+            $this->logBookActivity($book, $request, 'recurring_updated', null, [
+                'description' => $recurring->description,
+            ]);
+        }
+
+        return response()->json(['data' => $this->recurringPayload($recurring->fresh())]);
     }
 
     /**
-     * DELETE /api/v1/recurring/{id}
+     * PUT /api/v1/recurring/{id}/toggle — pause / resume (editor+)
+     */
+    public function toggleRecurring(Request $request, string $id): JsonResponse
+    {
+        [$recurring, $book] = $this->findAuthorizedRecurring($request, $id);
+
+        if ($recurring->isCompleted()) {
+            return response()->json(['message' => 'This recurring rule has already completed.'], 422);
+        }
+
+        $newStatus = $recurring->isActive() ? 'paused' : 'active';
+        $recurring->update(['status' => $newStatus]);
+
+        $this->logBookActivity($book, $request, $newStatus === 'paused' ? 'recurring_paused' : 'recurring_resumed', null, [
+            'description' => $recurring->description,
+        ]);
+
+        return response()->json([
+            'status' => $newStatus,
+            'data'   => $this->recurringPayload($recurring->fresh()),
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/recurring/{id} (editor+)
      */
     public function deleteRecurring(Request $request, string $id): JsonResponse
     {
-        $recurring = \App\Models\RecurringEntry::findOrFail($id);
-        $book = $this->findAuthorizedBook($request, $recurring->book_id);
+        [$recurring, $book] = $this->findAuthorizedRecurring($request, $id);
 
+        $desc = $recurring->description;
         $recurring->delete();
+
+        $this->logBookActivity($book, $request, 'recurring_deleted', null, ['description' => $desc]);
 
         return response()->json(['message' => 'Recurring entry deleted.']);
     }
 
     /**
-     * GET /api/v1/books/{id}/insights
+     * GET /api/v1/books/{id}/insights[?refresh=1]
+     *
+     * Same generation, 24h cache (books.ai_insights_cache, shared with web),
+     * limits (1/min burst + 10/day per user) and ai_usage_logs as the web
+     * Reports tab (Book\Show::generateInsights).
      */
     public function aiInsights(Request $request, string $id): JsonResponse
     {
@@ -311,49 +391,61 @@ class BookController extends Controller
             return response()->json(['message' => 'Pro subscription required.'], 403);
         }
 
-        // Return cached insights if fresh (< 24h)
-        if ($book->ai_insights_cache && $book->ai_insights_generated_at?->diffInHours(now()) < 24) {
-            return response()->json(json_decode($book->ai_insights_cache, true));
+        $service = app(BookInsightsService::class);
+        $userId  = (string) $request->user()->id;
+        $refresh = $request->boolean('refresh');
+
+        $cached  = $this->decodeInsightsCache($book);
+        $isFresh = $cached && $book->ai_insights_generated_at
+            && $book->ai_insights_generated_at->diffInHours(now()) < BookInsightsService::CACHE_HOURS;
+
+        if ($isFresh && ! $refresh) {
+            return response()->json(['data' => $cached]);
         }
 
-        // Generate new insights
-        $entryCount = $book->entries()->count();
-        if ($entryCount < 3) {
-            return response()->json(['status' => 'not_enough_data', 'message' => 'Add at least 3 entries to generate insights.']);
+        $entries = $book->entries()->get();
+        if ($entries->count() < BookInsightsService::MIN_ENTRIES) {
+            return response()->json([
+                'data'    => null,
+                'status'  => 'not_enough_data',
+                'message' => 'Add at least 3 entries to generate insights.',
+            ]);
         }
+
+        // Per-user burst: max 1 generation per 60 s
+        $burstKey = BookInsightsService::BURST_KEY_PREFIX . $userId;
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($burstKey, 1)) {
+            return $this->insightsLimitResponse($cached, 'Please wait a minute before generating insights again.');
+        }
+
+        // Daily cap: 10 insights/day per user
+        if ($service->dailyLimitReached($userId)) {
+            return $this->insightsLimitResponse($cached, 'You have reached today\'s limit of 10 AI insights. Try again tomorrow.');
+        }
+
+        \Illuminate\Support\Facades\RateLimiter::hit($burstKey, 60);
 
         try {
-            $totalIn  = (float) $book->totalIn();
-            $totalOut = (float) $book->totalOut();
-            $net      = $totalIn - $totalOut + (float) $book->opening_balance;
-
-            $topCategories = $book->entries()
-                ->whereNotNull('category')
-                ->selectRaw("category, type, sum(amount) as total")
-                ->groupBy('category', 'type')
-                ->orderByDesc('total')
-                ->limit(10)
-                ->get();
-
-            $result = app(\App\Services\AiService::class)->generateInsights([
-                'totalIn'        => $totalIn,
-                'totalOut'       => $totalOut,
-                'netBalance'     => $net,
-                'entryCount'     => $entryCount,
-                'topCategories'  => $topCategories->toArray(),
-                'currency'       => $book->business->currency,
-            ]);
-
-            $book->update([
-                'ai_insights_cache'        => json_encode($result),
-                'ai_insights_generated_at' => now(),
-            ]);
-
-            return response()->json($result);
-        } catch (\Exception $e) {
-            report($e); // → Sentry so we see the actual failure
-            return response()->json(['status' => 'error', 'message' => 'Failed to generate insights. Please try again.'], 500);
+            $result = $service->generate($book, $entries);
+        } catch (\Throwable $e) {
+            report($e);
+            $result = null;
         }
+
+        if (! $result) {
+            return response()->json([
+                'data'    => null,
+                'status'  => 'failed',
+                'message' => 'Could not generate insights right now. Please try again.',
+            ]);
+        }
+
+        $book->update([
+            'ai_insights_cache'        => json_encode($result),
+            'ai_insights_generated_at' => now(),
+        ]);
+
+        return response()->json(['data' => $this->insightsPayload($result, $book->fresh()->ai_insights_generated_at, false)]);
     }
 
     /**
@@ -413,18 +505,10 @@ class BookController extends Controller
         }, "{$slug}.csv", ['Content-Type' => 'text/csv']);
     }
 
-    /** Shared helper for export — entries ordered with running balance */
+    /** Shared helper for export — chronological entries with running balance from the opening balance */
     private function entriesWithRunningBalance(\App\Models\Book $book)
     {
-        $entries = $book->entries()->orderBy('date', 'asc')->orderBy('created_at', 'asc')->get();
-        $running = '0.00';
-        foreach ($entries as $entry) {
-            $running = $entry->type === 'in'
-                ? bcadd($running, (string) $entry->amount, 2)
-                : bcsub($running, (string) $entry->amount, 2);
-            $entry->running_balance = $running;
-        }
-        return $entries;
+        return BookLedger::chronological($book);
     }
 
     /**
@@ -438,7 +522,7 @@ class BookController extends Controller
         $validated = $request->validate([
             'name'           => ['sometimes', 'string', 'max:255'],
             'description'    => ['nullable', 'string', 'max:1000'],
-            'openingBalance' => ['sometimes', 'numeric', 'min:0'],
+            'openingBalance' => ['sometimes', 'numeric', 'min:0', 'max:999999999.99'],
             'periodStartsAt' => ['nullable', 'date'],
             'periodEndsAt'   => ['nullable', 'date', 'after_or_equal:periodStartsAt'],
         ]);
@@ -599,7 +683,7 @@ class BookController extends Controller
     public function reportSchedule(Request $request, string $id): JsonResponse
     {
         $book = $this->findAuthorizedBook($request, $id);
-        $this->ensureEditor($request, $book);
+        $this->ensureEditor($request, $book, 'Only owners and editors can manage email reports.');
 
         $schedule = \App\Models\ReportSchedule::where('book_id', $book->id)->first();
 
@@ -622,7 +706,7 @@ class BookController extends Controller
     public function saveReportSchedule(Request $request, string $id): JsonResponse
     {
         $book = $this->findAuthorizedBook($request, $id);
-        $this->ensureEditor($request, $book);
+        $this->ensureEditor($request, $book, 'Only owners and editors can manage email reports.');
 
         if (! $book->business->isPro()) {
             return response()->json(['message' => 'Pro subscription required.'], 403);
@@ -653,31 +737,133 @@ class BookController extends Controller
     public function deleteReportSchedule(Request $request, string $id): JsonResponse
     {
         $book = $this->findAuthorizedBook($request, $id);
-        $this->ensureEditor($request, $book);
+        $this->ensureEditor($request, $book, 'Only owners and editors can manage email reports.');
 
         \App\Models\ReportSchedule::where('book_id', $book->id)->delete();
 
         return response()->json(['message' => 'Report schedule deleted.']);
     }
 
-    /**
-     * Finds a book that belongs to a business the user is a member of.
-     */
-    private function findAuthorizedBook(Request $request, string $bookId)
+    private function ensureEditor(Request $request, \App\Models\Book $book, string $message = 'Editor or owner role required.'): void
     {
-        $businessIds = $request->user()->businesses()->pluck('businesses.id');
-
-        return \App\Models\Book::whereIn('business_id', $businessIds)
-            ->findOrFail($bookId);
+        $this->ensureEditorRole($this->memberRole($request->user(), $book->business_id), $message);
     }
 
-    private function ensureEditor(Request $request, \App\Models\Book $book): void
+    /**
+     * @return array{0: RecurringEntry, 1: \App\Models\Book}
+     */
+    private function findAuthorizedRecurring(Request $request, string $id): array
     {
-        $role = \Illuminate\Support\Facades\DB::table('business_user')
-            ->where('business_id', $book->business_id)
-            ->where('user_id', $request->user()->id)
-            ->value('role');
+        $this->abortUnlessUuid($id);
 
-        abort_unless($role && $role !== 'viewer', 403, 'Editor or owner role required.');
+        $recurring = RecurringEntry::findOrFail($id);
+        $book      = $this->findAuthorizedBook($request, $recurring->book_id);
+        $this->ensureEditor($request, $book, 'Only owners and editors can manage recurring entries.');
+
+        return [$recurring, $book];
+    }
+
+    private function recurringPayload(RecurringEntry $r): array
+    {
+        return [
+            'id'          => $r->id,
+            'type'        => $r->type,
+            'amount'      => $r->amount,
+            'description' => $r->description,
+            'category'    => $r->category,
+            'paymentMode' => $r->payment_mode,
+            'reference'   => $r->reference,
+            'frequency'   => $r->frequency,
+            'startsAt'    => $r->starts_at?->toDateString(),
+            'nextRunAt'   => $r->next_run_at?->toDateString(),
+            'endsAt'      => $r->ends_at?->toDateString(),
+            'status'      => $r->status,
+            'createdAt'   => $r->created_at?->toIso8601String(),
+        ];
+    }
+
+    private function validatedFilters(Request $request): array
+    {
+        $request->validate([
+            'type'          => ['nullable', 'in:in,out,all'],
+            'from'          => ['nullable', 'date_format:Y-m-d'],
+            'to'            => ['nullable', 'date_format:Y-m-d'],
+            'search'        => ['nullable', 'string', 'max:255'],
+            'category'      => ['nullable'],
+            'category.*'    => ['nullable', 'string', 'max:100'],
+            'paymentMode'   => ['nullable'],
+            'paymentMode.*' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $filters = [];
+        foreach (BookLedger::FILTER_KEYS as $key) {
+            $value = $request->query($key);
+            if (is_string($value) && mb_strlen($value) > 255) {
+                $value = mb_substr($value, 0, 255);
+            }
+            $filters[$key] = $value;
+        }
+
+        return $filters;
+    }
+
+    private function validatedListName(Request $request): string
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+        ]);
+
+        $name = trim($validated['name']);
+        if ($name === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['name' => 'The name field is required.']);
+        }
+
+        return $name;
+    }
+
+    /**
+     * Cached insights are stored by the web in snake_case with a lowercase
+     * sentiment; map to the API contract shape. Returns null for missing or
+     * unrecognised cache content.
+     */
+    private function decodeInsightsCache(\App\Models\Book $book): ?array
+    {
+        if (! $book->ai_insights_cache) {
+            return null;
+        }
+
+        $decoded = json_decode($book->ai_insights_cache, true);
+        if (! is_array($decoded) || empty($decoded['sentiment']) || ! isset($decoded['bullets']) || ! is_array($decoded['bullets'])) {
+            return null;
+        }
+
+        return $this->insightsPayload($decoded, $book->ai_insights_generated_at, true);
+    }
+
+    private function insightsPayload(array $data, $generatedAt, bool $cached): array
+    {
+        $sentiment = strtolower((string) ($data['sentiment'] ?? ''));
+        $sentiment = in_array($sentiment, ['healthy', 'watch', 'concern'], true) ? $sentiment : 'watch';
+
+        return [
+            'sentiment'       => ucfirst($sentiment),
+            'sentimentReason' => (string) ($data['sentiment_reason'] ?? ''),
+            'bullets'         => array_values(array_map('strval', (array) ($data['bullets'] ?? []))),
+            'tip'             => isset($data['tip']) && $data['tip'] !== '' ? (string) $data['tip'] : null,
+            'generatedAt'     => $generatedAt?->toIso8601String(),
+            'cached'          => $cached,
+        ];
+    }
+
+    /**
+     * Limit hit: like the web, fall back to the last cached insights if any.
+     */
+    private function insightsLimitResponse(?array $cached, string $message): JsonResponse
+    {
+        return response()->json([
+            'data'    => $cached,
+            'status'  => 'limit_reached',
+            'message' => $message,
+        ]);
     }
 }

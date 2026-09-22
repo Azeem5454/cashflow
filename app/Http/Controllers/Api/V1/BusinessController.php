@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Api\V1\Concerns\AuthorizesApiAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\BookResource;
 use App\Http\Resources\V1\BusinessResource;
@@ -10,6 +11,8 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class BusinessController extends Controller
 {
+    use AuthorizesApiAccess;
+
     /**
      * GET /api/v1/businesses
      */
@@ -29,10 +32,8 @@ class BusinessController extends Controller
      */
     public function show(Request $request, string $id): BusinessResource
     {
-        $business = $request->user()
-            ->businesses()
-            ->withCount(['books', 'members'])
-            ->findOrFail($id);
+        $business = $this->findAuthorizedBusiness($request, $id);
+        $business->loadCount(['books', 'members']);
 
         return new BusinessResource($business);
     }
@@ -42,18 +43,18 @@ class BusinessController extends Controller
      */
     public function books(Request $request, string $id): AnonymousResourceCollection
     {
-        $business = $request->user()
-            ->businesses()
-            ->findOrFail($id);
+        $business = $this->findAuthorizedBusiness($request, $id);
 
         $books = $business->books()
             ->withCount('entries')
+            // Portable NULLS LAST: Postgres sorts NULLs first on DESC.
+            ->orderByRaw('CASE WHEN period_starts_at IS NULL THEN 1 ELSE 0 END')
             ->orderByDesc('period_starts_at')
             ->orderByDesc('created_at')
             ->get()
             ->each(function ($book) {
-                $book->total_in  = $book->totalIn();
-                $book->total_out = $book->totalOut();
+                $book->total_in  = \App\Services\BookLedger::money($book->totalIn());
+                $book->total_out = \App\Services\BookLedger::money($book->totalOut());
                 $book->balance   = $book->balance();
             });
 
@@ -65,9 +66,7 @@ class BusinessController extends Controller
      */
     public function createBook(Request $request, string $id): \Illuminate\Http\JsonResponse
     {
-        $business = $request->user()
-            ->businesses()
-            ->findOrFail($id);
+        $business = $this->findAuthorizedBusiness($request, $id);
 
         // Must be owner or editor
         $role = \Illuminate\Support\Facades\DB::table('business_user')
@@ -80,7 +79,7 @@ class BusinessController extends Controller
         $validated = $request->validate([
             'name'           => ['required', 'string', 'max:255'],
             'description'    => ['nullable', 'string', 'max:1000'],
-            'openingBalance' => ['nullable', 'numeric', 'min:0'],
+            'openingBalance' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
             'periodStartsAt' => ['nullable', 'date'],
             'periodEndsAt'   => ['nullable', 'date', 'after_or_equal:periodStartsAt'],
         ]);
@@ -104,9 +103,7 @@ class BusinessController extends Controller
      */
     public function members(Request $request, string $id): \Illuminate\Http\JsonResponse
     {
-        $business = $request->user()
-            ->businesses()
-            ->findOrFail($id);
+        $business = $this->findAuthorizedBusiness($request, $id);
 
         $members = $business->members()
             ->get()
@@ -161,7 +158,7 @@ class BusinessController extends Controller
      */
     public function update(Request $request, string $id): \Illuminate\Http\JsonResponse
     {
-        $business = $request->user()->businesses()->findOrFail($id);
+        $business = $this->findAuthorizedBusiness($request, $id);
 
         $this->ensureOwner($request, $business);
 
@@ -181,7 +178,8 @@ class BusinessController extends Controller
      */
     public function destroy(Request $request, string $id): \Illuminate\Http\JsonResponse
     {
-        $business = $request->user()->businesses()->findOrFail($id);
+        // No lock check: deleting an extra (locked) business is how a Free owner frees it up.
+        $business = $this->findAuthorizedBusiness($request, $id, checkLock: false);
 
         $this->ensureOwner($request, $business);
 
@@ -195,7 +193,7 @@ class BusinessController extends Controller
      */
     public function invite(Request $request, string $id): \Illuminate\Http\JsonResponse
     {
-        $business = $request->user()->businesses()->findOrFail($id);
+        $business = $this->findAuthorizedBusiness($request, $id);
 
         $this->ensureOwner($request, $business);
 
@@ -249,7 +247,7 @@ class BusinessController extends Controller
      */
     public function invitations(Request $request, string $id): \Illuminate\Http\JsonResponse
     {
-        $business = $request->user()->businesses()->findOrFail($id);
+        $business = $this->findAuthorizedBusiness($request, $id);
 
         $this->ensureOwner($request, $business);
 
@@ -273,8 +271,9 @@ class BusinessController extends Controller
      */
     public function cancelInvitation(Request $request, string $id): \Illuminate\Http\JsonResponse
     {
+        $this->abortUnlessUuid($id);
         $invitation = \App\Models\Invitation::findOrFail($id);
-        $business = $request->user()->businesses()->findOrFail($invitation->business_id);
+        $business = $this->findAuthorizedBusiness($request, $invitation->business_id);
 
         $this->ensureOwner($request, $business);
 
@@ -288,7 +287,8 @@ class BusinessController extends Controller
      */
     public function updateMemberRole(Request $request, string $businessId, string $userId): \Illuminate\Http\JsonResponse
     {
-        $business = $request->user()->businesses()->findOrFail($businessId);
+        $this->abortUnlessUuid($userId);
+        $business = $this->findAuthorizedBusiness($request, $businessId);
 
         $this->ensureOwner($request, $business);
 
@@ -311,7 +311,8 @@ class BusinessController extends Controller
      */
     public function removeMember(Request $request, string $businessId, string $userId): \Illuminate\Http\JsonResponse
     {
-        $business = $request->user()->businesses()->findOrFail($businessId);
+        $this->abortUnlessUuid($userId);
+        $business = $this->findAuthorizedBusiness($request, $businessId);
 
         $this->ensureOwner($request, $business);
 

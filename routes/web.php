@@ -122,7 +122,7 @@ Route::middleware(['auth', 'verified', 'redirect_admin'])->group(function () {
         );
 
         return view('business.book.create', compact('business'));
-    })->name('businesses.books.create');
+    })->name('businesses.books.create')->middleware('business.unlocked');
 
     Route::get('/businesses/{business}/books/{book}', function (Business $business, Book $book) {
         abort_unless(
@@ -132,16 +132,16 @@ Route::middleware(['auth', 'verified', 'redirect_admin'])->group(function () {
         abort_unless($book->business_id === $business->id, 404);
 
         return view('business.book.show', compact('business', 'book'));
-    })->name('businesses.books.show');
+    })->name('businesses.books.show')->middleware('business.unlocked');
 
     Route::get('/businesses/{business}/books/{book}/export/pdf', [\App\Http\Controllers\ExportController::class, 'pdf'])
-        ->name('businesses.books.export.pdf');
+        ->name('businesses.books.export.pdf')->middleware('business.unlocked');
 
     Route::get('/businesses/{business}/books/{book}/export/csv', [\App\Http\Controllers\ExportController::class, 'csv'])
-        ->name('businesses.books.export.csv');
+        ->name('businesses.books.export.csv')->middleware('business.unlocked');
 
     Route::get('/businesses/{business}/books/{book}/entries/{entry}/attachment', [\App\Http\Controllers\ExportController::class, 'attachment'])
-        ->name('businesses.books.entries.attachment');
+        ->name('businesses.books.entries.attachment')->middleware('business.unlocked');
 
     Route::get('/businesses/{business}/settings', function (Business $business) {
         abort_unless(

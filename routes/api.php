@@ -40,6 +40,9 @@ Route::prefix('v1')->group(function () {
         Route::put ('profile/password',    [AuthController::class, 'changePassword']);
         Route::delete('profile',           [AuthController::class, 'deleteAccount']);
 
+        // ── Data endpoints: verified email required (same as web `verified`) ──
+        Route::middleware('api.verified')->group(function () {
+
         // Businesses
         Route::get   ('businesses',                  [BusinessController::class, 'index']);
         Route::post  ('businesses',                  [BusinessController::class, 'store']);
@@ -65,6 +68,8 @@ Route::prefix('v1')->group(function () {
         Route::get   ('books/{id}/summary',    [BookController::class, 'summary']);
         Route::get   ('books/{id}/categories', [BookController::class, 'categories']);
         Route::get   ('books/{id}/payment-modes', [BookController::class, 'paymentModes']);
+        Route::post  ('books/{id}/categories',    [BookController::class, 'addCategory']);
+        Route::post  ('books/{id}/payment-modes', [BookController::class, 'addPaymentMode']);
         Route::get   ('books/{id}/activity',   [BookController::class, 'activity']);
         Route::get   ('books/{id}/recurring',  [BookController::class, 'recurringEntries']);
         Route::get   ('books/{id}/insights',   [BookController::class, 'aiInsights']);
@@ -79,6 +84,7 @@ Route::prefix('v1')->group(function () {
         Route::post  ('books/{id}/entries/bulk-delete', [EntryController::class, 'bulkDelete']);
         Route::post  ('books/{id}/entries/bulk-update', [EntryController::class, 'bulkUpdate']);
         Route::post  ('books/{id}/entries/bulk-move',   [EntryController::class, 'bulkMove']);
+        Route::get   ('entries/{id}',                    [EntryController::class, 'show']);
         Route::put   ('entries/{id}',                    [EntryController::class, 'update']);
         Route::delete('entries/{id}',                    [EntryController::class, 'destroy']);
 
@@ -93,6 +99,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('comments/{id}',         [EntryController::class, 'deleteComment']);
 
         // Recurring management
+        Route::put   ('recurring/{id}',        [BookController::class, 'updateRecurring']);
         Route::put   ('recurring/{id}/toggle', [BookController::class, 'toggleRecurring']);
         Route::delete('recurring/{id}',        [BookController::class, 'deleteRecurring']);
 
@@ -109,5 +116,7 @@ Route::prefix('v1')->group(function () {
         Route::get   ('notifications',               [SettingsController::class, 'notifications']);
         Route::post  ('notifications/mark-all-read', [SettingsController::class, 'markAllRead']);
         Route::delete('notifications/{id}',          [SettingsController::class, 'deleteNotification']);
+
+        }); // api.verified
     });
 });

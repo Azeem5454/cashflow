@@ -42,6 +42,12 @@ class EntryComment extends Model
         return array_values(array_unique($matches[1] ?? []));
     }
 
+    /** Plain-text body for API clients: @[Name]{uuid} → @Name (no HTML, not escaped). */
+    public function plainBody(): string
+    {
+        return preg_replace('/@\[([^\]]+)\]\{[a-f0-9\-]{36}\}/i', '@$1', (string) $this->body);
+    }
+
     /** Render body: replace @[Name]{uuid} tokens with styled @Name spans */
     public function renderedBody(): string
     {

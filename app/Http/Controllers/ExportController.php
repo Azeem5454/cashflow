@@ -29,9 +29,10 @@ class ExportController extends Controller
         $entries = $book->entries()
             ->orderBy('date', 'asc')
             ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
-        $running = '0.00';
+        $running = bcadd('0', (string) ($book->opening_balance ?? '0'), 2);
         foreach ($entries as $entry) {
             $running = $entry->type === 'in'
                 ? bcadd($running, (string) $entry->amount, 2)
@@ -110,7 +111,7 @@ class ExportController extends Controller
         $mime = Storage::disk('local')->mimeType($entry->attachment_path);
 
         // Strict MIME whitelist — never serve unexpected file types
-        $allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
+        $allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'image/heic', 'image/heif', 'application/pdf'];
         abort_unless(in_array($mime, $allowedMimes), 403);
 
         $path = Storage::disk('local')->path($entry->attachment_path);

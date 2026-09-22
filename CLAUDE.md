@@ -227,7 +227,7 @@ Visual analytics tab on the book detail page (`/businesses/{business}/books/{boo
 
 #### 2. Recurring Entries (Pro)
 Auto-create entries on a schedule:
-- **Recurrence rule** per entry: frequency (daily/weekly/monthly/yearly), start date, optional end date
+- **Recurrence rule** per entry: frequency (daily/weekly/biweekly — these are the ONLY values `RecurringEntry::advanceNextRun()` and the cron support; monthly/yearly are not implemented), start date, optional end date
 - **New table**: `recurring_entries` (id, book_id, type, amount, description, category, payment_mode, frequency, next_run_at, ends_at, is_active)
 - **Scheduled command**: `php artisan entries:generate-recurring` runs daily via cron, creates entries for all due recurring rules
 - UI: "Make Recurring" toggle in add/edit entry slide-over; separate "Recurring" tab on book detail showing all rules with enable/disable/edit/delete
@@ -1168,7 +1168,7 @@ Core screens implemented and live on Expo Go. Stack: Expo SDK 54, expo-router v6
 - **Recurring entries (Pro)** — full implementation:
   - `database/migrations/2026_03_16_300001_create_recurring_entries_table.php` — schema with composite index on `(is_active, next_run_at)`
   - `database/migrations/2026_03_16_300002_add_recurring_entry_id_to_entries_table.php` — nullable UUID FK with `nullOnDelete`
-  - `app/Models/RecurringEntry.php` — UUID model, `advanceNextRun()` (daily/weekly/monthly/yearly), `book()` + `entries()` relationships
+  - `app/Models/RecurringEntry.php` — UUID model, `advanceNextRun()` (daily/weekly/biweekly only), `book()` + `entries()` relationships
   - `app/Models/Entry.php` — added `recurring_entry_id` to fillable, `recurringEntry()` BelongsTo
   - `app/Models/Book.php` — added `recurringEntries()` HasMany
   - `app/Console/Commands/GenerateRecurringEntries.php` — daily cron with catch-up while-loop, Pro check via eager-loaded `book.business.owner`, sets `recurring_entry_id` on generated entries, deactivates past end date
