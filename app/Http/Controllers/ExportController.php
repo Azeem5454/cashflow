@@ -78,14 +78,14 @@ class ExportController extends Controller
 
             fputcsv($handle, [
                 'Date', 'Description', 'Reference',
-                'Category', 'Payment Mode',
+                'Category', 'Payment Method',
                 'Cash In', 'Cash Out', 'Running Balance',
             ]);
 
             foreach ($entries as $entry) {
                 fputcsv($handle, [
                     $entry->date->format('Y-m-d'),
-                    $entry->description,
+                    $entry->displayLabel(),
                     $entry->reference ?? '',
                     $entry->category ?? '',
                     $entry->payment_mode ?? '',

@@ -47,7 +47,8 @@ class EntryController extends Controller
         $validated = $request->validate([
             'type'               => ['required', 'in:in,out'],
             'amount'             => ['required', ...self::AMOUNT_RULES],
-            'description'        => ['required', 'string', 'max:255'],
+            // Optional: clients fall back to the category or "Cash in"/"Cash out" as the label.
+            'description'        => ['nullable', 'string', 'max:255'],
             'date'               => ['required', 'date'],
             'category'           => ['nullable', 'string', 'max:100'],
             'paymentMode'        => ['nullable', 'string', 'max:100'],
@@ -72,7 +73,7 @@ class EntryController extends Controller
         $data = [
             'type'         => $validated['type'],
             'amount'       => $validated['amount'],
-            'description'  => $validated['description'],
+            'description'  => self::cleanDescription($validated['description'] ?? null),
             'date'         => $validated['date'],
             'reference'    => ($validated['reference'] ?? null) ?: null,
             'category'     => ($validated['category'] ?? null) ?: null,
@@ -149,7 +150,7 @@ class EntryController extends Controller
         $validated = $request->validate([
             'type'        => ['sometimes', 'required', 'in:in,out'],
             'amount'      => ['sometimes', 'required', ...self::AMOUNT_RULES],
-            'description' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:255'],
             'date'        => ['sometimes', 'required', 'date'],
             'category'    => ['sometimes', 'nullable', 'string', 'max:100'],
             'paymentMode' => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -170,9 +171,11 @@ class EntryController extends Controller
         foreach ($map as $input => $column) {
             if (array_key_exists($input, $validated)) {
                 $value = $validated[$input];
-                $updates[$column] = in_array($input, ['category', 'paymentMode', 'reference'], true)
-                    ? ($value ?: null)
-                    : $value;
+                $updates[$column] = match (true) {
+                    in_array($input, ['category', 'paymentMode', 'reference'], true) => $value ?: null,
+                    $input === 'description' => self::cleanDescription($value),
+                    default => $value,
+                };
             }
         }
 
@@ -711,5 +714,13 @@ class EntryController extends Controller
             'createdAt' => $c->created_at->toIso8601String(),
             'timeAgo'   => $c->created_at->diffForHumans(),
         ];
+    }
+
+    /** Trimmed description, or null when blank (description is optional). */
+    private static function cleanDescription(?string $value): ?string
+    {
+        $value = $value === null ? null : trim($value);
+
+        return $value === '' ? null : $value;
     }
 }

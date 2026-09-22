@@ -77,7 +77,7 @@
                     required
                     autofocus
                     autocomplete="name"
-                    placeholder="Ali Hassan"
+                    placeholder="Your name"
                     class="auth-input w-full rounded-lg pl-10 pr-4 py-3 guest-body text-sm"
                 >
             </div>

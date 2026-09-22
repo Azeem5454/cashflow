@@ -1,71 +1,105 @@
-<div class="min-h-full" wire:poll.30s>
+<div class="min-h-full">
 
     {{-- ══════════════════════════════════════════════════════
-         HEADER — Slim greeting strip
+         HEADER — Total balance + quick add
     ══════════════════════════════════════════════════════ --}}
-    <div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6
+    <div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-5
                 dark:bg-navy bg-white
-                dark:border-b dark:border-slate-800 border-b border-gray-200
+                border-b border-gray-200 dark:border-slate-800
                 sticky top-0 z-10 backdrop-blur-sm">
-        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <div>
-                @php
-                    $hour = now()->hour;
-                    $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
-                    $firstName = explode(' ', auth()->user()->name)[0];
-                @endphp
-                <h1 class="font-display font-extrabold text-xl sm:text-2xl lg:text-3xl dark:text-white text-gray-900 tracking-tight leading-none">
-                    {{ $greeting }}, {{ $firstName }}
-                </h1>
-                <div class="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
-                    <p class="text-xs sm:text-sm dark:text-slate-500 text-gray-400 font-body hidden sm:block">
-                        {{ now()->format('l, F j, Y') }}
-                    </p>
-                    <p class="text-xs dark:text-slate-500 text-gray-400 font-body sm:hidden">
-                        {{ now()->format('M j, Y') }}
-                    </p>
-                    <span class="dark:text-slate-700 text-gray-300">·</span>
-                    @if(auth()->user()->isPro())
-                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-400 dark:bg-amber-400/10 bg-amber-50 px-2 py-0.5 rounded-full">
-                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
-                            Pro
-                        </span>
-                    @else
-                        <a href="{{ route('billing') }}" wire:navigate
-                           class="inline-flex items-center gap-1 text-xs font-semibold dark:text-slate-500 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors">
-                            Free Plan <span class="text-primary">· Upgrade →</span>
-                        </a>
-                    @endif
-                </div>
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+
+            {{-- Totals --}}
+            <div class="min-w-0" data-testid="dashboard-totals">
+                @if($totals->isEmpty())
+                    <h1 class="font-display font-extrabold text-2xl sm:text-3xl dark:text-white text-gray-900 tracking-tight leading-none">
+                        Welcome, {{ explode(' ', auth()->user()->name)[0] }}
+                    </h1>
+                @else
+                    <h1 class="text-[11px] font-body font-medium uppercase tracking-widest text-gray-500 dark:text-slate-400">
+                        Total balance
+                    </h1>
+                    <div class="mt-1 flex flex-wrap items-end gap-x-6 gap-y-2">
+                        @foreach($totals as $t)
+                            <div class="min-w-0">
+                                <p class="inline-flex items-center gap-1.5 font-bold leading-none tracking-tight
+                                          {{ $totals->count() > 1 ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl' }}">
+                                    @if($t['balance'] < 0)
+                                        <svg class="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" role="img" aria-label="Negative balance">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.306-4.306a11.95 11.95 0 0 1 5.814 5.518l2.74 1.22m0 0-5.94 2.281m5.94-2.28-2.28-5.941"/>
+                                        </svg>
+                                    @endif
+                                    <x-amount :value="$t['balance']" :symbol="$t['symbol']" tone="net" />
+                                </p>
+                                <p class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs font-body text-gray-500 dark:text-slate-400">
+                                    <span>In <x-amount :value="$t['in']" :symbol="$t['symbol']" tone="in" /></span>
+                                    <span>Out <x-amount :value="$t['out']" :symbol="$t['symbol']" tone="out" /></span>
+                                </p>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
-            <div class="flex items-center gap-2 flex-shrink-0">
-@if($businessLimitReached)
-                {{-- Free plan already owns a business: upgrade modal in place, no page load --}}
-                <button type="button" @click="$dispatch('open-business-upgrade')"
-                        class="inline-flex items-center gap-2 px-4 py-2.5
-                               bg-primary hover:brightness-110 text-white
-                               text-sm font-semibold rounded-xl
-                               transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.25" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
-                    </svg>
-                    <span class="hidden sm:inline">New Business</span>
-                    <span class="sm:hidden">New</span>
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-400 text-gray-900">Pro</span>
-                </button>
+            {{-- Actions --}}
+            <div class="flex items-center flex-wrap gap-2 flex-shrink-0">
+                @if($quickAddBook)
+                    @php $qaUrl = route('businesses.books.show', [$quickAddBook['business'], $quickAddBook['book']]); @endphp
+                    <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-2">
+                            <a href="{{ $qaUrl }}?addEntry=in" wire:navigate
+                               class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg
+                                      bg-emerald-600 text-white text-sm font-semibold
+                                      shadow-md shadow-emerald-600/20 hover:brightness-110 hover:shadow-lg
+                                      transition-all duration-200">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                                </svg>
+                                Cash In
+                            </a>
+                            <a href="{{ $qaUrl }}?addEntry=out" wire:navigate
+                               class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg
+                                      bg-red-600 text-white text-sm font-semibold
+                                      shadow-md shadow-red-600/20 hover:brightness-110 hover:shadow-lg
+                                      transition-all duration-200">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
+                                </svg>
+                                Cash Out
+                            </a>
+                        </div>
+                        <p class="text-[11px] font-body text-gray-500 dark:text-slate-400 truncate max-w-[16rem]">
+                            Adds to <span class="font-medium text-gray-700 dark:text-slate-300">{{ $quickAddBook['book']->name }}</span>
+                        </p>
+                    </div>
+                @endif
+
+                @if($businessLimitReached)
+                    {{-- Free plan already owns a business: upgrade modal in place, no page load --}}
+                    <button type="button" @click="$dispatch('open-business-upgrade')"
+                            class="self-start inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold
+                                   {{ $quickAddBook
+                                       ? 'border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                                       : 'bg-primary text-white shadow-lg shadow-primary/25 hover:brightness-110 hover:shadow-xl' }}
+                                   transition-all duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.25" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                        </svg>
+                        New business
+                        <x-pro-badge />
+                    </button>
                 @else
-                <a href="{{ route('businesses.create') }}" wire:navigate
-                   class="inline-flex items-center gap-2 px-4 py-2.5
-                          bg-primary hover:bg-accent text-white
-                          text-sm font-semibold rounded-xl
-                          transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-accent/30">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                    </svg>
-                    <span class="hidden sm:inline">New Business</span>
-                    <span class="sm:hidden">New</span>
-                </a>
+                    <a href="{{ route('businesses.create') }}" wire:navigate
+                       class="self-start inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold
+                              {{ $quickAddBook
+                                  ? 'border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                                  : 'bg-primary text-white shadow-lg shadow-primary/25 hover:brightness-110 hover:shadow-xl' }}
+                              transition-all duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                        </svg>
+                        New business
+                    </a>
                 @endif
             </div>
         </div>
@@ -107,7 +141,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="{{ $aIcon }}"/>
                 </svg>
                 <p class="text-sm font-body flex-1">{{ $announcement['message'] }}</p>
-                <button @click="dismissed = true; localStorage.setItem('announcement_dismissed', '{{ $announcementKey }}')"
+                <button type="button" aria-label="Dismiss announcement" @click="dismissed = true; localStorage.setItem('announcement_dismissed', '{{ $announcementKey }}')"
                         class="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity p-1 rounded-lg">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
@@ -137,7 +171,7 @@
 
                         {{-- Welcome banner --}}
                         <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-100
-                                    rounded-2xl px-6 sm:px-8 py-8 relative overflow-hidden">
+                                    rounded-xl px-6 sm:px-8 py-8 relative overflow-hidden">
                             {{-- Glow --}}
                             <div class="absolute -top-10 -right-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
                             <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-accent/5 rounded-full blur-2xl pointer-events-none"></div>
@@ -161,7 +195,7 @@
                                 <a href="{{ route('businesses.create') }}" wire:navigate
                                    class="flex-shrink-0 inline-flex items-center gap-2 px-5 py-3
                                           bg-primary hover:bg-accent text-white text-sm font-semibold
-                                          rounded-xl transition-all duration-200 shadow-lg shadow-primary/25 self-start sm:self-center">
+                                          rounded-lg transition-all duration-200 shadow-lg shadow-primary/25 self-start sm:self-center">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                                     </svg>
@@ -171,7 +205,7 @@
                         </div>
 
                         {{-- How it works — 3 steps --}}
-                        <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-100 rounded-2xl p-6 sm:p-8">
+                        <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-100 rounded-xl p-6 sm:p-8">
                             <p class="text-xs font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 mb-5">How it works</p>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 relative">
                                 {{-- Connector line (desktop only) — spans icon-1 center to icon-3 center, icons stack above via z-10 --}}
@@ -234,7 +268,7 @@
                         </div>
 
                         {{-- Use-case tiles --}}
-                        <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-100 rounded-2xl p-6 sm:p-8">
+                        <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-100 rounded-xl p-6 sm:p-8">
                             <p class="text-xs font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 mb-4">What do you want to track?</p>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <a href="{{ route('businesses.create') }}" wire:navigate
@@ -246,7 +280,7 @@
                                           transition-all duration-200 cursor-pointer text-left">
                                     <div class="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5
                                                 group-hover:bg-blue-500/20 transition-colors">
-                                        <svg class="w-4.5 h-4.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="width:18px;height:18px">
+                                        <svg class="w-[18px] h-[18px] text-blue-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" >
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
                                         </svg>
                                     </div>
@@ -263,9 +297,9 @@
                                           dark:hover:border-primary hover:border-primary/30
                                           dark:hover:bg-slate-700 hover:bg-primary/5
                                           transition-all duration-200 cursor-pointer text-left">
-                                    <div class="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0 mt-0.5
-                                                group-hover:bg-violet-500/20 transition-colors">
-                                        <svg class="w-4.5 h-4.5 text-violet-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="width:18px;height:18px">
+                                    <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5
+                                                group-hover:bg-primary/20 transition-colors">
+                                        <svg class="w-[18px] h-[18px] text-primary dark:text-blue-light" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" >
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>
                                         </svg>
                                     </div>
@@ -284,7 +318,7 @@
                                           transition-all duration-200 cursor-pointer text-left">
                                     <div class="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5
                                                 group-hover:bg-amber-500/20 transition-colors">
-                                        <svg class="w-4.5 h-4.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="width:18px;height:18px">
+                                        <svg class="w-[18px] h-[18px] text-amber-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" >
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/>
                                         </svg>
                                     </div>
@@ -313,7 +347,7 @@
                     @endphp
                     @if($recentBooks->isNotEmpty())
                         <div class="mb-7">
-                            <p class="text-[10px] font-semibold uppercase tracking-widest dark:text-slate-500 text-gray-400 mb-2.5 flex items-center gap-1.5">
+                            <p class="text-[10px] font-semibold uppercase tracking-widest dark:text-slate-400 text-gray-500 mb-2.5 flex items-center gap-1.5">
                                 <span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>
                                 Recently edited
                             </p>
@@ -322,8 +356,8 @@
                                     @php
                                         $rbIn   = (float)($rb->cash_in  ?? 0);
                                         $rbOut  = (float)($rb->cash_out ?? 0);
-                                        $rbNet  = $rbIn - $rbOut;
-                                        $rbCur  = $rb->_business->currency ?? 'USD';
+                                        $rbNet  = (float)($rb->opening_balance ?? 0) + $rbIn - $rbOut;
+                                        $rbSym  = $rb->_business->currencySymbol();
                                         $rbLast = $rb->last_entry_at
                                             ? \Carbon\Carbon::parse($rb->last_entry_at)->diffForHumans(null, true)
                                             : null;
@@ -344,9 +378,7 @@
                                             </p>
                                             <p class="text-[11px] dark:text-slate-500 text-gray-400 mt-0.5 truncate">
                                                 @if($rb->entries_count > 0)
-                                                    <span class="font-mono {{ $rbNet < 0 ? 'text-red-400' : 'dark:text-slate-400 text-gray-500' }}">
-                                                        {{ $rbNet < 0 ? '−' : '' }}{{ $rbCur }} {{ number_format(abs($rbNet), 0) }}
-                                                    </span>
+                                                    <x-amount :value="$rbNet" :symbol="$rbSym" tone="neutral" :decimals="0" />
                                                 @else
                                                     <span>Empty</span>
                                                 @endif
@@ -389,11 +421,7 @@
                             @php
                                 $businessCashIn  = $business->books->sum(fn($b) => (float)($b->cash_in ?? 0));
                                 $businessCashOut = $business->books->sum(fn($b) => (float)($b->cash_out ?? 0));
-                                $businessNet     = $businessCashIn - $businessCashOut;
-                                $absNet          = abs($businessNet);
-                                $netFormatted    = $absNet >= 1_000_000
-                                    ? number_format($absNet / 1_000_000, 1) . 'M'
-                                    : ($absNet >= 1_000 ? number_format($absNet / 1_000, 1) . 'K' : number_format($absNet, 2));
+                                $businessNet     = $business->books->sum(fn($b) => (float)($b->opening_balance ?? 0)) + $businessCashIn - $businessCashOut;
                             @endphp
                             <div class="flex items-center justify-between mb-4">
                                 <div class="flex items-center gap-3 min-w-0">
@@ -411,8 +439,9 @@
                                                 {{ $business->name }}
                                             </a>
                                             @if($business->books->isNotEmpty() && ($businessCashIn > 0 || $businessCashOut > 0))
-                                                <span class="font-mono text-xs font-bold {{ $businessNet < 0 ? 'text-red-400' : 'text-emerald-500' }} flex-shrink-0">
-                                                    {{ $businessNet < 0 ? '−' : '+' }}{{ $business->currency ?? 'USD' }} {{ $netFormatted }}
+                                                <span class="inline-flex items-center gap-1 text-xs font-bold flex-shrink-0">
+                                                    @if($businessNet < 0)<svg class="w-3.5 h-3.5 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" role="img" aria-label="Negative balance"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.306-4.306a11.95 11.95 0 0 1 5.814 5.518l2.74 1.22m0 0-5.94 2.281m5.94-2.28-2.28-5.941"/></svg>@endif
+                                                    <x-amount :value="$businessNet" :symbol="$business->currencySymbol()" tone="net" />
                                                 </span>
                                             @endif
                                         </div>
@@ -430,7 +459,8 @@
                                         {{-- Settings icon --}}
                                         <a href="{{ route('businesses.settings', $business) }}" wire:navigate
                                            title="Business settings"
-                                           class="p-1.5 rounded-lg dark:text-slate-500 text-gray-400
+                                           aria-label="{{ $business->name }} settings"
+                                           class="p-2 rounded-lg dark:text-slate-400 text-gray-500
                                                   dark:hover:text-white hover:text-gray-700
                                                   dark:hover:bg-slate-700 hover:bg-gray-100
                                                   transition-all duration-150">
@@ -451,14 +481,16 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                                             </svg>
                                             <span class="hidden sm:inline">Add Book</span>
+                                            <span class="sr-only sm:hidden">Add book</span>
                                         </a>
                                     @endif
                                     <a href="{{ route('businesses.show', $business) }}" wire:navigate
-                                       class="text-xs dark:text-slate-500 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors hidden sm:inline">
+                                       class="text-xs dark:text-slate-400 text-gray-500 hover:text-primary dark:hover:text-primary transition-colors hidden sm:inline">
                                         All Books →
                                     </a>
                                     <a href="{{ route('businesses.show', $business) }}" wire:navigate
-                                       class="p-1.5 rounded-lg dark:text-slate-500 text-gray-400
+                                       aria-label="All books in {{ $business->name }}"
+                                       class="p-2 rounded-lg dark:text-slate-400 text-gray-500
                                               dark:hover:text-primary hover:text-primary
                                               dark:hover:bg-slate-700 hover:bg-gray-100
                                               transition-all duration-150 sm:hidden">
@@ -472,11 +504,11 @@
                             {{-- Locked state --}}
                             @if($isLocked)
                                 <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700 border border-gray-200
-                                            rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+                                            rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
                                     <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
                                     <div class="flex items-center gap-3 relative">
                                         <div class="w-9 h-9 rounded-full dark:bg-slate-800 bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                            <svg class="w-4.5 h-4.5 dark:text-slate-400 text-gray-500" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" style="width:1.125rem;height:1.125rem">
+                                            <svg class="w-[18px] h-[18px] dark:text-slate-400 text-gray-500" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
                                             </svg>
                                         </div>
@@ -487,7 +519,7 @@
                                     </div>
                                     <a href="{{ route('billing') }}" wire:navigate
                                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold
-                                              bg-primary hover:bg-accent text-white rounded-xl
+                                              bg-primary hover:bg-accent text-white rounded-lg
                                               transition-all duration-200 shadow-lg shadow-primary/30 relative flex-shrink-0">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7Z"/>
@@ -499,13 +531,13 @@
                             @elseif($sortedBooks->isEmpty())
                                 {{-- No books --}}
                                 <div class="dark:bg-slate-800 bg-gray-50 dark:border-slate-800 border border-dashed border-gray-200
-                                            rounded-2xl px-6 py-8 text-center">
+                                            rounded-xl px-6 py-8 text-center">
                                     <p class="text-sm dark:text-slate-500 text-gray-400">No books yet.</p>
                                     @if(in_array($role, ['owner', 'editor'], true))
                                         <a href="{{ route('businesses.show', $business) }}?createBook=1" wire:navigate
                                            class="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-sm font-semibold
                                                   bg-primary/10 hover:bg-primary text-primary hover:text-white
-                                                  rounded-xl transition-all duration-200">
+                                                  rounded-lg transition-all duration-200">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                                             </svg>
@@ -525,7 +557,7 @@
                                         @php
                                             $cashIn   = (float)($book->cash_in ?? 0);
                                             $cashOut  = (float)($book->cash_out ?? 0);
-                                            $bookNet  = $cashIn - $cashOut;
+                                            $bookNet  = (float)($book->opening_balance ?? 0) + $cashIn - $cashOut;
                                             $isEmpty  = $book->entries_count === 0;
                                             $isNeg    = $bookNet < 0 && !$isEmpty;
                                             $isPos    = $bookNet > 0 && !$isEmpty;
@@ -536,7 +568,7 @@
 
                                         <div class="group dark:bg-dark bg-white
                                                     dark:border-slate-700 border border-gray-200 border-l-4 {{ $borderColor }}
-                                                    rounded-2xl overflow-hidden flex flex-col
+                                                    rounded-xl overflow-hidden flex flex-col
                                                     dark:hover:border-primary/40 hover:border-primary/30
                                                     hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5
                                                     transition-all duration-200
@@ -562,7 +594,7 @@
                                                     </div>
                                                     {{-- Last active badge --}}
                                                     @if($lastEntry)
-                                                        <span class="text-[10px] dark:text-slate-600 text-gray-300 font-body flex-shrink-0 whitespace-nowrap">
+                                                        <span class="text-[10px] dark:text-slate-400 text-gray-500 font-body flex-shrink-0 whitespace-nowrap">
                                                             {{ $lastEntry->diffForHumans() }}
                                                         </span>
                                                     @elseif($isEmpty)
@@ -579,28 +611,24 @@
                                                     </div>
                                                 @else
                                                     {{-- Net balance --}}
-                                                    @php $bookCurrency = $business->currency ?? 'USD'; @endphp
+                                                    @php $bookSym = $business->currencySymbol(); @endphp
                                                     <div class="mb-3">
-                                                        <p class="font-mono font-extrabold text-xl leading-none
-                                                                   {{ $isNeg ? 'text-red-400' : 'dark:text-white text-gray-900' }}">
-                                                            {{ $isNeg ? '−' : '' }}{{ $bookCurrency }} {{ number_format(abs($bookNet), 2) }}
+                                                        <p class="inline-flex items-center gap-1.5 font-bold text-xl leading-none">
+                                                            @if($isNeg)<svg class="w-3.5 h-3.5 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" role="img" aria-label="Negative balance"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.306-4.306a11.95 11.95 0 0 1 5.814 5.518l2.74 1.22m0 0-5.94 2.281m5.94-2.28-2.28-5.941"/></svg>@endif
+                                                            <x-amount :value="$bookNet" :symbol="$bookSym" tone="net" />
                                                         </p>
-                                                        <p class="text-[10px] dark:text-slate-500 text-gray-400 mt-0.5 font-body">net balance</p>
+                                                        <p class="text-[10px] dark:text-slate-400 text-gray-500 mt-0.5 font-body">net balance</p>
                                                     </div>
 
                                                     {{-- In / Out mini breakdown --}}
                                                     <div class="flex items-center gap-3 pt-3 border-t dark:border-slate-800 border-gray-100">
                                                         <div class="flex items-center gap-1">
                                                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
-                                                            <span class="text-[11px] font-mono dark:text-slate-400 text-gray-500">
-                                                                {{ $bookCurrency }} {{ number_format($cashIn, 2) }}
-                                                            </span>
+                                                            <x-amount :value="$cashIn" :symbol="$bookSym" tone="in" class="text-[11px]" />
                                                         </div>
                                                         <div class="flex items-center gap-1">
                                                             <span class="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"></span>
-                                                            <span class="text-[11px] font-mono dark:text-slate-400 text-gray-500">
-                                                                {{ $bookCurrency }} {{ number_format($cashOut, 2) }}
-                                                            </span>
+                                                            <x-amount :value="$cashOut" :symbol="$bookSym" tone="out" class="text-[11px]" />
                                                         </div>
                                                         <div class="ml-auto">
                                                             <svg class="w-3.5 h-3.5 dark:text-slate-600 text-gray-300
@@ -631,7 +659,7 @@
                                                     <a href="{{ route('businesses.books.show', [$business, $book]) . '?addEntry=out' }}" wire:navigate
                                                        class="flex-1 flex items-center justify-center gap-1.5 py-2.5
                                                               text-xs font-semibold
-                                                              dark:text-red-400 text-red-500
+                                                              dark:text-red-400 text-red-600
                                                               dark:hover:bg-red-500/10 hover:bg-red-50
                                                               transition-colors duration-150">
                                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -653,7 +681,7 @@
                                                   dark:border-slate-700 border border-gray-200
                                                   dark:hover:border-primary/40 hover:border-primary/30
                                                   dark:hover:bg-primary/5 hover:bg-primary/5
-                                                  rounded-2xl p-6 min-h-[130px]
+                                                  rounded-xl p-6 min-h-[130px]
                                                   transition-all duration-200">
                                             <div class="text-center">
                                                 <div class="w-10 h-10 rounded-full dark:bg-slate-700 bg-gray-200
@@ -675,44 +703,21 @@
                         </div>
                     @endforeach
 
-                    {{-- Free plan nudge --}}
-                    @if(!auth()->user()->isPro() && $ownedBusinesses->isNotEmpty())
-                        <div class="dark:bg-[#1e293b] bg-white dark:border-slate-700/60 border border-gray-200
-                                    rounded-2xl p-5 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 relative overflow-hidden">
-                            <div class="absolute inset-0 bg-gradient-to-r from-amber-400/5 to-transparent pointer-events-none"></div>
-                            <div class="w-10 h-10 rounded-xl bg-amber-400/10 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-5 h-5 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
-                                </svg>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-semibold dark:text-white text-gray-900">Unlock AI insights, exports & unlimited businesses</p>
-                                <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">Upgrade to Pro for just $5/month.</p>
-                            </div>
-                            <a href="{{ route('billing') }}" wire:navigate
-                               class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold
-                                      dark:bg-amber-400/10 bg-amber-50 text-amber-500 dark:text-amber-400
-                                      hover:bg-amber-400 hover:text-white
-                                      rounded-xl transition-all duration-200 flex-shrink-0">
-                                Upgrade →
-                            </a>
-                        </div>
-                    @endif
                 @endif
 
             </div>
 
             {{-- ── RIGHT: Recent Activity feed ──────────────────── --}}
             <div class="lg:w-64 xl:w-72 flex-shrink-0">
-                <div class="lg:sticky lg:top-[73px]">
-                    <div class="dark:bg-dark bg-white dark:border-slate-700 border border-gray-200 rounded-2xl overflow-hidden">
+                <div class="lg:sticky lg:top-[132px]">
+                    <div class="dark:bg-dark bg-white dark:border-slate-700 border border-gray-200 rounded-xl overflow-hidden">
 
                         <div class="px-5 py-4 dark:border-b dark:border-slate-800 border-b border-gray-100 flex items-center justify-between">
                             <div>
                                 <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Recent Activity</h3>
-                                <p class="text-[11px] dark:text-slate-500 text-gray-400 mt-0.5">Latest entries, all books</p>
+                                <p class="text-[11px] dark:text-slate-400 text-gray-500 mt-0.5">Latest entries, all books</p>
                             </div>
-                            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <div class="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true"></div>
                         </div>
 
                         @if($recentEntries->isEmpty())
@@ -755,20 +760,17 @@
                                             <div class="w-2 h-2 rounded-full {{ $entry->type === 'in' ? 'bg-emerald-500' : 'bg-red-400' }}"></div>
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            @php $feedCurrency = $entry->book->business->currency ?? 'USD'; @endphp
+                                            @php $feedSym = $entry->book->business?->currencySymbol() ?? ''; @endphp
                                             <div class="flex items-baseline justify-between gap-2">
-                                                <span class="font-mono font-bold text-sm leading-none
-                                                             {{ $entry->type === 'in' ? 'text-emerald-500' : 'text-red-400' }}">
-                                                    {{ $entry->type === 'in' ? '+' : '−' }}{{ $feedCurrency }} {{ number_format((float)$entry->amount, 2) }}
-                                                </span>
-                                                <span class="text-[10px] dark:text-slate-600 text-gray-300 flex-shrink-0 font-body">
+                                                <x-amount :value="$entry->amount" :symbol="$feedSym" :type="$entry->type" class="font-bold text-sm leading-none" />
+                                                <span class="text-[10px] dark:text-slate-400 text-gray-500 flex-shrink-0 font-body">
                                                     {{ $addedAt->diffForHumans(null, true) }}
                                                 </span>
                                             </div>
                                             <p class="text-xs dark:text-slate-300 text-gray-700 mt-0.5 truncate">
                                                 {{ $entry->description ?: '—' }}
                                             </p>
-                                            <p class="text-[10px] dark:text-slate-600 text-gray-300 mt-0.5 truncate">
+                                            <p class="text-[10px] dark:text-slate-400 text-gray-500 mt-0.5 truncate">
                                                 {{ $entry->book->name ?? '—' }} · {{ $entry->book->business->name ?? '—' }}
                                             </p>
                                         </div>
@@ -779,7 +781,7 @@
 
                         @if($recentEntries->isNotEmpty())
                             <div class="px-5 py-3 dark:border-t dark:border-slate-800 border-t border-gray-100">
-                                <p class="text-[10px] dark:text-slate-600 text-gray-300 text-center">
+                                <p class="text-[10px] dark:text-slate-400 text-gray-500 text-center">
                                     Last 8 entries across all books
                                 </p>
                             </div>

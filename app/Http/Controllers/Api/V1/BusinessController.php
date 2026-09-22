@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Concerns\AuthorizesApiAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\BookResource;
 use App\Http\Resources\V1\BusinessResource;
+use App\Models\Business;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -23,6 +24,9 @@ class BusinessController extends Controller
             ->withCount(['books', 'members'])
             ->orderBy('name')
             ->get();
+
+        $balances = Business::netBalances($businesses->pluck('id')->all());
+        $businesses->each(fn ($b) => $b->net_balance = $balances[$b->id] ?? '0.00');
 
         return BusinessResource::collection($businesses);
     }

@@ -8,7 +8,7 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
             <a href="{{ route('admin.blog.autopilot') }}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg dark:bg-violet-500/15 bg-violet-50 dark:text-violet-300 text-violet-700 dark:border-violet-500/30 border border-violet-200 dark:hover:bg-violet-500/25 hover:bg-violet-100 transition-colors">
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg dark:bg-primary/15 bg-primary/10 dark:text-blue-light text-primary dark:border-primary/30 border border-primary/20 dark:hover:bg-primary/25 hover:bg-primary/15 transition-colors">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
                 Autopilot
             </a>
@@ -158,7 +158,7 @@
                                                 wire:loading.attr="disabled"
                                                 wire:target="regenerateImage('{{ $p->id }}')"
                                                 title="Regenerate featured image"
-                                                class="p-1.5 rounded-md dark:text-slate-500 text-gray-400 dark:hover:text-violet-400 hover:text-violet-500 dark:hover:bg-slate-800 hover:bg-gray-100 transition-all disabled:opacity-50">
+                                                class="p-1.5 rounded-md dark:text-slate-500 text-gray-400 dark:hover:text-blue-light hover:text-primary dark:hover:bg-slate-800 hover:bg-gray-100 transition-all disabled:opacity-50">
                                             <svg wire:loading.remove wire:target="regenerateImage('{{ $p->id }}')" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75 7.41 10.59a2.25 2.25 0 0 1 3.18 0l5.16 5.16m-1.5-1.5 1.41-1.41a2.25 2.25 0 0 1 3.18 0l2.16 2.16m-16.5 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/></svg>
                                             <svg wire:loading wire:target="regenerateImage('{{ $p->id }}')" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-30"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
                                         </button>

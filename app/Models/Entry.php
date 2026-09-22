@@ -34,6 +34,32 @@ class Entry extends Model
         ];
     }
 
+    /**
+     * Human label for an entry. Description is optional, so fall back to the
+     * category, then to the direction ("Cash in" / "Cash out"). Use this
+     * everywhere an entry is named: ledger rows, exports, emails, activity.
+     */
+    public function displayLabel(): string
+    {
+        return self::labelFor($this->description, $this->category, $this->type);
+    }
+
+    /** Same fallback for places that only hold raw values (logs, arrays). */
+    public static function labelFor(?string $description, ?string $category = null, ?string $type = null): string
+    {
+        $description = trim((string) $description);
+        if ($description !== '') {
+            return $description;
+        }
+
+        $category = trim((string) $category);
+        if ($category !== '') {
+            return $category;
+        }
+
+        return $type === 'out' ? 'Cash out' : 'Cash in';
+    }
+
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);

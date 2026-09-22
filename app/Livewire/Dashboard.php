@@ -51,7 +51,41 @@ class Dashboard extends Component
             ->limit(8)
             ->get();
 
+        // ── Header totals: balance per currency across unlocked businesses.
+        // Books are already loaded with in/out sums — no extra queries.
+        $unlocked = $businesses->whereIn('id', $businessIds)->values();
+        $totals   = $unlocked
+            ->groupBy(fn ($b) => $b->currency ?: 'USD')
+            ->map(function ($group) {
+                $in = $out = $opening = 0.0;
+                foreach ($group as $biz) {
+                    foreach ($biz->books as $book) {
+                        $in      += (float) ($book->cash_in ?? 0);
+                        $out     += (float) ($book->cash_out ?? 0);
+                        $opening += (float) ($book->opening_balance ?? 0);
+                    }
+                }
+
+                return [
+                    'symbol'  => $group->first()->currencySymbol(),
+                    'in'      => $in,
+                    'out'     => $out,
+                    'balance' => $opening + $in - $out,
+                ];
+            })
+            ->sortByDesc(fn ($t) => $t['in'] + $t['out'])
+            ->values();
+
+        // ── Primary CTA target: most recently active book the user can edit.
+        $quickAddBook = $unlocked
+            ->filter(fn ($b) => in_array($b->pivot?->role, ['owner', 'editor'], true))
+            ->flatMap(fn ($biz) => $biz->books->map(fn ($book) => ['business' => $biz, 'book' => $book]))
+            ->sortByDesc(fn ($row) => (string) ($row['book']->last_entry_at ?? $row['book']->updated_at ?? $row['book']->created_at))
+            ->first();
+
         return view('livewire.dashboard', [
+            'totals'           => $totals,
+            'quickAddBook'     => $quickAddBook,
             'ownedBusinesses'  => $ownedBusinesses,
             'sharedBusinesses' => $sharedBusinesses,
             'firstOwnedId'     => $firstOwnedId,

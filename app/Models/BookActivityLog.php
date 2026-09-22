@@ -45,11 +45,12 @@ class BookActivityLog extends Model
         $meta  = $this->meta ?? [];
         $count = $meta['count'] ?? 0;
         $noun  = $count === 1 ? 'entry' : 'entries';
+        $label = $this->entryLabel($meta);
 
         return match ($this->action) {
-            'entry_created'            => 'added a ' . ($meta['type'] === 'in' ? 'Cash In' : 'Cash Out') . ' entry',
+            'entry_created'            => 'added a ' . (($meta['type'] ?? null) === 'in' ? 'Cash In' : 'Cash Out') . ' entry',
             'entry_updated'            => 'updated an entry',
-            'entry_deleted'            => 'deleted a ' . ($meta['type'] === 'in' ? 'Cash In' : 'Cash Out') . ' entry',
+            'entry_deleted'            => 'deleted a ' . (($meta['type'] ?? null) === 'in' ? 'Cash In' : 'Cash Out') . ' entry',
             'bulk_delete'              => "deleted {$count} {$noun}",
             'bulk_move'                => "moved {$count} {$noun} to " . ($meta['target_book'] ?? 'another book'),
             'bulk_copy'                => "copied {$count} {$noun} to " . ($meta['target_book'] ?? 'another book'),
@@ -57,17 +58,39 @@ class BookActivityLog extends Model
             'bulk_change_category'     => 'set category to "' . ($meta['category'] ?? 'None') . '" on ' . "{$count} {$noun}",
             'bulk_change_payment_mode' => 'set payment mode to "' . ($meta['payment_mode'] ?? 'None') . '" on ' . "{$count} {$noun}",
             'bulk_flip_type'           => "flipped Cash In/Cash Out on {$count} {$noun}",
-            'comment_added'            => 'commented on "' . ($meta['entry_description'] ?? 'an entry') . '"',
-            'comment_deleted'          => 'deleted a comment on "' . ($meta['entry_description'] ?? 'an entry') . '"',
-            'attachment_added'         => 'attached a file to "' . ($meta['entry_description'] ?? 'an entry') . '"',
-            'attachment_removed'       => 'removed the attachment from "' . ($meta['entry_description'] ?? 'an entry') . '"',
-            'recurring_created'        => 'set up a recurring ' . ($meta['frequency'] ?? '') . ' rule for "' . ($meta['description'] ?? 'an entry') . '"',
-            'recurring_deleted'        => 'deleted the recurring rule for "' . ($meta['description'] ?? 'an entry') . '"',
-            'recurring_paused'         => 'paused the recurring rule for "' . ($meta['description'] ?? 'an entry') . '"',
-            'recurring_resumed'        => 'resumed the recurring rule for "' . ($meta['description'] ?? 'an entry') . '"',
-            'recurring_updated'        => 'edited the recurring rule for "' . ($meta['description'] ?? 'an entry') . '"',
+            'comment_added'            => 'commented on "' . $label . '"',
+            'comment_deleted'          => 'deleted a comment on "' . $label . '"',
+            'attachment_added'         => 'attached a file to "' . $label . '"',
+            'attachment_removed'       => 'removed the attachment from "' . $label . '"',
+            'recurring_created'        => 'set up a recurring ' . ($meta['frequency'] ?? '') . ' rule for "' . $label . '"',
+            'recurring_deleted'        => 'deleted the recurring rule for "' . $label . '"',
+            'recurring_paused'         => 'paused the recurring rule for "' . $label . '"',
+            'recurring_resumed'        => 'resumed the recurring rule for "' . $label . '"',
+            'recurring_updated'        => 'edited the recurring rule for "' . $label . '"',
             default                    => str_replace('_', ' ', $this->action),
         };
+    }
+
+    /**
+     * Label for the entry / recurring rule an action refers to. Descriptions
+     * are optional, so fall back to the category or "Cash in" / "Cash out"
+     * (Entry::labelFor), and to "an entry" when the log holds nothing usable.
+     */
+    private function entryLabel(array $meta): string
+    {
+        $description = $meta['entry_description'] ?? $meta['description'] ?? null;
+        $category    = $meta['entry_category'] ?? $meta['category'] ?? null;
+        $type        = $meta['entry_type'] ?? $meta['type'] ?? null;
+
+        $description = is_string($description) ? $description : null;
+        $category    = is_string($category) ? $category : null;
+        $type        = is_string($type) ? $type : null;
+
+        if (trim((string) $description) === '' && trim((string) $category) === '' && ! in_array($type, ['in', 'out'], true)) {
+            return 'an entry';
+        }
+
+        return Entry::labelFor($description, $category, $type);
     }
 
     /**

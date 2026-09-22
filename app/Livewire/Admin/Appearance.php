@@ -308,9 +308,9 @@ class Appearance extends Component
             $this->fontMono,
         ])->unique()->map(function ($font) {
             $encoded = urlencode($font);
-            // Mono fonts don't need weight variants
+            // Mono fonts: load 400/500/700 so medium + bold amounts are not synthesized
             if (str_contains(strtolower($font), 'mono') || str_contains(strtolower($font), 'code')) {
-                return "family={$encoded}:wght@400";
+                return "family={$encoded}:wght@400;500;700";
             }
 
             return "family={$encoded}:wght@300;400;500;600;700;800";

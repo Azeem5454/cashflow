@@ -32,7 +32,7 @@ class MentionedInComment extends Notification
             'commenter_name'     => $commenter?->name ?? 'Someone',
             'commenter_id'       => $commenter?->id,
             'entry_id'           => $this->entry->id,
-            'entry_description'  => $this->entry->description,
+            'entry_description'  => $this->entry->displayLabel(),
             'entry_amount'       => $this->entry->amount,
             'entry_type'         => $this->entry->type,
             'book_id'            => $book->id,

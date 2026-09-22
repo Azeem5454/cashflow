@@ -13,7 +13,7 @@
     <title>@yield('title') — {{ config('app.name', 'TheCashFox') }}</title>
     <link rel="icon" type="image/png" href="{{ $faviconSrc }}">
     <link rel="apple-touch-icon" href="{{ $faviconSrc }}">
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -81,7 +81,7 @@
         }
         .orb-3 {
             width: 320px; height: 320px;
-            background: #8b5cf6;
+            background: #93c5fd;
             top: 38%; left: 58%;
             animation-delay: -15s;
             opacity: 0.12;
@@ -142,7 +142,7 @@
             font-weight: 900;
             font-size: clamp(96px, 22vw, 180px);
             line-height: 0.92;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 45%, #8b5cf6 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 45%, #93c5fd 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;

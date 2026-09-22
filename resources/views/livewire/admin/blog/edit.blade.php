@@ -237,10 +237,10 @@
                         <button type="button" wire:click="regenerateImage"
                                 wire:loading.attr="disabled" wire:target="regenerateImage"
                                 class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg
-                                       dark:bg-violet-500/15 bg-violet-50
-                                       dark:text-violet-300 text-violet-700
-                                       dark:border-violet-500/30 border border-violet-200
-                                       dark:hover:bg-violet-500/25 hover:bg-violet-100 transition-colors disabled:opacity-50">
+                                       dark:bg-primary/15 bg-primary/10
+                                       dark:text-blue-light text-primary
+                                       dark:border-primary/30 border border-primary/20
+                                       dark:hover:bg-primary/25 hover:bg-primary/15 transition-colors disabled:opacity-50">
                             <svg wire:loading.remove wire:target="regenerateImage" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/></svg>
                             <svg wire:loading wire:target="regenerateImage" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-30"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
                             <span wire:loading.remove wire:target="regenerateImage">{{ $post->featured_image_key ? 'Regenerate image' : 'Generate image' }}</span>

@@ -4,6 +4,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Keyboard focus — one consistent, visible ring app-wide (WCAG 2.4.7) ──
+   Only :focus-visible, so mouse clicks don't show it. Component utilities
+   (e.g. focus:ring-primary/40 on inputs) still win on colour. */
+@layer base {
+    a:focus-visible,
+    button:focus-visible,
+    summary:focus-visible,
+    [role="button"]:focus-visible,
+    [role="switch"]:focus-visible,
+    [role="radio"]:focus-visible,
+    [tabindex]:not([tabindex="-1"]):focus-visible {
+        @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-white;
+    }
+    .dark a:focus-visible,
+    .dark button:focus-visible,
+    .dark summary:focus-visible,
+    .dark [role="button"]:focus-visible,
+    .dark [role="switch"]:focus-visible,
+    .dark [role="radio"]:focus-visible,
+    .dark [tabindex]:not([tabindex="-1"]):focus-visible {
+        @apply ring-offset-navy;
+    }
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+        @apply outline-none ring-2 ring-primary;
+    }
+}
+
 
 /* ── Flatpickr — wrapper display fix ───────────────────── */
 /* Flatpickr defaults to inline-block which breaks w-full inputs and

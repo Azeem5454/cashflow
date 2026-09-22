@@ -215,15 +215,44 @@ class EntryApiTest extends ApiTestCase
         $this->assertSame(0, $proBook->entries()->count());
     }
 
-    public function test_description_is_required_like_web(): void
+    public function test_description_is_optional_and_blank_is_stored_as_null(): void
     {
         $owner = $this->makeUser();
         $book  = $this->makeBook($this->makeBusiness($owner));
         $this->actingAsUser($owner);
 
-        $this->postJson("/api/v1/books/{$book->id}/entries", [
+        $id = $this->postJson("/api/v1/books/{$book->id}/entries", [
             'type' => 'in', 'amount' => '10', 'date' => '2026-03-10',
+        ])->assertCreated()->assertJsonPath('data.description', null)->json('data.id');
+        $this->assertNull(Entry::findOrFail($id)->description);
+
+        $id = $this->postJson("/api/v1/books/{$book->id}/entries", [
+            'type' => 'out', 'amount' => '5', 'date' => '2026-03-10', 'description' => '   ',
+        ])->assertCreated()->json('data.id');
+        $this->assertNull(Entry::findOrFail($id)->description);
+
+        $this->putJson("/api/v1/entries/{$id}", ['description' => '  Taxi  '])
+            ->assertOk()->assertJsonPath('data.description', 'Taxi');
+        $this->putJson("/api/v1/entries/{$id}", ['description' => null])
+            ->assertOk()->assertJsonPath('data.description', null);
+        $this->assertNull(Entry::findOrFail($id)->description);
+
+        $this->postJson("/api/v1/books/{$book->id}/entries", [
+            'type' => 'in', 'amount' => '10', 'date' => '2026-03-10', 'description' => str_repeat('x', 256),
         ])->assertStatus(422)->assertJsonValidationErrors('description');
+    }
+
+    public function test_recurring_rule_without_description_is_created(): void
+    {
+        $owner = $this->makeUser(pro: true);
+        $book  = $this->makeBook($this->makeBusiness($owner));
+        $this->actingAsUser($owner);
+
+        $this->postJson("/api/v1/books/{$book->id}/entries", [
+            'type' => 'out', 'amount' => '12', 'date' => '2026-03-10', 'recurringFrequency' => 'weekly',
+        ])->assertCreated();
+
+        $this->assertNull(RecurringEntry::where('book_id', $book->id)->firstOrFail()->description);
     }
 
     public function test_categories_and_payment_modes_post(): void
@@ -268,7 +297,7 @@ class EntryApiTest extends ApiTestCase
             ->assertJsonPath('data.paymentMode', 'Card');
         $this->assertSame(['Card'], $book->paymentModes()->pluck('name')->all());
 
-        $this->putJson("/api/v1/entries/{$entry->id}", ['description' => null])->assertStatus(422);
+        $this->putJson("/api/v1/entries/{$entry->id}", ['description' => str_repeat('x', 256)])->assertStatus(422);
 
         $log = BookActivityLog::where('action', 'entry_updated')->firstOrFail();
         $this->assertSame($entry->id, $log->entry_id);

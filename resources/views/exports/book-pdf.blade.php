@@ -223,7 +223,7 @@
                 <th>Description</th>
                 <th style="width:80px;">Reference</th>
                 <th style="width:80px;">Category</th>
-                <th style="width:72px;">Pay Mode</th>
+                <th style="width:72px;">Payment</th>
                 <th class="text-right" style="width:80px;">Cash In</th>
                 <th class="text-right" style="width:80px;">Cash Out</th>
                 <th class="text-right" style="width:88px;">Running Bal.</th>
@@ -233,7 +233,7 @@
             @foreach($entries as $entry)
                 <tr>
                     <td class="mono">{{ $entry->date->format('d M Y') }}</td>
-                    <td>{{ $entry->description }}</td>
+                    <td>{{ $entry->displayLabel() }}</td>
                     <td class="muted">{{ $entry->reference ?? '—' }}</td>
                     <td class="muted">{{ $entry->category ?? '—' }}</td>
                     <td class="muted">{{ $entry->payment_mode ?? '—' }}</td>

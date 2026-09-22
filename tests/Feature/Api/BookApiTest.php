@@ -70,7 +70,7 @@ class BookApiTest extends ApiTestCase
                 ->sortBy(fn ($a) => array_search($a, ['recurring_updated', 'recurring_paused', 'recurring_resumed', 'recurring_deleted']))
                 ->values()->all()
         );
-        $this->assertSame(['description' => 'Hosting'], BookActivityLog::where('action', 'recurring_deleted')->first()->meta);
+        $this->assertSame(['description' => 'Hosting', 'category' => 'IT', 'type' => 'out'], BookActivityLog::where('action', 'recurring_deleted')->first()->meta);
 
         // Non-member → 404
         $rule2 = $this->makeRule($book);

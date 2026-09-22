@@ -81,7 +81,7 @@
                             {{ $isUnread ? 'dark:bg-primary/5 bg-blue-50/60' : '' }}
                             dark:hover:bg-slate-800/50 hover:bg-gray-50 transition-colors group">
                     {{-- Avatar --}}
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-white">
                         {{ strtoupper(substr($data['commenter_name'] ?? '?', 0, 1)) }}
                     </div>
                     {{-- Content --}}
@@ -89,7 +89,7 @@
                         <p class="text-xs font-body dark:text-slate-200 text-gray-800 leading-snug">
                             <span class="font-semibold">{{ $data['commenter_name'] ?? 'Someone' }}</span>
                             mentioned you in
-                            <span class="font-semibold dark:text-white text-gray-900">{{ $data['entry_description'] ?? 'an entry' }}</span>
+                            <span class="font-semibold dark:text-white text-gray-900">{{ ($data['entry_description'] ?? null) ?: 'an entry' }}</span>
                         </p>
                         @if(!empty($data['comment_excerpt']))
                             <p class="text-[11px] font-body dark:text-slate-500 text-gray-400 mt-0.5 truncate italic">

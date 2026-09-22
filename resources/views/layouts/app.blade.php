@@ -34,7 +34,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..60,400;12..60,700;12..60,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400&display=swap') }}" rel="stylesheet">
+    <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..60,400;12..60,700;12..60,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;500;700&display=swap') }}" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -87,7 +87,7 @@
             <a href="{{ route('dashboard') }}" wire:navigate>
                 <x-app-logo />
             </a>
-            <button @click="sidebarOpen = false"
+            <button type="button" @click="sidebarOpen = false" aria-label="Close menu"
                     class="lg:hidden p-2 rounded-lg dark:text-slate-500 text-gray-400
                            dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -99,24 +99,33 @@
         {{-- Business Switcher --}}
         @auth
             @php
-                $userBusinesses = auth()->user()->businesses()->orderBy('name')->get();
+                // Memoized on the current request (keyed by user): the business list
+                // + one aggregate balance query run once no matter how often this renders.
+                $sidebarMemoKey = 'sidebar_businesses_' . auth()->id();
+                if (! request()->attributes->has($sidebarMemoKey)) {
+                    $list = auth()->user()->businesses()->orderBy('name')->get();
+                    $balances = \App\Models\Entry::query()
+                        ->selectRaw('books.business_id, SUM(CASE WHEN entries.type = \'in\' THEN entries.amount ELSE -entries.amount END) as net')
+                        ->join('books', 'entries.book_id', '=', 'books.id')
+                        ->whereIn('books.business_id', $list->pluck('id'))
+                        ->groupBy('books.business_id')
+                        ->pluck('net', 'business_id');
+                    request()->attributes->set($sidebarMemoKey, [$list, $balances]);
+                }
+                [$userBusinesses, $sidebarBalances] = request()->attributes->get($sidebarMemoKey);
                 $currentBusiness = request()->route('business');
                 if ($currentBusiness && !$currentBusiness instanceof \App\Models\Business) {
-                    $currentBusiness = \App\Models\Business::find($currentBusiness);
+                    $currentBusiness = $userBusinesses->firstWhere('id', $currentBusiness) ?? \App\Models\Business::find($currentBusiness);
                 }
-                // One efficient query: net balance per business
-                $sidebarBalances = \App\Models\Entry::query()
-                    ->selectRaw('books.business_id, SUM(CASE WHEN entries.type = \'in\' THEN entries.amount ELSE -entries.amount END) as net')
-                    ->join('books', 'entries.book_id', '=', 'books.id')
-                    ->whereIn('books.business_id', $userBusinesses->pluck('id'))
-                    ->groupBy('books.business_id')
-                    ->pluck('net', 'business_id');
+                $sidebarIsPro       = auth()->user()->isPro();
+                $sidebarOwnsAny     = $userBusinesses->contains(fn ($b) => $b->pivot?->role === 'owner');
             @endphp
             @if($userBusinesses->count() > 0)
                 <div class="px-3 pt-4 pb-2" x-data="{ switcher: false }">
-                    <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-600 text-gray-400 px-3 pb-2">Business</p>
+                    <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-400 text-gray-500 px-3 pb-2">Business</p>
                     <div class="relative">
-                        <button @click="switcher = !switcher" @click.outside="switcher = false"
+                        <button type="button" @click="switcher = !switcher" @click.outside="switcher = false"
+                                aria-label="Switch business" :aria-expanded="switcher.toString()"
                                 class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                                        dark:bg-slate-800/60 bg-gray-50 dark:hover:bg-slate-800 hover:bg-gray-100
                                        dark:border-slate-700/60 border-gray-200 border">
@@ -150,7 +159,7 @@
 
                             @if($userBusinesses->count() > 4)
                                 <div class="px-3 pt-3 pb-1">
-                                    <input type="text" placeholder="Search business…"
+                                    <input type="text" placeholder="Search business…" aria-label="Search businesses"
                                            x-ref="businessSearch"
                                            x-on:input="
                                                let val = $el.value.toLowerCase();
@@ -174,7 +183,7 @@
                             <div class="max-h-56 overflow-y-auto py-1.5">
                                 {{-- Mine --}}
                                 @if($ownedBizList->isNotEmpty())
-                                    <p class="px-4 pt-1.5 pb-1 text-[9px] font-bold uppercase tracking-widest dark:text-slate-600 text-gray-400">Mine</p>
+                                    <p class="px-4 pt-1.5 pb-1 text-[9px] font-bold uppercase tracking-widest dark:text-slate-400 text-gray-500">Mine</p>
                                     @foreach($ownedBizList as $biz)
                                         @php
                                             $bizNet      = isset($sidebarBalances[$biz->id]) ? (float)$sidebarBalances[$biz->id] : null;
@@ -194,7 +203,8 @@
                                             </div>
                                             <span class="flex-1 truncate text-xs">{{ $biz->name }}</span>
                                             @if($bizNet !== null)
-                                                <span class="text-[10px] font-mono font-bold flex-shrink-0 {{ $bizNet < 0 ? 'text-red-400' : 'text-emerald-500' }}">
+                                                <span class="inline-flex items-center gap-0.5 text-[10px] font-mono tabular-nums font-bold flex-shrink-0 {{ $bizNet < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' }}">
+                                                    @if($bizNet < 0)<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" role="img" aria-label="Negative balance"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.306-4.306a11.95 11.95 0 0 1 5.814 5.518l2.74 1.22m0 0-5.94 2.281m5.94-2.28-2.28-5.941"/></svg>@endif
                                                     {{ $bizNet < 0 ? '−' : '+' }}{{ $bizCurrency }} {{ abs($bizNet) >= 1000000 ? number_format(abs($bizNet)/1000000,1).'M' : (abs($bizNet) >= 1000 ? number_format(abs($bizNet)/1000,1).'K' : number_format(abs($bizNet),2)) }}
                                                 </span>
                                             @endif
@@ -205,7 +215,7 @@
                                 {{-- Shared with Me --}}
                                 @if($sharedBizList->isNotEmpty())
                                     <div class="mx-3 my-1.5 border-t dark:border-slate-700 border-gray-100"></div>
-                                    <p class="px-4 pb-1 text-[9px] font-bold uppercase tracking-widest dark:text-slate-600 text-gray-400">Shared with Me</p>
+                                    <p class="px-4 pb-1 text-[9px] font-bold uppercase tracking-widest dark:text-slate-400 text-gray-500">Shared with Me</p>
                                     @foreach($sharedBizList as $biz)
                                         @php
                                             $bizNet      = isset($sidebarBalances[$biz->id]) ? (float)$sidebarBalances[$biz->id] : null;
@@ -226,7 +236,8 @@
                                             </div>
                                             <span class="flex-1 truncate text-xs">{{ $biz->name }}</span>
                                             @if($bizNet !== null)
-                                                <span class="text-[10px] font-mono font-bold flex-shrink-0 {{ $bizNet < 0 ? 'text-red-400' : 'text-emerald-500' }}">
+                                                <span class="inline-flex items-center gap-0.5 text-[10px] font-mono tabular-nums font-bold flex-shrink-0 {{ $bizNet < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' }}">
+                                                    @if($bizNet < 0)<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" role="img" aria-label="Negative balance"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.306-4.306a11.95 11.95 0 0 1 5.814 5.518l2.74 1.22m0 0-5.94 2.281m5.94-2.28-2.28-5.941"/></svg>@endif
                                                     {{ $bizNet < 0 ? '−' : '+' }}{{ $bizCurrency }} {{ abs($bizNet) >= 1000000 ? number_format(abs($bizNet)/1000000,1).'M' : (abs($bizNet) >= 1000 ? number_format(abs($bizNet)/1000,1).'K' : number_format(abs($bizNet),2)) }}
                                                 </span>
                                             @endif
@@ -236,7 +247,7 @@
                             </div>
 
                             <div class="dark:border-slate-700 border-t border-gray-100">
-                                @if(! auth()->user()->isPro() && auth()->user()->ownedBusinesses()->exists())
+                                @if(! $sidebarIsPro && $sidebarOwnsAny)
                                     {{-- Free plan already owns a business: open the upgrade modal in place --}}
                                     <button type="button"
                                             @click="switcher = false; $dispatch('open-business-upgrade')"
@@ -246,7 +257,7 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
                                         </svg>
                                         Add New Business
-                                        <span class="ml-auto text-[10px] font-bold uppercase tracking-wider text-amber-400">Pro</span>
+                                        <x-pro-badge class="ml-auto" />
                                     </button>
                                 @else
                                 <a href="{{ route('businesses.create') }}" wire:navigate @click="switcher = false"
@@ -267,7 +278,7 @@
 
         {{-- Navigation --}}
         <nav class="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
-            <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-600 text-gray-400 px-3 pb-2">Main</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-400 text-gray-500 px-3 pb-2">Main</p>
 
             <a href="{{ route('dashboard') }}" wire:navigate
                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
@@ -282,7 +293,7 @@
 
 
             <div class="pt-4">
-                <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-600 text-gray-400 px-3 pb-2">Account</p>
+                <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-400 text-gray-500 px-3 pb-2">You</p>
 
                 <a href="{{ route('profile.edit') }}" wire:navigate
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
@@ -293,7 +304,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                     </svg>
-                    Settings
+                    Account
                 </a>
 
                 <a href="{{ route('billing') }}" wire:navigate
@@ -337,7 +348,8 @@
 
             {{-- User profile --}}
             <div x-data="{ open: false }" class="relative">
-                <button @click="open = !open" @click.outside="open = false"
+                <button type="button" @click="open = !open" @click.outside="open = false"
+                        aria-label="Account menu" :aria-expanded="open.toString()"
                         class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-all duration-150
                                dark:hover:bg-slate-800/80 hover:bg-gray-100">
                     <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow">
@@ -346,11 +358,8 @@
                     <div class="flex-1 text-left min-w-0">
                         <div class="flex items-center gap-1.5">
                             <p class="text-sm font-semibold dark:text-white text-gray-900 truncate leading-tight">{{ auth()->user()->name }}</p>
-                            @if(auth()->user()->isPro())
-                                <span class="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
-                                      style="background:rgba(245,158,11,0.15);color:#f59e0b">PRO</span>
-                            @else
-                                <span class="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 dark:bg-slate-700 bg-gray-200 dark:text-slate-300 text-gray-600">FREE</span>
+                            @if($sidebarIsPro ?? auth()->user()->isPro())
+                                <x-pro-badge />
                             @endif
                         </div>
                         <p class="text-xs dark:text-slate-500 text-gray-400 truncate leading-tight">{{ auth()->user()->email }}</p>
@@ -384,10 +393,6 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/>
                         </svg>
                         Billing & Plans
-                        @if(! auth()->user()->isPro())
-                            <span class="ml-auto text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded"
-                                  style="background:rgba(245,158,11,0.15);color:#f59e0b">UPGRADE</span>
-                        @endif
                     </a>
                     <div class="dark:border-slate-700 border-t border-gray-100 mx-3"></div>
                     <form method="POST" action="{{ route('logout') }}">
@@ -402,6 +407,14 @@
                     </form>
                 </div>
             </div>
+
+            {{-- One quiet upgrade line — Free users only --}}
+            @if(! auth()->user()->isPro())
+                <a href="{{ route('billing') }}" wire:navigate
+                   class="block px-3 pt-1 text-xs font-body text-gray-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-light transition-colors">
+                    You're on Free · <span class="font-medium text-primary dark:text-blue-light">Upgrade</span>
+                </a>
+            @endif
         </div>
     </aside>
 
@@ -411,7 +424,7 @@
         {{-- Mobile top bar --}}
         <header class="lg:hidden flex items-center justify-between h-14 px-4 flex-shrink-0
                        dark:bg-dark bg-white dark:border-slate-800 border-b border-gray-200">
-            <button @click="sidebarOpen = true"
+            <button type="button" @click="sidebarOpen = true" aria-label="Open menu"
                     class="p-2 rounded-lg dark:text-slate-400 text-gray-600 dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>

@@ -1,0 +1,1 @@
+<span class="normal-case tracking-normal font-semibold px-1.5 py-0.5 rounded text-[10px] inline-flex items-center gap-0.5 bg-blue-50 text-primary dark:bg-slate-800 dark:text-blue-light"><x-ai-sparkle class="w-3 h-3" />AI filled</span>

@@ -316,7 +316,7 @@ class BookController extends Controller
         $validated = $request->validate([
             'type'        => ['sometimes', 'required', 'in:in,out'],
             'amount'      => ['sometimes', 'required', 'numeric', 'min:0.01', 'max:999999999.99'],
-            'description' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:255'],
             'category'    => ['sometimes', 'nullable', 'string', 'max:100'],
             'paymentMode' => ['sometimes', 'nullable', 'string', 'max:100'],
             'reference'   => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -334,9 +334,12 @@ class BookController extends Controller
         foreach ($map as $input => $column) {
             if (array_key_exists($input, $validated)) {
                 $value = $validated[$input];
-                $updates[$column] = in_array($input, ['category', 'paymentMode', 'reference', 'endsAt'], true)
-                    ? ($value ?: null)
-                    : $value;
+                $updates[$column] = match (true) {
+                    // Description is optional — blank is stored as NULL.
+                    $input === 'description' => trim((string) $value) !== '' ? trim((string) $value) : null,
+                    in_array($input, ['category', 'paymentMode', 'reference', 'endsAt'], true) => $value ?: null,
+                    default => $value,
+                };
             }
         }
 
@@ -345,6 +348,8 @@ class BookController extends Controller
 
             $this->logBookActivity($book, $request, 'recurring_updated', null, [
                 'description' => $recurring->description,
+                'category'    => $recurring->category,
+                'type'        => $recurring->type,
             ]);
         }
 
@@ -376,6 +381,8 @@ class BookController extends Controller
 
         $this->logBookActivity($book, $request, $newStatus === 'paused' ? 'recurring_paused' : 'recurring_resumed', null, [
             'description' => $recurring->description,
+            'category'    => $recurring->category,
+            'type'        => $recurring->type,
         ]);
 
         return response()->json([
@@ -391,10 +398,14 @@ class BookController extends Controller
     {
         [$recurring, $book] = $this->findAuthorizedRecurring($request, $id);
 
-        $desc = $recurring->description;
+        $meta = [
+            'description' => $recurring->description,
+            'category'    => $recurring->category,
+            'type'        => $recurring->type,
+        ];
         $recurring->delete();
 
-        $this->logBookActivity($book, $request, 'recurring_deleted', null, ['description' => $desc]);
+        $this->logBookActivity($book, $request, 'recurring_deleted', null, $meta);
 
         return response()->json(['message' => 'Recurring entry deleted.']);
     }

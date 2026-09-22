@@ -119,6 +119,46 @@ class Business extends Model
         return $alreadyInvited || $this->seatsUsed() < $limit;
     }
 
+    /**
+     * Net balance (opening balances + cash in − cash out) across all books,
+     * keyed by business id, in two queries for any number of businesses.
+     *
+     * @param  array<int, string>  $businessIds
+     * @return array<string, string> formatted to 2 decimals
+     */
+    public static function netBalances(array $businessIds): array
+    {
+        if ($businessIds === []) {
+            return [];
+        }
+
+        $openings = \Illuminate\Support\Facades\DB::table('books')
+            ->whereIn('business_id', $businessIds)
+            ->groupBy('business_id')
+            ->selectRaw('business_id, COALESCE(SUM(opening_balance), 0) AS total')
+            ->pluck('total', 'business_id');
+
+        $movements = \Illuminate\Support\Facades\DB::table('entries')
+            ->join('books', 'books.id', '=', 'entries.book_id')
+            ->whereIn('books.business_id', $businessIds)
+            ->groupBy('books.business_id')
+            ->selectRaw("books.business_id, COALESCE(SUM(CASE WHEN entries.type = 'in' THEN entries.amount ELSE -entries.amount END), 0) AS total")
+            ->pluck('total', 'business_id');
+
+        // Postgres returns exact decimal strings; SQLite may return floats
+        // (possibly in exponent form), which bcmath can't parse.
+        $dec = static fn ($v): string => is_string($v) && preg_match('/^-?\d+(\.\d+)?$/', $v)
+            ? $v
+            : number_format((float) $v, 2, '.', '');
+
+        $out = [];
+        foreach ($businessIds as $id) {
+            $out[$id] = bcadd($dec($openings[$id] ?? '0'), $dec($movements[$id] ?? '0'), 2);
+        }
+
+        return $out;
+    }
+
     public function userRole(User $user): ?string
     {
         $member = $this->members()->where('users.id', $user->id)->first();

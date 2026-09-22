@@ -37,6 +37,15 @@ class RecurringEntry extends Model
         ];
     }
 
+    /**
+     * Description is optional — fall back to the category, then
+     * "Cash in" / "Cash out" (same rule as Entry::displayLabel()).
+     */
+    public function displayLabel(): string
+    {
+        return Entry::labelFor($this->description, $this->category, $this->type);
+    }
+
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);

@@ -25,6 +25,9 @@ class BusinessResource extends JsonResource
                 ? BusinessLock::isLocked($request->user(), $this->resource, $role)
                 : false,
             'booksCount'     => $this->whenCounted('books'),
+            // Net across all books (opening balances included), in this business's currency.
+            'balance'        => $this->net_balance
+                ?? \App\Models\Business::netBalances([$this->id])[$this->id],
             'membersCount'   => (int) ($this->members_count ?? $this->members()->count()),
             // Team-size limit for the owner's plan (owner included); null = unlimited.
             'memberLimit'    => $this->memberLimit(),

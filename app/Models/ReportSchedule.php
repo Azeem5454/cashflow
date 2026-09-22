@@ -90,7 +90,7 @@ class ReportSchedule extends Model
 
         $recentEntries = $entries->take(10)->map(fn ($e) => [
             'date'        => $e->date->format('M d'),
-            'description' => $e->description,
+            'description' => $e->displayLabel(),
             'amount'      => $e->amount,
             'type'        => $e->type,
         ])->toArray();

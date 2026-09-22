@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Book;
+use App\Models\Entry;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -130,6 +132,140 @@ class BookLedger
     {
         if ($value === null || $value === '') {
             return '0.00';
+        }
+
+        return bcadd((string) $value, '0', 2);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  SQL-side ledger (web ledger page — paginated)
+    //
+    //  The running balance is a window function over the WHOLE book in the
+    //  stable order date → created_at → id, computed in an inner query, and
+    //  filters are applied on the outer query — so a filtered row keeps the
+    //  balance it has in the full ledger (same semantics as chronological()
+    //  + applyFilters()), but only one page of rows is ever hydrated.
+    //  Works on PostgreSQL and SQLite ≥ 3.25 (window functions).
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Builder over the book's entries (aliased `entries`) exposing a
+     * `running_delta` column = signed cumulative sum up to and including
+     * the row. Add opening balance via withRunningBalance().
+     */
+    public static function runningQuery(Book $book): Builder
+    {
+        $inner = Entry::query()
+            ->select('entries.*')
+            ->selectRaw(
+                "SUM(CASE WHEN type = 'in' THEN amount ELSE -amount END) "
+                . 'OVER (ORDER BY date ASC, created_at ASC, id ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_delta'
+            )
+            ->where('book_id', $book->id);
+
+        return Entry::query()->fromSub($inner, 'entries')->select('entries.*');
+    }
+
+    /**
+     * Apply the ledger filters to an entries query (works on both the
+     * plain relation and runningQuery()).
+     *
+     * @param  array{type?:?string,from?:?string,to?:?string,category?:string|array|null,paymentMode?:string|array|null,search?:?string}  $filters
+     */
+    public static function applyQueryFilters($query, array $filters)
+    {
+        $type = $filters['type'] ?? null;
+        if (in_array($type, ['in', 'out'], true)) {
+            $query->where('entries.type', $type);
+        }
+
+        if (! empty($filters['from'])) {
+            $query->whereDate('entries.date', '>=', $filters['from']);
+        }
+        if (! empty($filters['to'])) {
+            $query->whereDate('entries.date', '<=', $filters['to']);
+        }
+
+        $categories = self::listFilter($filters['category'] ?? null);
+        if ($categories !== []) {
+            $query->whereIn('entries.category', $categories);
+        }
+
+        $modes = self::listFilter($filters['paymentMode'] ?? null);
+        if ($modes !== []) {
+            $query->whereIn('entries.payment_mode', $modes);
+        }
+
+        $search = isset($filters['search']) ? trim((string) $filters['search']) : '';
+        if ($search !== '') {
+            $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($search)) . '%';
+            $query->where(function ($q) use ($like) {
+                $q->whereRaw("LOWER(COALESCE(entries.description, '')) LIKE ? ESCAPE '\\'", [$like])
+                  ->orWhereRaw("LOWER(COALESCE(entries.reference, '')) LIKE ? ESCAPE '\\'", [$like])
+                  ->orWhereRaw("LOWER(COALESCE(entries.category, '')) LIKE ? ESCAPE '\\'", [$like])
+                  ->orWhereRaw("CAST(entries.amount AS TEXT) LIKE ? ESCAPE '\\'", [$like]);
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Totals for a (filtered) entries query in one aggregate round-trip.
+     *
+     * @return array{totalIn:string,totalOut:string,inCount:int,outCount:int,count:int}
+     */
+    public static function queryTotals($query): array
+    {
+        $row = (clone $query)->reorder()->toBase()
+            ->selectRaw("COALESCE(SUM(CASE WHEN entries.type = 'in' THEN entries.amount ELSE 0 END), 0) AS total_in")
+            ->selectRaw("COALESCE(SUM(CASE WHEN entries.type = 'out' THEN entries.amount ELSE 0 END), 0) AS total_out")
+            ->selectRaw("SUM(CASE WHEN entries.type = 'in' THEN 1 ELSE 0 END) AS in_count")
+            ->selectRaw("SUM(CASE WHEN entries.type = 'out' THEN 1 ELSE 0 END) AS out_count")
+            ->first();
+
+        $inCount  = (int) ($row->in_count ?? 0);
+        $outCount = (int) ($row->out_count ?? 0);
+
+        return [
+            'totalIn'  => self::dbMoney($row->total_in ?? 0),
+            'totalOut' => self::dbMoney($row->total_out ?? 0),
+            'inCount'  => $inCount,
+            'outCount' => $outCount,
+            'count'    => $inCount + $outCount,
+        ];
+    }
+
+    /**
+     * Stamp `running_balance` (opening balance + running_delta, 2 dp string)
+     * on rows fetched from runningQuery().
+     */
+    public static function withRunningBalance(Collection $entries, Book $book): Collection
+    {
+        $opening = self::money($book->opening_balance);
+
+        foreach ($entries as $entry) {
+            $entry->running_balance = bcadd($opening, self::dbMoney($entry->running_delta ?? 0), 2);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Normalise an aggregate coming back from the DB. PostgreSQL returns
+     * exact numeric strings; SQLite may return floats — round those to
+     * cents rather than letting bcmath truncate 0.30000000000000004.
+     */
+    public static function dbMoney($value): string
+    {
+        if (is_float($value) || is_int($value)) {
+            return number_format(round((float) $value, 2), 2, '.', '');
+        }
+        if (! is_numeric($value)) {
+            return '0.00';
+        }
+        if (stripos((string) $value, 'e') !== false) {
+            return number_format(round((float) $value, 2), 2, '.', '');
         }
 
         return bcadd((string) $value, '0', 2);

@@ -108,7 +108,7 @@
         </script>
     @endif
 
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800;12..96,900&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800;12..96,900&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; scroll-padding-top: 90px; }
@@ -215,7 +215,7 @@
         /* ─ Hero email form ─ */
         .hero-form { position:relative; }
         .hero-form input { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:9999px; font-family:'Outfit',sans-serif; transition:border-color 0.2s, background 0.2s; }
-        .hero-form input::placeholder { color:rgba(248,250,252,0.35); }
+        .hero-form input::placeholder { color:rgba(248,250,252,0.55); }
         .hero-form input:focus { outline:none; border-color:rgba(59,130,246,0.6); background:rgba(255,255,255,0.1); }
 
         /* ─ Step connector ─ */
@@ -266,7 +266,7 @@
         <div class="hidden md:flex items-center gap-8">
             @foreach([['#pain','Problem'],['#how','How it works'],['#features','Features'],['#pricing','Pricing']] as [$h,$l])
             <a href="{{ $h }}" class="text-sm"
-               style="color:rgba(248,250,252,0.5);transition:color .15s"
+               style="color:rgba(248,250,252,0.65);transition:color .15s"
                onmouseover="this.style.color='rgba(248,250,252,.9)'"
                onmouseout="this.style.color='rgba(248,250,252,.5)'">{{ $l }}</a>
             @endforeach
@@ -328,7 +328,7 @@
             {{-- Trust signal (factual only — no invented user counts or ratings) --}}
             <div class="hu hu1 flex items-center gap-3 mb-6 flex-wrap">
                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="#22c55e" aria-hidden="true"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
-                <span class="text-sm" style="color:rgba(248,250,252,0.5)"><strong style="color:#f8fafc">Free plan, forever</strong> · No card required · Any currency</span>
+                <span class="text-sm" style="color:rgba(248,250,252,0.65)"><strong style="color:#f8fafc">Free plan, forever</strong> · No card required · Any currency</span>
             </div>
 
             <h1 class="fd font-black leading-[0.92] tracking-tight mb-6 hu hu2"
@@ -336,19 +336,19 @@
                 Your business<br>balance. <span style="color:var(--accent)">Live.<br>Always.<span class="cursor"></span></span>
             </h1>
 
-            <p class="text-lg leading-relaxed mb-9 hu hu3 max-w-md" style="color:rgba(248,250,252,0.5)">
+            <p class="text-lg leading-relaxed mb-9 hu hu3 max-w-md" style="color:rgba(248,250,252,0.65)">
                 Record a transaction in 10 seconds. Balance updates instantly. Share live read access with your accountant — no Excel, no phone calls, no month-end panic.
             </p>
 
             <form action="{{ route('register') }}" method="GET" class="hero-form flex flex-col sm:flex-row gap-2 mb-5 hu hu4" style="max-width:440px">
-                <input type="email" name="email" placeholder="Enter your work email"
+                <input type="email" name="email" placeholder="Your email"
                        class="flex-1 px-5 py-3.5 text-sm"
                        style="min-width:0">
                 <button type="submit" class="font-semibold px-6 py-3.5 rounded-full text-sm btn-primary whitespace-nowrap flex-shrink-0">
                     Get started free →
                 </button>
             </form>
-            <p class="text-xs hu hu5 flex items-center gap-4 flex-wrap" style="color:rgba(248,250,252,0.28)">
+            <p class="text-xs hu hu5 flex items-center gap-4 flex-wrap" style="color:rgba(248,250,252,0.55)">
                 <span>✓ Free forever plan</span>
                 <span>✓ No credit card</span>
                 <span>✓ Set up in 2 min</span>
@@ -364,13 +364,13 @@
                         <div class="w-3 h-3 rounded-full" style="background:#ffbd2e"></div>
                         <div class="w-3 h-3 rounded-full" style="background:#28c840"></div>
                     </div>
-                    <span class="fm text-xs" style="color:rgba(248,250,252,0.3)">March 2026 · Acme Agency</span>
+                    <span class="fm text-xs" style="color:rgba(248,250,252,0.55)">March 2026 · Acme Agency</span>
                     <span class="text-xs font-semibold px-2 py-0.5 rounded" style="background:rgba(74,222,128,0.15);color:#4ade80">● Live</span>
                 </div>
                 <div class="grid grid-cols-3" style="border-bottom:1px solid rgba(255,255,255,0.07)">
                     @foreach([['Cash In','#4ade80','$12,430'],['Cash Out','#f87171','$3,840'],['Net Balance','#f8fafc','$8,590']] as [$l,$c,$v])
                     <div class="px-4 py-3" style="{{ !$loop->last ? 'border-right:1px solid rgba(255,255,255,0.07)' : '' }}">
-                        <p class="text-[10px] uppercase tracking-widest mb-1" style="color:rgba(248,250,252,0.3)">{{ $l }}</p>
+                        <p class="text-[10px] uppercase tracking-widest mb-1" style="color:rgba(248,250,252,0.55)">{{ $l }}</p>
                         <p class="fm font-bold text-sm {{ $l==='Net Balance'?'bal-pulse':'' }}" style="color:{{ $c }}">{{ $v }}</p>
                     </div>
                     @endforeach
@@ -391,7 +391,7 @@
                         </div>
                         <div class="min-w-0">
                             <p class="text-xs truncate" style="color:rgba(248,250,252,0.75)">{{ $d }}</p>
-                            <p class="text-[10px] mt-0.5" style="color:rgba(248,250,252,0.28)">{{ $c }} · {{ $dt }}</p>
+                            <p class="text-[10px] mt-0.5" style="color:rgba(248,250,252,0.55)">{{ $c }} · {{ $dt }}</p>
                         </div>
                     </div>
                     <span class="fm text-xs font-bold flex-shrink-0 ml-3" style="color:{{ $t==='in'?'#4ade80':'#f87171' }}">
@@ -400,7 +400,7 @@
                 </div>
                 @endforeach
                 <div class="flex items-center justify-between px-4 py-2.5" style="background:rgba(255,255,255,0.02)">
-                    <span class="text-[10px]" style="color:rgba(248,250,252,0.25)">6 of 43 entries</span>
+                    <span class="text-[10px]" style="color:rgba(248,250,252,0.55)">6 of 43 entries</span>
                     <span class="update-anim text-[10px]" style="color:var(--accent)">↑ Updated just now</span>
                 </div>
             </div>
@@ -426,9 +426,9 @@
             ];
             @endphp
             @foreach(array_merge($currencies,$currencies) as $c)
-            <span class="flex items-center gap-2 text-xs" style="color:rgba(255,255,255,0.28)">
+            <span class="flex items-center gap-2 text-xs" style="color:rgba(255,255,255,0.55)">
                 <span class="fm font-bold text-sm" style="color:rgba(59,130,246,0.7)">{{ $c[0] }}</span>
-                <span style="color:rgba(255,255,255,0.18)">{{ $c[2] }}</span>
+                <span style="color:rgba(255,255,255,0.55)">{{ $c[2] }}</span>
             </span>
             @endforeach
         </div>
@@ -438,7 +438,7 @@
         <div class="mr flex gap-8 whitespace-nowrap" style="min-width:200%">
             @php $tags=['Retail Shops','Freelancers','Restaurants','Agencies','Wholesalers','Consultants','E-commerce','Real Estate','Startups','Import/Export','Finance Teams','Partnerships','Law Firms','Salons & Spas','Food Trucks','Photography Studios']; @endphp
             @foreach(array_merge($tags,$tags) as $tag)
-            <span class="text-xs font-medium flex items-center gap-2" style="color:rgba(255,255,255,0.25)">
+            <span class="text-xs font-medium flex items-center gap-2" style="color:rgba(255,255,255,0.55)">
                 <span class="w-1 h-1 rounded-full inline-block flex-shrink-0" style="background:rgba(59,130,246,0.5)"></span>{{ $tag }}
             </span>
             @endforeach
@@ -452,7 +452,7 @@
     <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-56 rounded-full blur-3xl pointer-events-none glow-pulse" style="background:rgba(26,86,219,0.1)"></div>
     <div class="relative max-w-5xl mx-auto">
         <div class="text-center mb-14">
-            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.35)">Before {{ config('app.name', 'TheCashFox') }}</p>
+            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.55)">Before {{ config('app.name', 'TheCashFox') }}</p>
             <h2 class="sr d1 fd font-black leading-tight" style="color:#fff;font-size:clamp(2.2rem,4.5vw,3.5rem)">
                 Sound familiar?
             </h2>
@@ -482,12 +482,12 @@
                     </svg>
                 </div>
                 <p class="fd font-bold text-base mb-3" style="color:#fff">{{ $q }}</p>
-                <p class="text-sm leading-relaxed" style="color:rgba(255,255,255,0.42)">{{ $body }}</p>
+                <p class="text-sm leading-relaxed" style="color:rgba(255,255,255,0.55)">{{ $body }}</p>
             </div>
             @endforeach
         </div>
         <div class="text-center mt-12 sr d3">
-            <p class="text-base" style="color:rgba(255,255,255,0.4)">{{ config('app.name', 'TheCashFox') }} solves all three. Setup takes <strong style="color:#f8fafc">2 minutes.</strong></p>
+            <p class="text-base" style="color:rgba(255,255,255,0.55)">{{ config('app.name', 'TheCashFox') }} solves all three. Setup takes <strong style="color:#f8fafc">2 minutes.</strong></p>
         </div>
     </div>
 </section>
@@ -498,7 +498,7 @@
     <div class="absolute bottom-0 right-0 w-[500px] h-[300px] rounded-full blur-3xl pointer-events-none" style="background:rgba(26,86,219,0.07)"></div>
     <div class="relative max-w-4xl mx-auto">
         <div class="text-center mb-20">
-            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.25)">Simple by design</p>
+            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.55)">Simple by design</p>
             <h2 class="sr d1 fd font-black leading-tight" style="color:#f8fafc;font-size:clamp(2.2rem,4.5vw,3.5rem)">
                 Up and running<br>in 2 minutes.
             </h2>
@@ -528,7 +528,7 @@
                     </svg>
                 </div>
                 <h3 class="fd font-bold text-xl mb-3" style="color:#f8fafc">{{ $title }}</h3>
-                <p class="text-sm leading-relaxed" style="color:rgba(248,250,252,0.45)">{{ $body }}</p>
+                <p class="text-sm leading-relaxed" style="color:rgba(248,250,252,0.65)">{{ $body }}</p>
             </div>
             @endforeach
         </div>
@@ -537,7 +537,7 @@
             <a href="{{ route('register') }}" class="inline-flex items-center gap-2 font-semibold px-7 py-3.5 rounded-full btn-primary text-base">
                 Try it now — it's free
             </a>
-            <p class="mt-4 text-xs" style="color:rgba(248,250,252,0.25)">2 min setup · no tutorial needed</p>
+            <p class="mt-4 text-xs" style="color:rgba(248,250,252,0.55)">2 min setup · no tutorial needed</p>
         </div>
     </div>
 </section>
@@ -552,7 +552,7 @@
             <h2 class="fd font-black leading-tight mb-5" style="color:#f8fafc;font-size:clamp(2rem,3.5vw,3rem)">
                 Every business.<br>Every book.<br>One dashboard.
             </h2>
-            <p class="text-lg leading-relaxed mb-8" style="color:rgba(248,250,252,0.5);max-width:420px">
+            <p class="text-lg leading-relaxed mb-8" style="color:rgba(248,250,252,0.65);max-width:420px">
                 Create a separate book for each month, quarter, or project. Your balance — opening + cash in − cash out — is always calculated for you. No formulas.
             </p>
             <ul class="space-y-3">
@@ -568,7 +568,7 @@
         <div class="sr-right rounded-2xl overflow-hidden shadow-xl" style="background:#0d1526;border:1px solid rgba(255,255,255,0.09)">
             <div class="px-5 py-4" style="border-bottom:1px solid rgba(255,255,255,0.07)">
                 <p class="font-semibold text-sm" style="color:#f8fafc">Eveso Business</p>
-                <p class="text-xs mt-0.5" style="color:rgba(248,250,252,0.35)">3 books this year</p>
+                <p class="text-xs mt-0.5" style="color:rgba(248,250,252,0.55)">3 books this year</p>
             </div>
             @foreach([['March 2026','8,590','43 entries','This month',true],['February 2026','5,240','38 entries','Last month',false],['Q1 Project 2026','2,180','12 entries','Special project',false]] as [$n,$net,$cnt,$sub,$active])
             <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid rgba(255,255,255,0.05)">
@@ -576,17 +576,17 @@
                     <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $active?'#4ade80':'rgba(255,255,255,0.15)' }}"></span>
                     <div>
                         <p class="font-semibold text-sm" style="color:#f8fafc">{{ $n }}</p>
-                        <p class="text-xs mt-0.5" style="color:rgba(248,250,252,0.3)">{{ $cnt }} · {{ $sub }}</p>
+                        <p class="text-xs mt-0.5" style="color:rgba(248,250,252,0.55)">{{ $cnt }} · {{ $sub }}</p>
                     </div>
                 </div>
                 <div class="text-right">
                     <p class="fm font-bold text-sm" style="color:{{ $active?'#4ade80':'rgba(248,250,252,0.4)' }}">${{ $net }}</p>
-                    <p class="text-[10px] mt-0.5" style="color:rgba(248,250,252,0.25)">net balance</p>
+                    <p class="text-[10px] mt-0.5" style="color:rgba(248,250,252,0.55)">net balance</p>
                 </div>
             </div>
             @endforeach
             <div class="px-5 py-3.5 flex items-center justify-between" style="background:rgba(255,255,255,0.02)">
-                <span class="text-xs" style="color:rgba(248,250,252,0.3)">↑ $16,010 total across all books</span>
+                <span class="text-xs" style="color:rgba(248,250,252,0.55)">↑ $16,010 total across all books</span>
             </div>
         </div>
     </div>
@@ -610,7 +610,7 @@
                     </div>
                     <div>
                         <p class="text-sm font-semibold" style="color:#f8fafc">Receipt read</p>
-                        <p class="text-xs" style="color:rgba(248,250,252,0.35)">Form filled automatically</p>
+                        <p class="text-xs" style="color:rgba(248,250,252,0.55)">Form filled automatically</p>
                     </div>
                     <span class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,0.18);color:var(--accent)">Done in 2s</span>
                 </div>
@@ -618,7 +618,7 @@
                     @foreach([['Amount','$45.00','#4ade80','✓ Filled','fi1'],['Date','March 22, 2026','#4ade80','✓ Filled','fi2'],['What was it for','Office supplies — Staples','#4ade80','✓ Filled','fi3'],['Category','Supplies','var(--accent)','Suggested','fi4']] as [$f,$v,$c,$badge,$fi])
                     <div class="fi {{ $fi }} flex items-center justify-between px-4 py-3" style="border-bottom:1px solid rgba(255,255,255,0.04)">
                         <div>
-                            <p class="text-[10px] mb-0.5" style="color:rgba(248,250,252,0.3)">{{ $f }}</p>
+                            <p class="text-[10px] mb-0.5" style="color:rgba(248,250,252,0.55)">{{ $f }}</p>
                             <p class="text-sm font-medium" style="color:#f8fafc">{{ $v }}</p>
                         </div>
                         <span class="text-[10px] font-semibold px-2 py-0.5 rounded" style="background:rgba(59,130,246,0.12);color:var(--accent)">{{ $badge }}</span>
@@ -627,7 +627,7 @@
                 </div>
             </div>
             <div class="px-5 py-4 flex items-center justify-between">
-                <p class="text-xs" style="color:rgba(248,250,252,0.3)">Receipt photo attached to entry</p>
+                <p class="text-xs" style="color:rgba(248,250,252,0.55)">Receipt photo attached to entry</p>
                 <a class="text-xs font-semibold px-3 py-1.5 rounded-lg btn-primary cursor-default">Save Entry</a>
             </div>
         </div>
@@ -636,7 +636,7 @@
             <h2 class="fd font-black leading-tight mb-5" style="color:#f8fafc;font-size:clamp(2rem,3.5vw,3rem)">
                 Take a photo.<br><span style="color:var(--accent)">We fill the form.</span>
             </h2>
-            <p class="text-lg leading-relaxed mb-6" style="color:rgba(248,250,252,0.5);max-width:420px;line-height:1.65">
+            <p class="text-lg leading-relaxed mb-6" style="color:rgba(248,250,252,0.65);max-width:420px;line-height:1.65">
                 Point your phone at any receipt. The app reads the amount, what it was for, and the date — then fills in the entry for you. You tap Save. That's it. Works on paper receipts, invoices, and digital screenshots.
             </p>
             <ul class="space-y-2.5 mb-6">
@@ -658,18 +658,18 @@
     <div class="absolute top-1/2 -translate-y-1/2 -right-20 w-96 h-96 rounded-full blur-3xl pointer-events-none glow-pulse" style="background:rgba(26,86,219,0.08)"></div>
     <div class="relative max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
         <div class="sr-left">
-            <p class="text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.3)">Teams &amp; accountants</p>
+            <p class="text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.55)">Teams &amp; accountants</p>
             <h2 class="fd font-black leading-tight mb-5" style="color:#f8fafc;font-size:clamp(2rem,3.5vw,3rem)">
                 Your accountant<br>stops calling you<br>for numbers.
             </h2>
-            <p class="text-lg leading-relaxed mb-8" style="color:rgba(248,250,252,0.5);max-width:420px">
+            <p class="text-lg leading-relaxed mb-8" style="color:rgba(248,250,252,0.65);max-width:420px">
                 Invite them as a viewer. They log in and see everything — live. No Excel file to email. No WhatsApp photo of a handwritten ledger. No month-end panic.
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 @foreach([['Owner','Full access · settings · billing'],['Editor','Add &amp; edit entries'],['Viewer','Read-only · perfect for accountants']] as [$r,$d])
                 <div class="rounded-xl p-4" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)">
                     <p class="fd font-bold text-sm mb-1.5" style="color:#f8fafc">{{ $r }}</p>
-                    <p class="text-xs leading-relaxed" style="color:rgba(248,250,252,0.4)">{!! $d !!}</p>
+                    <p class="text-xs leading-relaxed" style="color:rgba(248,250,252,0.55)">{!! $d !!}</p>
                 </div>
                 @endforeach
             </div>
@@ -683,7 +683,7 @@
                 <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs" style="background:rgba(59,130,246,0.15);color:var(--accent)">{{ $i }}</div>
                 <div class="flex-1 min-w-0">
                     <p class="font-medium text-sm truncate" style="color:#f8fafc">{{ $n }}</p>
-                    <p class="text-xs truncate" style="color:rgba(248,250,252,0.3)">{{ $note }}</p>
+                    <p class="text-xs truncate" style="color:rgba(248,250,252,0.55)">{{ $note }}</p>
                 </div>
                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded flex-shrink-0"
                       style="background:{{ $r==='Owner'?'rgba(59,130,246,0.15)':'rgba(255,255,255,0.07)' }};color:{{ $r==='Owner'?'var(--accent)':'rgba(248,250,252,0.45)' }}">{{ $r }}</span>
@@ -700,7 +700,7 @@
         <div class="w-[700px] h-48 rounded-full blur-3xl glow-pulse" style="background:rgba(26,86,219,0.09)"></div>
     </div>
     <div class="relative max-w-5xl mx-auto">
-        <p class="sr text-center text-xs font-semibold uppercase tracking-widest mb-12" style="color:rgba(255,255,255,0.2)">What users tell us after 30 days</p>
+        <p class="sr text-center text-xs font-semibold uppercase tracking-widest mb-12" style="color:rgba(255,255,255,0.55)">What users tell us after 30 days</p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             @foreach([
                 ['"I saved 3 hours a month I used to spend on reconciliation."','2–3 hrs/month saved','on average'],
@@ -708,10 +708,10 @@
                 ['"My accountant stopped calling. That alone made it worth it."','Zero calls','from accountant'],
             ] as [$quote,$stat,$sub])
             <div class="sr rounded-2xl p-6" style="background:#0d1526;border:1px solid rgba(255,255,255,0.07)">
-                <p class="text-sm leading-relaxed mb-5" style="color:rgba(248,250,252,0.5)">{{ $quote }}</p>
+                <p class="text-sm leading-relaxed mb-5" style="color:rgba(248,250,252,0.65)">{{ $quote }}</p>
                 <div style="border-top:1px solid rgba(255,255,255,0.07)" class="pt-4">
                     <p class="fd font-black text-2xl mb-0.5" style="color:var(--accent)">{{ $stat }}</p>
-                    <p class="text-xs" style="color:rgba(248,250,252,0.3)">{{ $sub }}</p>
+                    <p class="text-xs" style="color:rgba(248,250,252,0.55)">{{ $sub }}</p>
                 </div>
             </div>
             @endforeach
@@ -727,15 +727,15 @@
     <div class="relative max-w-3xl mx-auto">
         <div class="text-center mb-10">
             <h2 class="sr fd font-black leading-tight mb-3" style="color:#fff;font-size:clamp(2.2rem,4vw,3.25rem)">Honest pricing.</h2>
-            <p class="sr d1 text-lg mb-8" style="color:rgba(255,255,255,0.35)">No seat fees. No trial tricks. No surprise bills.</p>
+            <p class="sr d1 text-lg mb-8" style="color:rgba(255,255,255,0.55)">No seat fees. No trial tricks. No surprise bills.</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {{-- Free --}}
             <div class="sr rounded-2xl p-8 text-left" style="background:#0d1526;border:1px solid rgba(255,255,255,0.07)">
-                <p class="text-sm font-semibold mb-2" style="color:rgba(255,255,255,0.4)">Free</p>
+                <p class="text-sm font-semibold mb-2" style="color:rgba(255,255,255,0.55)">Free</p>
                 <p class="fm font-bold mb-1" style="color:#fff;font-size:2.5rem">$0</p>
-                <p class="text-xs mb-7" style="color:rgba(255,255,255,0.3)">Forever free · no card needed</p>
-                <ul class="space-y-2.5 mb-8 text-sm" style="color:rgba(255,255,255,0.5)">
+                <p class="text-xs mb-7" style="color:rgba(255,255,255,0.55)">Forever free · no card needed</p>
+                <ul class="space-y-2.5 mb-8 text-sm" style="color:rgba(255,255,255,0.65)">
                     @foreach(['1 business','Unlimited books & entries','2 team members','Receipt photo attachments','Activity audit log'] as $f)
                     <li class="flex items-center gap-2.5">
                         <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none"><path d="M3 8l3 3 7-7" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ $f }}
@@ -746,16 +746,14 @@
             </div>
             {{-- Pro --}}
             <div class="sr d1 rounded-2xl p-8 text-left relative overflow-hidden" style="background:#0a1428;border:1px solid rgba(59,130,246,0.5);box-shadow:0 0 60px rgba(26,86,219,0.15)">
-                <div class="absolute top-5 right-5 text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:var(--primary);color:#fff">MOST POPULAR</div>
                 <p class="text-sm font-semibold mb-2" style="color:var(--accent)">Pro</p>
                 <div class="mb-0">
                     <span class="fm font-bold" style="color:#f8fafc;font-size:2.5rem">$5</span>
-                    <span class="text-sm" style="color:rgba(248,250,252,0.4)">/month</span>
+                    <span class="text-sm" style="color:rgba(248,250,252,0.55)">/month</span>
                 </div>
-                <p class="text-xs mb-7 mt-1" style="color:rgba(248,250,252,0.25)">Billed monthly · Cancel any time</p>
+                <p class="text-xs mb-7 mt-1" style="color:rgba(248,250,252,0.55)">Billed monthly · Cancel any time</p>
                 {{-- Hero benefit --}}
                 <div class="rounded-xl p-3.5 mb-6" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2)">
-                    <p class="text-xs font-semibold mb-1" style="color:var(--accent)">★ The reason most people upgrade</p>
                     <p class="text-sm" style="color:rgba(248,250,252,0.7)">Photo receipts fill entries automatically. Takes 2 seconds. Saves hours.</p>
                 </div>
                 <ul class="space-y-2.5 mb-8 text-sm" style="color:rgba(248,250,252,0.65)">
@@ -766,9 +764,17 @@
                     @endforeach
                 </ul>
                 <a href="{{ route('register', ['plan' => 'pro']) }}" class="block text-center text-sm font-semibold py-3.5 rounded-xl btn-primary">Get Pro →</a>
-                <p class="text-center text-xs mt-3" style="color:rgba(248,250,252,0.25)">Sign up, then complete payment · Cancel any time</p>
+                <p class="text-center text-xs mt-3" style="color:rgba(248,250,252,0.55)">Sign up, then complete payment · Cancel any time</p>
             </div>
         </div>
+        {{-- Trust strip --}}
+        <ul class="sr d2 mt-8 flex flex-wrap items-center justify-center text-xs" style="column-gap:20px;row-gap:10px;color:rgba(248,250,252,0.6)" aria-label="Trust and data guarantees">
+            @foreach(['Secure payments by Stripe','Export anytime (CSV/PDF)','Your data is never sold','Encrypted in transit','Cancel anytime'] as $t)
+            <li class="flex items-center gap-1.5 whitespace-nowrap">
+                <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8l3 3 7-7" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ $t }}
+            </li>
+            @endforeach
+        </ul>
     </div>
 </section>
 
@@ -778,7 +784,7 @@
     <div class="absolute -bottom-20 -left-20 w-80 h-80 rounded-full blur-3xl pointer-events-none" style="background:rgba(26,86,219,0.07)"></div>
     <div class="relative max-w-3xl mx-auto">
         <div class="text-center mb-14">
-            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.25)">Got questions?</p>
+            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.55)">Got questions?</p>
             <h2 class="sr d1 fd font-black leading-tight" style="color:#f8fafc;font-size:clamp(2.2rem,4vw,3rem)">
                 Common questions.
             </h2>
@@ -813,7 +819,7 @@
                      x-transition:leave-start="opacity-100 translate-y-0"
                      x-transition:leave-end="opacity-0 -translate-y-2"
                      class="px-6 pb-6">
-                    <p class="text-sm leading-relaxed" style="color:rgba(248,250,252,0.5)">{{ $a }}</p>
+                    <p class="text-sm leading-relaxed" style="color:rgba(248,250,252,0.65)">{{ $a }}</p>
                 </div>
             </div>
             @endforeach
@@ -833,7 +839,7 @@
         <h2 class="sr d1 fd font-black leading-[0.92] mb-6" style="color:#f8fafc;font-size:clamp(2.4rem,7vw,6rem)">
             Know your<br>numbers.<br><span style="color:var(--accent)">Tonight.</span>
         </h2>
-        <p class="sr d2 text-lg mb-10" style="color:rgba(248,250,252,0.45)">
+        <p class="sr d2 text-lg mb-10" style="color:rgba(248,250,252,0.65)">
             Setup takes 2 minutes. Your first balance update takes 10 seconds.
         </p>
         <div class="sr d3 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-sm sm:max-w-none mx-auto px-2">
@@ -844,7 +850,7 @@
                 I have an account
             </a>
         </div>
-        <p class="sr d4 mt-5 text-xs" style="color:rgba(248,250,252,0.25)">No credit card required · Free plan available · Pro at $5/month</p>
+        <p class="sr d4 mt-5 text-xs" style="color:rgba(248,250,252,0.55)">No credit card required · Free plan available · Pro at $5/month</p>
     </div>
 </section>
 
@@ -863,7 +869,7 @@
                     <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:var(--primary)">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-8 4 4 4-6 4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </div>
-                    <span class="fd font-bold text-sm" style="color:rgba(255,255,255,0.45)">{{ config('app.name', 'TheCashFox') }}</span>
+                    <span class="fd font-bold text-sm" style="color:rgba(255,255,255,0.65)">{{ config('app.name', 'TheCashFox') }}</span>
                 @endif
             </div>
             <div class="flex items-center gap-5 sm:gap-6">
@@ -874,7 +880,7 @@
                 <a href="{{ route('privacy') }}" class="text-xs transition-colors"
                    style="color:rgba(255,255,255,0.55)" onmouseover="this.style.color='rgba(255,255,255,0.95)'" onmouseout="this.style.color='rgba(255,255,255,0.55)'">Privacy</a>
             </div>
-            <p class="text-xs" style="color:rgba(255,255,255,0.42)">© {{ date('Y') }} {{ config('app.name', 'TheCashFox') }}</p>
+            <p class="text-xs" style="color:rgba(255,255,255,0.55)">© {{ date('Y') }} {{ config('app.name', 'TheCashFox') }}</p>
         </div>
     </div>
 </footer>

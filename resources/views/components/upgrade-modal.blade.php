@@ -189,7 +189,7 @@
                     <a href="{{ route('billing') }}"
                        class="inline-flex items-center justify-center gap-2 w-full px-6 py-3
                               bg-amber-400 hover:bg-amber-300 text-gray-900 shadow-lg shadow-amber-400/25
-                              text-sm font-bold rounded-xl transition-all duration-200">
+                              text-sm font-bold rounded-lg transition-all duration-200">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
                         </svg>
@@ -203,12 +203,12 @@
                        class="inline-flex items-center justify-center w-full px-6 py-3
                               dark:text-slate-400 text-gray-500
                               dark:hover:text-white hover:text-gray-900
-                              text-sm font-medium rounded-xl transition-colors duration-150">
+                              text-sm font-medium rounded-lg transition-colors duration-150">
                         ← Back to Dashboard
                     </a>
                 @else
                     <button wire:click="$set('upgradeModalFeature', '')"
-                            class="w-full px-4 py-2.5 text-sm font-medium rounded-xl
+                            class="w-full px-4 py-2.5 text-sm font-medium rounded-lg
                                    dark:text-slate-400 text-gray-500
                                    dark:hover:text-white hover:text-gray-900
                                    dark:hover:bg-slate-800 hover:bg-gray-100

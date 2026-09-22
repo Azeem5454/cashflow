@@ -75,7 +75,7 @@
     <!-- Brand Fonts — loaded from admin appearance settings -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap') }}" rel="stylesheet">
+    <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;500;700&display=swap') }}" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @if(file_exists(public_path('brand/theme.css')))
@@ -245,7 +245,7 @@
     <div class="hidden lg:flex lg:w-[52%] xl:w-[55%] relative flex-col overflow-hidden">
 
         {{-- Background --}}
-        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50/60 to-sky-50 dark:from-navy dark:via-navy dark:to-navy"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-blue-xlight/60 to-sky-50 dark:from-navy dark:via-navy dark:to-navy"></div>
         <div class="guest-dot-grid absolute inset-0 opacity-[0.45] dark:opacity-[0.06]"></div>
         <div class="dark:hidden absolute top-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none"
              style="background:radial-gradient(circle,rgba(26,86,219,.06) 0%,transparent 70%)"></div>

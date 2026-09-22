@@ -408,7 +408,7 @@
                         </div>
                     @else
                         <p class="text-xs dark:text-slate-400 text-gray-500">
-                            Unlimited members · <span class="font-semibold text-amber-500">Pro</span>
+                            Unlimited members · <x-pro-badge class="align-middle" />
                         </p>
                     @endif
                 </div>

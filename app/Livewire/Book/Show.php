@@ -11,6 +11,7 @@ use App\Models\Business;
 use App\Models\EntryComment;
 use App\Notifications\MentionedInComment;
 use App\Services\AiService;
+use App\Services\BookLedger;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -33,6 +34,10 @@ class Show extends Component
     public string $search           = '';
     public string $filterType       = 'all'; // all | in | out
 
+    // Ledger paging — rows shown in the Entries list ("Load more" adds a page)
+    public const LEDGER_PAGE_SIZE = 50;
+    public int    $perPage          = self::LEDGER_PAGE_SIZE;
+
     // Duration filter
     public string $filterDuration   = 'all_time'; // all_time | today | yesterday | last_7_days | last_30_days | custom
     public string $filterCustomFrom = '';
@@ -47,6 +52,8 @@ class Show extends Component
 
     // Slide-over state
     public bool $showEntryPanel = false;
+    // "More details" disclosure in the slide-over (category, payment method, …)
+    public bool $showMoreDetails = false;
     public ?string $editingEntryId = null;
 
     // Entry form fields
@@ -354,6 +361,7 @@ class Show extends Component
         $this->aiCategorySuggestion = '';
         $this->showCategoryChip     = false;
         $this->aiSuggestedFor       = '';
+        $this->showMoreDetails      = false;
         $this->resetErrorBag();
         $this->showEntryPanel      = true;
         $this->dispatch('entry-date-updated', date: $this->entryDate);
@@ -382,6 +390,8 @@ class Show extends Component
         $this->entryAttachment         = null;
         $this->existingAttachmentPath  = $entry->attachment_path;
         $this->removeAttachment        = false;
+        $this->showMoreDetails         = $this->entryCategory !== '' || $this->entryPaymentMode !== ''
+                                        || $this->entryReference !== '' || $entry->attachment_path !== null;
         $this->resetErrorBag();
         $this->showEntryPanel      = true;
         $this->dispatch('entry-date-updated', date: $this->entryDate);
@@ -476,7 +486,7 @@ class Show extends Component
         $rules = [
             'entryType'        => 'required|in:in,out',
             'entryAmount'      => 'required|numeric|min:0.01|max:999999999.99',
-            'entryDescription' => 'required|string|max:255',
+            'entryDescription' => 'nullable|string|max:255',
             'entryDate'        => 'required|date',
             'entryReference'   => 'nullable|string|max:100',
             'entryCategory'    => 'nullable|string|max:100',
@@ -492,7 +502,7 @@ class Show extends Component
         $data = [
             'type'         => $this->entryType,
             'amount'       => $this->entryAmount,
-            'description'  => $this->entryDescription,
+            'description'  => trim($this->entryDescription) !== '' ? trim($this->entryDescription) : null,
             'date'         => $this->entryDate,
             'reference'    => $this->entryReference ?: null,
             'category'     => $this->entryCategory ?: null,
@@ -584,7 +594,7 @@ class Show extends Component
             $recurringEntry = $this->book->recurringEntries()->create([
                 'type'         => $this->entryType,
                 'amount'       => $this->entryAmount,
-                'description'  => $this->entryDescription,
+                'description'  => trim($this->entryDescription) !== '' ? trim($this->entryDescription) : null,
                 'category'     => $this->entryCategory ?: null,
                 'payment_mode' => $this->entryPaymentMode ?: null,
                 'reference'    => $this->entryReference ?: null,
@@ -847,7 +857,7 @@ class Show extends Component
         $this->pendingDeleteType    = $entry->type === 'in' ? 'Cash In' : 'Cash Out';
         $this->pendingDeleteAmount  = number_format((float) $entry->amount, 2);
         $this->pendingDeleteDate    = $entry->date->format('d M, Y');
-        $this->pendingDeleteDesc    = $entry->description;
+        $this->pendingDeleteDesc    = $entry->displayLabel();
         $this->showDeleteEntryModal = true;
     }
 
@@ -861,6 +871,7 @@ class Show extends Component
                 'type'        => $entry->type,
                 'amount'      => $entry->amount,
                 'description' => $entry->description,
+                'category'    => $entry->category,
             ]);
             if ($entry->attachment_path) {
                 Storage::disk('local')->delete($entry->attachment_path);
@@ -968,6 +979,8 @@ class Show extends Component
         $this->filterPaymentModes  = [];
         $this->compareEnabled      = false;
         $this->compareMode         = 'previous_period';
+        $this->search              = '';
+        $this->perPage             = self::LEDGER_PAGE_SIZE;
     }
 
     // ── Export ───────────────────────────────────────
@@ -1195,7 +1208,7 @@ class Show extends Component
         $label = $paymentMode ?? 'None';
         $this->bulkNewPaymentMode = '';
         $this->dispatch('bulk-operation-complete');
-        $this->dispatch('entry-saved', message: "Payment mode updated to \"{$label}\" on {$count} " . ($count === 1 ? 'entry' : 'entries') . '.');
+        $this->dispatch('entry-saved', message: "Payment method updated to \"{$label}\" on {$count} " . ($count === 1 ? 'entry' : 'entries') . '.');
     }
 
     // ── Book management ──────────────────────────────
@@ -1739,7 +1752,7 @@ class Show extends Component
         }
 
         $this->commentingEntryId     = $entryId;
-        $this->commentingEntryDesc   = $entry->description;
+        $this->commentingEntryDesc   = $entry->displayLabel();
         $this->commentingEntryAmount = (string) $entry->amount;
         $this->commentingEntryType   = $entry->type;
         $this->commentBody           = '';
@@ -1793,6 +1806,8 @@ class Show extends Component
 
         $this->logActivity('comment_added', $entry->id, [
             'entry_description' => $entry->description,
+            'category'          => $entry->category,
+            'type'              => $entry->type,
         ]);
 
         $this->dispatch('entry-saved', message: 'Comment added.');
@@ -1842,7 +1857,7 @@ class Show extends Component
         if (! $this->canDeleteComment($comment)) return;
 
         $entryId   = $comment->entry_id;
-        $entryDesc = $this->book->entries()->find($entryId)?->description ?? 'an entry';
+        $entryDesc = $this->book->entries()->find($entryId)?->displayLabel() ?? 'an entry';
 
         $comment->delete();
 
@@ -1927,6 +1942,8 @@ class Show extends Component
 
         $this->logActivity($newStatus === 'paused' ? 'recurring_paused' : 'recurring_resumed', null, [
             'description' => $rec->description,
+            'category'    => $rec->category,
+            'type'        => $rec->type,
         ]);
 
         $this->dispatch('entry-saved', message: $newStatus === 'paused' ? 'Recurring rule paused.' : 'Recurring rule resumed.');
@@ -1937,14 +1954,18 @@ class Show extends Component
         $this->guardEditor();
 
         $rec = $this->book->recurringEntries()->findOrFail($id);
-        $desc = $rec->description;
+        $meta = ['description' => $rec->description, 'category' => $rec->category, 'type' => $rec->type];
         $rec->delete();
 
-        $this->logActivity('recurring_deleted', null, ['description' => $desc]);
+        $this->logActivity('recurring_deleted', null, $meta);
         $this->dispatch('entry-saved', message: 'Recurring entry deleted.');
     }
 
-    private function buildReportData($entries, $allEntries): array
+    /**
+     * Reports tab data — deliberately small: period summary, cash in vs out
+     * over time, and spending by category. (AI insights load separately.)
+     */
+    private function buildReportData($entries): array
     {
         $inEntries  = $entries->where('type', 'in');
         $outEntries = $entries->where('type', 'out');
@@ -1956,11 +1977,7 @@ class Show extends Component
         $minDate      = $entries->min('date');
         $maxDate      = $entries->max('date');
         $daySpan      = ($minDate && $maxDate) ? max(1, $minDate->diffInDays($maxDate) + 1) : 1;
-        $dailyAverage = $daySpan > 0 ? bcdiv($netBalance, (string) $daySpan, 2) : '0.00';
-
-        $totalInF  = (float) $totalIn;
-        $totalOutF = (float) $totalOut;
-        $netF      = (float) $netBalance;
+        $dailyAverage = bcdiv($netBalance, (string) $daySpan, 2);
 
         $periodSummary = [
             'totalIn'      => $totalIn,
@@ -1972,301 +1989,10 @@ class Show extends Component
             'daySpan'      => $daySpan,
         ];
 
-        $healthScore        = $this->computeHealthScore($entries, $totalInF, $totalOutF, $netF, $daySpan, $minDate);
-        $balanceTimeline    = $this->buildBalanceTimeline($allEntries);
-        $trendChart         = $this->buildTrendChart($entries, $daySpan, $minDate, $maxDate);
-        $burnMetrics        = $this->computeBurnMetrics($totalInF, $totalOutF, $netF, $daySpan);
-        $incomeReliability  = $this->computeIncomeReliability($inEntries, $totalInF);
-        $spendConcentration = $this->computeSpendConcentration($outEntries, $totalOutF);
-        $spendingVelocity   = $this->computeSpendingVelocity($entries, $minDate, $daySpan);
-        $topOutEntries      = $outEntries->sortByDesc(fn ($e) => (float) $e->amount)->take(5)->values();
-        $topInEntries       = $inEntries->sortByDesc(fn ($e) => (float) $e->amount)->take(5)->values();
-        $categoryBreakdown  = $this->buildCategoryBreakdown($entries, $totalInF, $totalOutF);
-        $paymentModeBreakdown = $this->buildPaymentModeBreakdown($entries);
+        $trendChart        = $this->buildTrendChart($entries, $daySpan, $minDate, $maxDate);
+        $categoryBreakdown = $this->buildCategoryBreakdown($entries, (float) $totalIn, (float) $totalOut);
 
-        // ── Previous-period grade comparison ──────────────────────────────
-        // Find the most recent book in this business that ended before the
-        // current book's period. Compute its health score using the same
-        // algorithm so grades are directly comparable.
-        // Only runs on the Reports tab (already gated) — one extra query.
-        $previousGrade = null;
-        $prevBook = $this->business->books()
-            ->where('id', '!=', $this->book->id)
-            ->where(function ($q) {
-                if ($this->book->period_ends_at) {
-                    $q->whereNotNull('period_ends_at')
-                      ->where('period_ends_at', '<', $this->book->period_ends_at);
-                } else {
-                    $q->where('created_at', '<', $this->book->created_at);
-                }
-            })
-            ->orderByDesc('period_ends_at')
-            ->first();
-
-        if ($prevBook) {
-            $prevEntries = $prevBook->entries()
-                ->orderBy('date')->orderBy('created_at')->orderBy('id')
-                ->get();
-
-            if ($prevEntries->count() >= 3) {
-                $pIn    = (float) $prevEntries->where('type', 'in')->sum('amount');
-                $pOut   = (float) $prevEntries->where('type', 'out')->sum('amount');
-                $pNet   = $pIn - $pOut;
-                $pMin   = $prevEntries->min('date');
-                $pMax   = $prevEntries->max('date');
-                $pSpan  = ($pMin && $pMax) ? max(1, $pMin->diffInDays($pMax) + 1) : 1;
-                $pScore = $this->computeHealthScore($prevEntries, $pIn, $pOut, $pNet, $pSpan, $pMin);
-
-                $previousGrade = [
-                    'grade'    => $pScore['grade'],
-                    'score'    => $pScore['score'],
-                    'bookName' => $prevBook->name,
-                    'color'    => $pScore['color'],
-                ];
-            }
-        }
-
-        $healthScore['previousGrade'] = $previousGrade;
-
-        return compact(
-            'periodSummary', 'healthScore', 'balanceTimeline',
-            'trendChart', 'burnMetrics', 'incomeReliability',
-            'spendConcentration', 'spendingVelocity',
-            'topOutEntries', 'topInEntries',
-            'categoryBreakdown', 'paymentModeBreakdown'
-        );
-    }
-
-    private function computeHealthScore($entries, float $totalIn, float $totalOut, float $net, int $daySpan, $minDate): array
-    {
-        $entryCount = $entries->count();
-
-        // Confidence level — reflects how much data we have to work with.
-        // Shown as a UI badge; does NOT affect the score itself.
-        $confidence = match (true) {
-            $entryCount <  3  => 'insufficient',
-            $entryCount <  8  => 'low',
-            $entryCount < 15  => 'moderate',
-            default           => 'good',
-        };
-
-        // Return early if we don't have enough data to score meaningfully.
-        if ($entryCount < 3) {
-            return [
-                'score' => 0, 'grade' => '—', 'color' => 'slate',
-                'status' => 'Insufficient data',
-                'headline' => 'Add at least 3 entries to generate a health score.',
-                'ratioScore' => 0, 'trendScore' => 0, 'consistencyScore' => 0,
-                'confidence' => 'insufficient', 'entryCount' => $entryCount,
-                'ratio' => 0.0, 'trendChange' => 0, 'cv' => null,
-                'previousGrade' => null,
-            ];
-        }
-
-        // ── 1. Profitability Ratio  (0–45 pts) ─────────────────────────────
-        // Smooth two-segment linear scale — no step cliffs.
-        //   ratio 0.0 → 1.0 : maps linearly to 0 → 22 pts  (losing money zone)
-        //   ratio 1.0 → 2.0 : maps linearly to 22 → 45 pts (profit zone, capped at 2×)
-        // This means a 1-rupee change in expenses causes a proportional change in
-        // score rather than a sudden 8-point jump at an arbitrary threshold.
-        $ratio = 0.0;
-        if ($totalOut <= 0) {
-            $ratioScore = $totalIn > 0 ? 45 : 0;
-            $ratio      = $totalIn  > 0 ? 99.0 : 0.0;
-        } else {
-            $ratio = $totalIn / $totalOut;
-            if ($ratio < 1.0) {
-                $ratioScore = (int) round($ratio * 22);           // 0–21
-            } else {
-                $ratioScore = (int) round(min(45, 22 + ($ratio - 1.0) * 23)); // 22–45
-            }
-        }
-
-        // ── 2. Trend Direction  (0–30 pts) ─────────────────────────────────
-        // Compare the FIRST third vs LAST third of the period (ignoring the
-        // noisy middle). Using halves was too sensitive — one large payment
-        // in week 1 made every period look like it was "declining".
-        // Requires at least 7-day span and 6 entries to activate.
-        // Smooth: change% maps linearly to 0–30 pts (0% change → 15 pts neutral).
-        $trendScore  = 15; // neutral default when insufficient data
-        $trendChange = 0;
-        if ($daySpan >= 7 && $entryCount >= 6 && $minDate) {
-            $third     = max(1, (int) ($daySpan / 3));
-            $firstEnd  = $minDate->copy()->addDays($third);
-            $lastStart = $minDate->copy()->addDays($daySpan - $third);
-
-            $calcNet = fn ($col) => $col->reduce(
-                fn ($c, $e) => $c + ($e->type === 'in' ? (float) $e->amount : -(float) $e->amount),
-                0.0
-            );
-
-            $firstNet = $calcNet($entries->filter(fn ($e) => $e->date->lte($firstEnd)));
-            $lastNet  = $calcNet($entries->filter(fn ($e) => $e->date->gte($lastStart)));
-
-            if ($firstNet != 0) {
-                $trendChange = (($lastNet - $firstNet) / abs($firstNet)) * 100;
-            } elseif ($lastNet > 0) {
-                $trendChange = 100;
-            } elseif ($lastNet < 0) {
-                $trendChange = -100;
-            }
-
-            // Smooth map: ±100% change covers the full 0–30 range.
-            // +100% (doubling) → 30 pts | 0% (flat) → 15 pts | −100% → 0 pts
-            $trendScore = (int) round(min(30, max(0, 15 + ($trendChange / 200) * 30)));
-        }
-
-        // ── 3. Income Consistency  (0–25 pts) ──────────────────────────────
-        // Coefficient of variation (CV) on Cash In entries.
-        // Smooth linear: CV=0 (perfectly consistent) → 25 pts, CV≥3 → 0 pts.
-        // Freelancers who get paid once a month won't be unfairly penalised
-        // as harshly — the curve is gradual rather than a cliff.
-        $consistencyScore = 12; // neutral default when < 2 income entries
-        $cv = null;
-        $inEntries = $entries->where('type', 'in');
-        if ($inEntries->count() >= 2) {
-            $amounts = $inEntries->pluck('amount')->map(fn ($a) => (float) $a);
-            $mean    = $amounts->average();
-            if ($mean > 0) {
-                $variance         = $amounts->reduce(fn ($c, $v) => $c + ($v - $mean) ** 2, 0.0) / $amounts->count();
-                $cv               = sqrt($variance) / $mean;
-                $consistencyScore = (int) round(max(0, min(25, 25 * (1 - $cv / 3))));
-            } else {
-                $consistencyScore = 0;
-            }
-        }
-
-        // ── Total score & grade ─────────────────────────────────────────────
-        $score = $ratioScore + $trendScore + $consistencyScore; // max 100
-
-        [$grade, $color, $status, $headline] = match (true) {
-            $score >= 90 => ['A+', 'emerald', 'Excellent', 'Outstanding — your cash flow is exceptionally strong.'],
-            $score >= 80 => ['A',  'emerald', 'Strong',    'Healthy — consistently bringing in more than you spend.'],
-            $score >= 65 => ['B',  'blue',    'Good',      'Solid cash flow with room to optimise.'],
-            $score >= 50 => ['C',  'amber',   'Fair',      'Expenses need watching — income needs a boost.'],
-            $score >= 35 => ['D',  'orange',  'Weak',      'Expenses are outpacing income this period.'],
-            default      => ['F',  'red',     'Critical',  'Urgent: cash flow needs immediate attention.'],
-        };
-
-        return [
-            'score'            => $score,
-            'grade'            => $grade,
-            'color'            => $color,
-            'status'           => $status,
-            'headline'         => $headline,
-            'ratioScore'       => $ratioScore,
-            'trendScore'       => $trendScore,
-            'consistencyScore' => $consistencyScore,
-            'confidence'       => $confidence,
-            'entryCount'       => $entryCount,
-            'ratio'            => round($ratio, 2),
-            'trendChange'      => (int) round($trendChange),
-            'cv'               => $cv !== null ? round($cv, 2) : null,
-            'previousGrade'    => null, // filled in buildReportData
-        ];
-    }
-
-    private function buildBalanceTimeline($allEntries): array
-    {
-        if ($allEntries->count() < 2) return [];
-
-        $opening = (float) ($this->book->opening_balance ?? 0);
-        $start   = $this->book->period_starts_at ?? $allEntries->min('date');
-        $end     = $this->book->period_ends_at   ?? $allEntries->max('date');
-
-        if (!$start || !$end || $start->gt($end)) return [];
-
-        $byDate  = $allEntries->groupBy(fn ($e) => $e->date->format('Y-m-d'));
-        $cursor  = $start->copy()->startOfDay();
-        $running = $opening;
-        $points  = [];
-        $highIdx = 0;
-        $lowIdx  = 0;
-
-        while ($cursor->lte($end)) {
-            $key = $cursor->format('Y-m-d');
-            foreach ($byDate->get($key, collect()) as $entry) {
-                $running += $entry->type === 'in' ? (float) $entry->amount : -(float) $entry->amount;
-            }
-            $points[] = [
-                'date'        => $key,
-                'label'       => $cursor->format('d M'),
-                'balance'     => round($running, 2),
-                'entry_count' => $byDate->get($key, collect())->count(),
-            ];
-            $cursor->addDay();
-        }
-
-        if (count($points) < 2) return [];
-
-        // Sample down to ≤ 120 points for SVG performance
-        if (count($points) > 120) {
-            $step   = (int) ceil(count($points) / 120);
-            $points = array_values(array_filter($points, fn ($_, $i) => $i % $step === 0, ARRAY_FILTER_USE_BOTH));
-        }
-
-        // Find high/low indices
-        $balances = array_column($points, 'balance');
-        $highIdx  = (int) array_search(max($balances), $balances);
-        $lowIdx   = (int) array_search(min($balances), $balances);
-
-        return [
-            'points'  => $points,
-            'highIdx' => $highIdx,
-            'lowIdx'  => $lowIdx,
-            'opening' => $opening,
-            'svg'     => $this->buildBalanceSvg($points, $opening),
-        ];
-    }
-
-    private function buildBalanceSvg(array $points, float $opening): array
-    {
-        if (count($points) < 2) return [];
-
-        $vw = 1000;
-        $vh = 220;
-        $py = 20; // vertical padding
-
-        $balances = array_column($points, 'balance');
-        $minBal   = min($balances);
-        $maxBal   = max($balances);
-        $range    = max(1, $maxBal - $minBal);
-
-        // Add breathing room
-        $minBal -= $range * 0.12;
-        $maxBal += $range * 0.12;
-        $range   = $maxBal - $minBal;
-
-        $n      = count($points);
-        $coords = [];
-
-        foreach ($points as $i => $p) {
-            $x        = round(($i / ($n - 1)) * $vw, 2);
-            $y        = round($py + (1 - ($p['balance'] - $minBal) / $range) * ($vh - 2 * $py), 2);
-            $coords[] = "{$x},{$y}";
-        }
-
-        $polyline = implode(' ', $coords);
-
-        // Area fill path: descend to baseline, trace points, return
-        [$fx] = explode(',', $coords[0]);
-        [$lx] = explode(',', $coords[$n - 1]);
-        $baseY    = $vh - $py;
-        $areaPath = "M {$fx},{$baseY} L " . implode(' L ', $coords) . " L {$lx},{$baseY} Z";
-
-        // Zero line Y (only show if zero is within visible range)
-        $zeroY = null;
-        if ($minBal <= 0 && $maxBal >= 0) {
-            $zeroY = round($py + (1 - (0 - $minBal) / $range) * ($vh - 2 * $py), 2);
-        }
-
-        // Opening balance reference line Y
-        $openingY = null;
-        if ($opening >= $minBal && $opening <= $maxBal && $opening !== 0.0) {
-            $openingY = round($py + (1 - ($opening - $minBal) / $range) * ($vh - 2 * $py), 2);
-        }
-
-        return compact('polyline', 'areaPath', 'coords', 'zeroY', 'openingY', 'vw', 'vh');
+        return compact('periodSummary', 'trendChart', 'categoryBreakdown');
     }
 
     private function buildTrendChart($entries, int $daySpan, $minDate, $maxDate): array
@@ -2302,116 +2028,6 @@ class Show extends Component
         }
 
         return $chart;
-    }
-
-    private function computeBurnMetrics(float $totalIn, float $totalOut, float $net, int $daySpan): array
-    {
-        $dailyIn  = $daySpan > 0 ? round($totalIn  / $daySpan, 2) : 0.0;
-        $dailyOut = $daySpan > 0 ? round($totalOut / $daySpan, 2) : 0.0;
-        $dailyNet = $daySpan > 0 ? round($net       / $daySpan, 2) : 0.0;
-
-        $isBurning = $dailyNet < 0;
-        $runway    = null;
-
-        if ($isBurning && $dailyOut > 0) {
-            $currentBalance = (float) ($this->book->opening_balance ?? 0) + $net;
-            if ($currentBalance > 0) {
-                $runway = max(0, (int) ($currentBalance / abs($dailyNet)));
-            }
-        }
-
-        // Efficiency: what percentage of income is consumed by expenses
-        $efficiency = $totalIn > 0
-            ? round(min(999, ($totalOut / $totalIn) * 100), 1)
-            : ($totalOut > 0 ? 100.0 : 0.0);
-
-        return compact('dailyIn', 'dailyOut', 'dailyNet', 'isBurning', 'runway', 'efficiency');
-    }
-
-    private function computeIncomeReliability($inEntries, float $totalIn): array
-    {
-        $empty = ['label' => 'No data', 'color' => 'slate', 'topPct' => 0,
-                  'concentrationLabel' => 'N/A', 'concentrationColor' => 'slate'];
-
-        if ($inEntries->count() < 2) return $empty;
-
-        $amounts  = $inEntries->pluck('amount')->map(fn ($a) => (float) $a);
-        $mean     = $amounts->average();
-        $cv       = 999.0;
-
-        if ($mean > 0) {
-            $variance = $amounts->reduce(fn ($c, $v) => $c + ($v - $mean) ** 2, 0.0) / $amounts->count();
-            $cv       = sqrt($variance) / $mean;
-        }
-
-        [$label, $color] = match (true) {
-            $cv <= 0.4 => ['Consistent', 'emerald'],
-            $cv <= 0.8 => ['Moderate',   'blue'],
-            $cv <= 1.5 => ['Variable',   'amber'],
-            default    => ['Irregular',  'red'],
-        };
-
-        // Concentration: top 2 transactions as % of total income
-        $top2Amt = (float) $inEntries->sortByDesc(fn ($e) => (float) $e->amount)->take(2)->sum('amount');
-        $topPct  = $totalIn > 0 ? round(($top2Amt / $totalIn) * 100) : 0;
-
-        [$concentrationLabel, $concentrationColor] = match (true) {
-            $topPct <= 30 => ['Diversified',   'emerald'],
-            $topPct <= 60 => ['Moderate',      'amber'],
-            default       => ['Concentrated',  'red'],
-        };
-
-        return compact('label', 'color', 'concentrationLabel', 'concentrationColor')
-            + ['topPct' => $topPct];
-    }
-
-    private function computeSpendConcentration($outEntries, float $totalOut): array
-    {
-        if ($outEntries->isEmpty() || $totalOut <= 0) return [];
-
-        $byCategory = $outEntries
-            ->groupBy(fn ($e) => $e->category ?: 'Uncategorized')
-            ->map(fn ($g) => (float) $g->sum('amount'))
-            ->sortDesc();
-
-        $items     = [];
-        $top3Total = 0.0;
-
-        foreach ($byCategory->take(3) as $name => $total) {
-            $pct     = round(($total / $totalOut) * 100, 1);
-            $items[] = ['name' => $name, 'total' => $total, 'pct' => $pct];
-            $top3Total += $total;
-        }
-
-        $top3Pct        = round(($top3Total / $totalOut) * 100, 1);
-        $highestPct     = $items[0]['pct'] ?? 0;
-        $isConcentrated = $highestPct > 40;
-
-        return compact('items', 'top3Pct', 'isConcentrated', 'highestPct');
-    }
-
-    private function computeSpendingVelocity($entries, $minDate, int $daySpan): array
-    {
-        if ($entries->count() < 4 || $daySpan < 2 || !$minDate) return [];
-
-        $mid    = $minDate->copy()->addDays((int) ($daySpan / 2));
-        $first  = $entries->filter(fn ($e) => $e->date->lte($mid));
-        $second = $entries->filter(fn ($e) => $e->date->gt($mid));
-
-        $fIn  = (float) $first->where('type', 'in')->sum('amount');
-        $fOut = (float) $first->where('type', 'out')->sum('amount');
-        $sIn  = (float) $second->where('type', 'in')->sum('amount');
-        $sOut = (float) $second->where('type', 'out')->sum('amount');
-
-        $outChange = $fOut > 0 ? round((($sOut - $fOut) / $fOut) * 100) : ($sOut > 0 ? 100 : 0);
-        $inChange  = $fIn  > 0 ? round((($sIn  - $fIn)  / $fIn)  * 100) : ($sIn  > 0 ? 100 : 0);
-
-        return [
-            'first'     => ['in' => $fIn, 'out' => $fOut, 'net' => $fIn - $fOut, 'count' => $first->count()],
-            'second'    => ['in' => $sIn, 'out' => $sOut, 'net' => $sIn - $sOut, 'count' => $second->count()],
-            'outChange' => $outChange,
-            'inChange'  => $inChange,
-        ];
     }
 
     private function buildCategoryBreakdown($entries, float $totalIn, float $totalOut): array
@@ -2457,47 +2073,7 @@ class Show extends Component
         return $result;
     }
 
-    private function buildPaymentModeBreakdown($entries): array
-    {
-        $byMode = $entries
-            ->groupBy(fn ($e) => $e->payment_mode ?: 'Not specified')
-            ->map(fn ($g) => [
-                'total' => (float) $g->sum('amount'),
-                'in'    => (float) $g->where('type', 'in')->sum('amount'),
-                'out'   => (float) $g->where('type', 'out')->sum('amount'),
-                'count' => $g->count(),
-            ])
-            ->sortByDesc(fn ($v) => $v['total']);
-
-        $max    = $byMode->max(fn ($v) => $v['total']) ?: 1;
-        $result = [];
-        $count  = 0;
-        [$otherIn, $otherOut, $otherTotal, $otherCount] = [0.0, 0.0, 0.0, 0];
-
-        foreach ($byMode as $name => $data) {
-            $count++;
-            if ($count <= 5) {
-                $result[] = array_merge(['name' => $name, 'barPct' => ($data['total'] / $max) * 100], $data);
-            } else {
-                $otherIn    += $data['in'];
-                $otherOut   += $data['out'];
-                $otherTotal += $data['total'];
-                $otherCount += $data['count'];
-            }
-        }
-
-        if ($otherTotal > 0) {
-            $result[] = [
-                'name' => 'Other', 'total' => $otherTotal, 'in' => $otherIn,
-                'out'  => $otherOut, 'count' => $otherCount,
-                'barPct' => ($otherTotal / $max) * 100,
-            ];
-        }
-
-        return $result;
-    }
-
-    private function buildComparisonData($allEntries): array
+    private function buildComparisonData(): array
     {
         $fromDate = $this->filterCustomFrom;
         $toDate   = $this->filterCustomTo;
@@ -2516,25 +2092,17 @@ class Show extends Component
             $prevFrom = $prevTo->copy()->subDays($days - 1);
         }
 
-        // Compute totals for each period from the full (unfiltered) entry collection
-        $currIn  = $currOut = $prevIn = $prevOut = 0.0;
-        $prevFromStr = $prevFrom->format('Y-m-d');
-        $prevToStr   = $prevTo->format('Y-m-d');
+        // Two aggregate queries over the whole (unfiltered) book.
+        $sum = fn (string $f, string $t) => BookLedger::queryTotals(
+            BookLedger::applyQueryFilters($this->book->entries(), ['from' => $f, 'to' => $t])
+        );
+        $curr = $sum($from->format('Y-m-d'), $to->format('Y-m-d'));
+        $prev = $sum($prevFrom->format('Y-m-d'), $prevTo->format('Y-m-d'));
 
-        foreach ($allEntries as $entry) {
-            $d = $entry->date->format('Y-m-d');
-
-            if ($d >= $fromDate && $d <= $toDate) {
-                if ($entry->type === 'in') $currIn  += (float) $entry->amount;
-                else                       $currOut += (float) $entry->amount;
-            }
-
-            if ($d >= $prevFromStr && $d <= $prevToStr) {
-                if ($entry->type === 'in') $prevIn  += (float) $entry->amount;
-                else                       $prevOut += (float) $entry->amount;
-            }
-        }
-
+        $currIn  = (float) $curr['totalIn'];
+        $currOut = (float) $curr['totalOut'];
+        $prevIn  = (float) $prev['totalIn'];
+        $prevOut = (float) $prev['totalOut'];
         $currNet = $currIn - $currOut;
         $prevNet = $prevIn - $prevOut;
 
@@ -2555,162 +2123,145 @@ class Show extends Component
         ];
     }
 
+    // ── Ledger paging ────────────────────────────────
+
+    /** Show the next page of ledger rows. */
+    public function loadMore(): void
+    {
+        $this->perPage = min($this->perPage + self::LEDGER_PAGE_SIZE, 100000);
+    }
+
+    /** Any filter change starts the list again from the first page. */
+    public function updated(string $property): void
+    {
+        if (in_array($property, ['search', 'filterType', 'filterDuration', 'filterCustomFrom', 'filterCustomTo'], true)
+            || str_starts_with($property, 'filterCategories')
+            || str_starts_with($property, 'filterPaymentModes')) {
+            $this->perPage = self::LEDGER_PAGE_SIZE;
+        }
+    }
+
+    /** Resolve the duration filter to a [from, to] pair of Y-m-d strings (or nulls). */
+    private function durationRange(): array
+    {
+        return match ($this->filterDuration) {
+            'today'        => [now()->format('Y-m-d'), now()->format('Y-m-d')],
+            'yesterday'    => [now()->subDay()->format('Y-m-d'), now()->subDay()->format('Y-m-d')],
+            'last_7_days'  => [now()->subDays(6)->format('Y-m-d'), now()->format('Y-m-d')],
+            'last_30_days' => [now()->subDays(29)->format('Y-m-d'), now()->format('Y-m-d')],
+            // Custom ranges are Pro — a Free business (e.g. after a downgrade,
+            // or a tampered request) just sees all time.
+            'custom'       => $this->business->isPro()
+                ? [$this->filterCustomFrom ?: null, $this->filterCustomTo ?: null]
+                : [null, null],
+            default        => [null, null],
+        };
+    }
+
+    /** Current ledger filters in BookLedger's shape. */
+    private function ledgerFilters(bool $includeType = true): array
+    {
+        [$from, $to] = $this->durationRange();
+
+        return [
+            'type'        => $includeType && in_array($this->filterType, ['in', 'out'], true) ? $this->filterType : null,
+            'from'        => $from,
+            'to'          => $to,
+            'category'    => $this->filterCategories,
+            'paymentMode' => $this->filterPaymentModes,
+            'search'      => $this->search,
+        ];
+    }
+
+    /** Plain-language summary of active filters, e.g. ["Last 7 days", "Food"]. */
+    private function activeFilterSummary(): array
+    {
+        $parts = [];
+
+        if ($this->filterType === 'in')  $parts[] = 'Cash in only';
+        if ($this->filterType === 'out') $parts[] = 'Cash out only';
+
+        [$from, $to] = $this->durationRange();
+        $parts[] = match ($this->filterDuration) {
+            'today'        => 'Today',
+            'yesterday'    => 'Yesterday',
+            'last_7_days'  => 'Last 7 days',
+            'last_30_days' => 'Last 30 days',
+            'custom'       => ($from || $to)
+                ? trim(($from ? Carbon::parse($from)->format('j M Y') : '…') . ' – ' . ($to ? Carbon::parse($to)->format('j M Y') : '…'))
+                : null,
+            default        => null,
+        };
+
+        foreach ($this->filterCategories as $c)   $parts[] = (string) $c;
+        foreach ($this->filterPaymentModes as $m) $parts[] = (string) $m;
+
+        if (trim($this->search) !== '') {
+            $parts[] = '“' . trim($this->search) . '”';
+        }
+
+        return array_values(array_filter($parts, fn ($p) => $p !== null && $p !== ''));
+    }
+
     public function render()
     {
-        // Fetch ALL entries for accurate running balance computation.
-        // Three-level sort: date → created_at → id ensures a fully stable order
-        // even when multiple entries share the same date or the same timestamp
-        // (PostgreSQL returns non-deterministic order without a unique tiebreaker).
-        // Only the comment COUNT is needed for the ledger list (badge); the full
-        // comment thread is loaded separately in $commentThread when the panel
-        // opens. Eager-loading every entry's full comments on every round-trip
-        // was pure waste and made each interaction slower.
-        $allEntries = $this->book->entries()
-            ->with('creator')
-            ->withCount('comments')
-            ->orderBy('date', 'asc')
-            ->orderBy('created_at', 'asc')
-            ->orderBy('id', 'asc')
-            ->get();
+        $filters    = $this->ledgerFilters();
+        $hasFilters = BookLedger::hasFilters($filters);
 
-        // Compute running balance on the full set (unfiltered), starting from opening balance
-        $running = (string) ($this->book->opening_balance ?? '0.00');
-        foreach ($allEntries as $entry) {
-            $running = $entry->type === 'in'
-                ? bcadd($running, (string) $entry->amount, 2)
-                : bcsub($running, (string) $entry->amount, 2);
-            $entry->running_balance = $running;
+        // ── Totals ─────────────────────────────────────────────────────
+        // One aggregate query for the whole book (true balance) and, when
+        // filters are active, one for the filtered set. Neither hydrates rows.
+        $bookTotals = BookLedger::queryTotals($this->book->entries());
+        $viewTotals = $hasFilters
+            ? BookLedger::queryTotals(BookLedger::applyQueryFilters($this->book->entries(), $filters))
+            : $bookTotals;
+
+        $opening     = BookLedger::money($this->book->opening_balance);
+        $bookBalance = bcsub(bcadd($opening, $bookTotals['totalIn'], 2), $bookTotals['totalOut'], 2);
+
+        $totalIn       = $viewTotals['totalIn'];
+        $totalOut      = $viewTotals['totalOut'];
+        $filteredCount = $viewTotals['count'];
+        // Unfiltered: the book balance (incl. opening). Filtered: net of what's shown.
+        $balance       = $hasFilters ? bcsub($totalIn, $totalOut, 2) : $bookBalance;
+
+        // ── One page of rows, newest first ─────────────────────────────
+        // Running balance comes from a SQL window function over the whole
+        // book (stable date → created_at → id order), so a filtered row keeps
+        // its true ledger balance and we only ever load $perPage rows.
+        $entries = collect();
+        if ($this->activeTab === 'entries') {
+            $entries = BookLedger::applyQueryFilters(BookLedger::runningQuery($this->book), $filters)
+                ->with('creator')
+                ->withCount('comments')
+                ->orderBy('entries.date', 'desc')
+                ->orderBy('entries.created_at', 'desc')
+                ->orderBy('entries.id', 'desc')
+                ->limit($this->perPage)
+                ->get();
+            BookLedger::withRunningBalance($entries, $this->book);
         }
+        $hasMoreEntries = $filteredCount > $entries->count() && $this->activeTab === 'entries';
 
-        // Apply filters
-        $entries = $allEntries;
-
-        if ($this->filterType !== 'all') {
-            $entries = $entries->where('type', $this->filterType);
-        }
-
-        // Duration / date filter
-        $from = $to = null;
-        switch ($this->filterDuration) {
-            case 'today':
-                $from = $to = now()->format('Y-m-d');
-                break;
-            case 'yesterday':
-                $from = $to = now()->subDay()->format('Y-m-d');
-                break;
-            case 'last_7_days':
-                $from = now()->subDays(6)->format('Y-m-d');
-                $to   = now()->format('Y-m-d');
-                break;
-            case 'last_30_days':
-                $from = now()->subDays(29)->format('Y-m-d');
-                $to   = now()->format('Y-m-d');
-                break;
-            case 'custom':
-                // Custom ranges are Pro — a Free business (e.g. after a
-                // downgrade, or a tampered request) just sees all time.
-                if ($this->business->isPro()) {
-                    $from = $this->filterCustomFrom ?: null;
-                    $to   = $this->filterCustomTo   ?: null;
-                }
-                break;
-        }
-
-        if ($from !== null) {
-            $entries = $entries->filter(fn ($e) => $e->date->format('Y-m-d') >= $from);
-        }
-        if ($to !== null) {
-            $entries = $entries->filter(fn ($e) => $e->date->format('Y-m-d') <= $to);
-        }
-
-        // Category filter
-        if (! empty($this->filterCategories)) {
-            $cats    = $this->filterCategories;
-            $entries = $entries->filter(fn ($e) => in_array($e->category, $cats));
-        }
-
-        // Payment mode filter
-        if (! empty($this->filterPaymentModes)) {
-            $modes   = $this->filterPaymentModes;
-            $entries = $entries->filter(fn ($e) => in_array($e->payment_mode, $modes));
-        }
-
-        if ($this->search !== '') {
-            $term    = strtolower($this->search);
-            $entries = $entries->filter(fn ($e) =>
-                str_contains(strtolower($e->description), $term)
-                || str_contains(strtolower($e->reference ?? ''), $term)
-                || str_contains(strtolower($e->category ?? ''), $term)
-                || str_contains((string) $e->amount, $term)
-            );
-        }
-
-        // Build report data before reversing (reports need chronological order).
-        // Reports always use ALL entry types — the type filter is for the ledger view only.
-        // Date, category, payment-mode, and search filters still apply so the report
-        // reflects the same time window and scope the user is looking at.
+        // ── Reports (Pro, Reports tab only) ────────────────────────────
+        // Reports use every entry type — the type filter is for the list only;
+        // date, category, payment method and search still apply.
         $reportData = [];
         if ($this->activeTab === 'reports' && $this->business->isPro()) {
-            // Build a type-agnostic entry set: start from allEntries, re-apply every
-            // filter except filterType.
-            $reportEntries = $allEntries;
-            if ($from !== null) {
-                $reportEntries = $reportEntries->filter(fn ($e) => $e->date->format('Y-m-d') >= $from);
-            }
-            if ($to !== null) {
-                $reportEntries = $reportEntries->filter(fn ($e) => $e->date->format('Y-m-d') <= $to);
-            }
-            if (! empty($this->filterCategories)) {
-                $cats          = $this->filterCategories;
-                $reportEntries = $reportEntries->filter(fn ($e) => in_array($e->category, $cats));
-            }
-            if (! empty($this->filterPaymentModes)) {
-                $modes         = $this->filterPaymentModes;
-                $reportEntries = $reportEntries->filter(fn ($e) => in_array($e->payment_mode, $modes));
-            }
-            if ($this->search !== '') {
-                $term          = strtolower($this->search);
-                $reportEntries = $reportEntries->filter(fn ($e) =>
-                    str_contains(strtolower($e->description), $term)
-                    || str_contains(strtolower($e->reference ?? ''), $term)
-                    || str_contains(strtolower($e->category ?? ''), $term)
-                    || str_contains((string) $e->amount, $term)
-                );
-            }
-            $reportData = $this->buildReportData($reportEntries, $allEntries);
-        }
-
-        // 30-day cash flow forecast (pure statistics, no AI cost).
-        // Only computed on the Reports tab + Pro — same gate as the rest of
-        // the Reports panel. Uses the Book's own forecast method so the
-        // logic stays reusable (tests, API, etc.).
-        $forecast = [];
-        if ($this->activeTab === 'reports' && $this->business->isPro()) {
-            $forecast = $this->book->forecast30Days();
+            $reportEntries = BookLedger::applyQueryFilters($this->book->entries(), $this->ledgerFilters(false))
+                ->orderBy('date')->orderBy('created_at')->orderBy('id')
+                ->get(['id', 'type', 'amount', 'date', 'category']);
+            $reportData = $this->buildReportData($reportEntries);
         }
 
         // Build comparison data (Pro, custom date range only)
         $comparisonData = null;
         if ($this->business->isPro() && $this->compareEnabled && $this->filterDuration === 'custom'
             && $this->filterCustomFrom !== '' && $this->filterCustomTo !== '') {
-            $comparisonData = $this->buildComparisonData($allEntries);
+            $comparisonData = $this->buildComparisonData();
         }
 
-        // Reverse for display: newest first
-        $entries = $entries->reverse()->values();
-
-        // Compute totals from the already-loaded collection instead of firing
-        // 4 more aggregate queries (totalIn + totalOut + balance(which re-runs
-        // both)) on every single round-trip. bcadd keeps decimal precision exact.
-        $totalIn = $totalOut = '0.00';
-        foreach ($allEntries as $entry) {
-            if ($entry->type === 'in') {
-                $totalIn = bcadd($totalIn, (string) $entry->amount, 2);
-            } else {
-                $totalOut = bcadd($totalOut, (string) $entry->amount, 2);
-            }
-        }
-        $balance = bcsub(bcadd((string) ($this->book->opening_balance ?? '0.00'), $totalIn, 2), $totalOut, 2);
+        $activeFilters = $this->activeFilterSummary();
 
         $categories   = $this->book->categories()->get();
         $paymentModes = $this->book->paymentModes()->get();
@@ -2756,10 +2307,10 @@ class Show extends Component
             : collect();
 
         return view('livewire.book.show', compact(
-            'entries', 'totalIn', 'totalOut', 'balance', 'categories', 'paymentModes', 'reportData',
+            'entries', 'totalIn', 'totalOut', 'balance', 'bookBalance', 'hasFilters', 'filteredCount',
+            'hasMoreEntries', 'activeFilters', 'categories', 'paymentModes', 'reportData',
             'activityLog', 'activityTotal', 'activityMembers',
-            'recurringEntries', 'commentThread', 'commentMembers', 'comparisonData',
-            'forecast'
+            'recurringEntries', 'commentThread', 'commentMembers', 'comparisonData'
         ));
     }
 }
