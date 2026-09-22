@@ -1,0 +1,10 @@
+{
+    "$schema": "https://railway.com/railway.schema.json",
+    "build": {
+        "builder": "RAILPACK"
+    },
+    "deploy": {
+        "startCommand": "sh -c 'while true; do php artisan queue:work --sleep=3 --tries=3 --max-time=3600; sleep 1; done & exec php artisan schedule:work'",
+        "restartPolicyType": "ALWAYS"
+    }
+}
