@@ -15,6 +15,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
+use App\Support\BusinessLock;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -24,6 +26,9 @@ class Show extends Component
     use \App\Livewire\Concerns\RequiresVerifiedEmail;
     public Book $book;
     public Business $business;
+    // Display-only hint for the Blade view. Locked so the client can't tamper
+    // with it; every write re-checks the role from the DB via guardEditor()/guardOwner().
+    #[Locked]
     public string $userRole   = '';
     public string $search           = '';
     public string $filterType       = 'all'; // all | in | out
@@ -313,7 +318,7 @@ class Show extends Component
 
     public function openAddEntry(string $type = 'in'): void
     {
-        if ($this->userRole === 'viewer') {
+        if (! $this->canEdit()) {
             return;
         }
 
@@ -356,7 +361,7 @@ class Show extends Component
 
     public function openEditEntry(string $id): void
     {
-        if ($this->userRole === 'viewer') {
+        if (! $this->canEdit()) {
             return;
         }
 
@@ -402,14 +407,52 @@ class Show extends Component
         }
     }
 
-    private function guardEditor(): void
+    /**
+     * Role re-read from the business_user pivot on every call — never trusted
+     * from Livewire state (the client can't change $userRole, it's #[Locked],
+     * but a role may also have changed since the page loaded). A Free owner's
+     * locked extra business yields null: Livewire updates don't pass through
+     * the business.unlocked route middleware, so the lock is re-checked here.
+     */
+    private function currentRole(): ?string
     {
+        $user = auth()->user();
+        if (! $user) {
+            return null;
+        }
+
         $role = \Illuminate\Support\Facades\DB::table('business_user')
             ->where('business_id', $this->business->id)
-            ->where('user_id', auth()->id())
+            ->where('user_id', $user->id)
             ->value('role');
 
-        abort_unless($role && $role !== 'viewer', 403);
+        if ($role && BusinessLock::isLocked($user, $this->business, $role)) {
+            return null;
+        }
+
+        return $role;
+    }
+
+    private function canEdit(): bool
+    {
+        $role = $this->currentRole();
+
+        return $role !== null && $role !== 'viewer';
+    }
+
+    private function isOwner(): bool
+    {
+        return $this->currentRole() === 'owner';
+    }
+
+    private function guardEditor(): void
+    {
+        abort_unless($this->canEdit(), 403);
+    }
+
+    private function guardOwner(): void
+    {
+        abort_unless($this->isOwner(), 403);
     }
 
     /**
@@ -517,9 +560,6 @@ class Show extends Component
     public function saveEntry(): void
     {
         $this->guardEditor();
-        if ($this->userRole === 'viewer') {
-            return;
-        }
 
         $isNew = ! $this->editingEntryId;
         $entry = $this->doSaveEntry();
@@ -610,6 +650,8 @@ class Show extends Component
 
     public function prepareScan(): void
     {
+        $this->guardEditor();
+
         if (!$this->business->isPro()) {
             $this->upgradeModalFeature = 'ai';
             return;
@@ -623,6 +665,13 @@ class Show extends Component
         $this->guardEditor();
 
         if (!$this->ocrFile) {
+            return;
+        }
+
+        // Pro only — checked before validation or any (paid) Claude call.
+        if (! $this->business->isPro()) {
+            $this->ocrFile             = null;
+            $this->upgradeModalFeature = 'ai';
             return;
         }
 
@@ -751,7 +800,9 @@ class Show extends Component
 
     public function saveAndAddNew(): void
     {
-        if ($this->userRole === 'viewer' || $this->editingEntryId) {
+        $this->guardEditor();
+
+        if ($this->editingEntryId) {
             return;
         }
 
@@ -824,9 +875,7 @@ class Show extends Component
 
     public function addCategory(): void
     {
-        if ($this->userRole === 'viewer') {
-            return;
-        }
+        $this->guardEditor();
 
         $name = trim($this->newCategoryName);
         if ($name === '') {
@@ -849,9 +898,7 @@ class Show extends Component
 
     public function addPaymentMode(): void
     {
-        if ($this->userRole === 'viewer') {
-            return;
-        }
+        $this->guardEditor();
 
         $name = trim($this->newPaymentModeName);
         if ($name === '') {
@@ -891,6 +938,15 @@ class Show extends Component
 
     public function applyCustomDate(): void
     {
+        if (! $this->business->isPro()) {
+            $this->filterDuration      = 'all_time';
+            $this->filterCustomFrom    = '';
+            $this->filterCustomTo      = '';
+            $this->showCustomDateModal = false;
+            $this->upgradeModalFeature = 'daterange';
+            return;
+        }
+
         $this->showCustomDateModal = false;
     }
 
@@ -969,9 +1025,7 @@ class Show extends Component
 
     public function openBulkBookPicker(string $action): void
     {
-        if ($this->userRole === 'viewer') {
-            return;
-        }
+        $this->guardEditor();
         if (! in_array($action, ['move', 'copy', 'copy_opposite'])) {
             return;
         }
@@ -983,6 +1037,10 @@ class Show extends Component
 
     public function executeBulkBookAction(array $ids): void
     {
+        // Move/copy write to this book AND the target book (same business,
+        // enforced in each helper via $this->business->books()) — editor+ only.
+        $this->guardEditor();
+
         match ($this->bulkAction) {
             'move'          => $this->bulkMoveEntries($ids),
             'copy'          => $this->bulkCopyEntries($ids),
@@ -1144,7 +1202,7 @@ class Show extends Component
 
     public function openEditBook(): void
     {
-        if ($this->userRole === 'viewer') return;
+        if (! $this->canEdit()) return;
 
         $this->editBookName           = $this->book->name;
         $this->editBookDescription    = $this->book->description;
@@ -1157,7 +1215,7 @@ class Show extends Component
 
     public function saveEditBook(string $periodStart = '', string $periodEnd = ''): void
     {
-        if ($this->userRole === 'viewer') return;
+        $this->guardEditor();
 
         $this->validate([
             'editBookName'           => 'required|string|max:100',
@@ -1179,7 +1237,7 @@ class Show extends Component
 
     public function openDuplicateBook(): void
     {
-        if ($this->userRole === 'viewer') return;
+        if (! $this->canEdit()) return;
 
         $this->duplicateBookName           = $this->book->name . ' (Copy)';
         $this->duplicateBookPeriodStartsAt = '';
@@ -1193,7 +1251,7 @@ class Show extends Component
 
     public function executeDuplicate(string $periodStart = '', string $periodEnd = ''): void
     {
-        if ($this->userRole === 'viewer') return;
+        $this->guardEditor();
 
         $this->validate([
             'duplicateBookName' => 'required|string|max:100',
@@ -1202,7 +1260,7 @@ class Show extends Component
         $newBook = $this->business->books()->create([
             'name'             => $this->duplicateBookName,
             'description'      => $this->book->description,
-            'opening_balance'  => 0,
+            'opening_balance'  => $this->book->opening_balance ?? 0,
             'period_starts_at' => $periodStart ?: null,
             'period_ends_at'   => $periodEnd ?: null,
         ]);
@@ -1240,6 +1298,9 @@ class Show extends Component
 
     public function openDeleteBook(): void
     {
+        // Deleting a whole book is owner-only (editors keep create/edit/duplicate).
+        if (! $this->isOwner()) return;
+
         $this->deleteConfirmName = '';
         $this->resetErrorBag();
         $this->showDeleteBook = true;
@@ -1247,9 +1308,7 @@ class Show extends Component
 
     public function deleteBook(): void
     {
-        if ($this->userRole === 'viewer') {
-            return;
-        }
+        $this->guardOwner();
 
         if (trim($this->deleteConfirmName) !== $this->book->name) {
             $this->addError('deleteConfirmName', 'Book name does not match.');
@@ -1443,6 +1502,11 @@ class Show extends Component
             return;
         }
 
+        // Only people who can write entries get (paid) suggestions — silent.
+        if (! $this->canEdit()) {
+            return;
+        }
+
         $desc = trim($this->entryDescription);
         if (strlen($desc) < 3) {
             return;
@@ -1461,6 +1525,11 @@ class Show extends Component
         }
         $this->aiSuggestedFor = $desc;
 
+        // Per-user burst limit (shared with the API) — silent when exceeded.
+        if (! RateLimiter::attempt(self::SUGGEST_RATE_KEY . auth()->id(), self::SUGGEST_RATE_LIMIT, fn () => true, 60)) {
+            return;
+        }
+
         $categories = $this->book->categories()->pluck('name')->toArray();
 
         try {
@@ -1478,6 +1547,8 @@ class Show extends Component
 
     public function applyAiCategory(): void
     {
+        $this->guardEditor();
+
         if (empty($this->aiCategorySuggestion)) {
             return;
         }
@@ -1514,8 +1585,14 @@ class Show extends Component
     public const NLP_BURST_LIMIT  = 10;
     public const NLP_BURST_WINDOW = 60;     // seconds
 
+    /** Per-user AI category suggestions per minute (same key as the API). */
+    public const SUGGEST_RATE_LIMIT = 30;
+    public const SUGGEST_RATE_KEY   = 'ai-suggest-category:';
+
     public function parseEntryText(): void
     {
+        $this->guardEditor();
+
         $this->nlpError        = '';
         $this->nlpFilledFields = [];
 
@@ -1651,12 +1728,15 @@ class Show extends Component
 
     public function openComments(string $entryId): void
     {
-        if (! $this->business->isPro()) {
+        // Reading an entry's thread is allowed on every plan (Free sees it
+        // read-only); only posting is Pro — see addComment(). A Free entry
+        // with no comments has nothing to read, so go straight to the modal.
+        $entry = $this->book->entries()->withCount('comments')->findOrFail($entryId);
+
+        if (! $this->business->isPro() && $entry->comments_count === 0) {
             $this->upgradeModalFeature = 'comments';
             return;
         }
-
-        $entry = $this->book->entries()->findOrFail($entryId);
 
         $this->commentingEntryId     = $entryId;
         $this->commentingEntryDesc   = $entry->description;
@@ -1679,7 +1759,10 @@ class Show extends Component
 
     public function addComment(): void
     {
-        if (! $this->business->isPro()) return;
+        if (! $this->business->isPro()) {
+            $this->upgradeModalFeature = 'comments';
+            return;
+        }
         $this->guardEditor();
 
         $this->validate(['commentBody' => 'required|string|max:1000']);
@@ -1718,12 +1801,32 @@ class Show extends Component
         $this->mentionQuery        = '';
     }
 
+    /** A comment on an entry of THIS book (never another book/business). */
+    private function findBookComment(string $commentId): EntryComment
+    {
+        abort_unless(\Illuminate\Support\Str::isUuid($commentId), 404);
+
+        return EntryComment::where('id', $commentId)
+            ->whereHas('entry', fn ($q) => $q->where('book_id', $this->book->id))
+            ->firstOrFail();
+    }
+
+    /** Authors can delete their own comments; the business owner can delete any. */
+    private function canDeleteComment(EntryComment $comment): bool
+    {
+        $role = $this->currentRole();
+        if ($role === null) {
+            return false;
+        }
+
+        return $comment->user_id === auth()->id() || $role === 'owner';
+    }
+
     public function confirmDeleteComment(string $commentId): void
     {
-        $comment = EntryComment::findOrFail($commentId);
+        $comment = $this->findBookComment($commentId);
 
-        $isOwner = $this->userRole === 'owner';
-        if ($comment->user_id !== auth()->id() && ! $isOwner) return;
+        if (! $this->canDeleteComment($comment)) return;
 
         $this->pendingDeleteCommentId      = $commentId;
         $this->pendingDeleteCommentExcerpt = \Illuminate\Support\Str::limit($comment->body, 60);
@@ -1734,10 +1837,9 @@ class Show extends Component
     {
         if (! $this->pendingDeleteCommentId) return;
 
-        $comment = EntryComment::findOrFail($this->pendingDeleteCommentId);
+        $comment = $this->findBookComment($this->pendingDeleteCommentId);
 
-        $isOwner = $this->userRole === 'owner';
-        if ($comment->user_id !== auth()->id() && ! $isOwner) return;
+        if (! $this->canDeleteComment($comment)) return;
 
         $entryId   = $comment->entry_id;
         $entryDesc = $this->book->entries()->find($entryId)?->description ?? 'an entry';
@@ -1814,6 +1916,13 @@ class Show extends Component
         }
 
         $newStatus = $rec->isActive() ? 'paused' : 'active';
+
+        // Pausing is always allowed; resuming a rule is a Pro feature.
+        if ($newStatus === 'active' && ! $this->business->isPro()) {
+            $this->upgradeModalFeature = 'recurring';
+            return;
+        }
+
         $rec->update(['status' => $newStatus]);
 
         $this->logActivity($newStatus === 'paused' ? 'recurring_paused' : 'recurring_resumed', null, [
@@ -2498,8 +2607,12 @@ class Show extends Component
                 $to   = now()->format('Y-m-d');
                 break;
             case 'custom':
-                $from = $this->filterCustomFrom ?: null;
-                $to   = $this->filterCustomTo   ?: null;
+                // Custom ranges are Pro — a Free business (e.g. after a
+                // downgrade, or a tampered request) just sees all time.
+                if ($this->business->isPro()) {
+                    $from = $this->filterCustomFrom ?: null;
+                    $to   = $this->filterCustomTo   ?: null;
+                }
                 break;
         }
 
@@ -2629,6 +2742,7 @@ class Show extends Component
         // Comments panel data
         $commentThread = ($this->showCommentPanel && $this->commentingEntryId)
             ? EntryComment::where('entry_id', $this->commentingEntryId)
+                ->whereHas('entry', fn ($q) => $q->where('book_id', $this->book->id))
                 ->with('user')
                 ->orderBy('created_at')
                 ->get()

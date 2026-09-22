@@ -40,7 +40,22 @@
             </div>
 
             <div class="flex items-center gap-2 flex-shrink-0">
-<a href="{{ route('businesses.create') }}" wire:navigate
+@if($businessLimitReached)
+                {{-- Free plan already owns a business: upgrade modal in place, no page load --}}
+                <button type="button" @click="$dispatch('open-business-upgrade')"
+                        class="inline-flex items-center gap-2 px-4 py-2.5
+                               bg-primary hover:brightness-110 text-white
+                               text-sm font-semibold rounded-xl
+                               transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.25" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
+                    </svg>
+                    <span class="hidden sm:inline">New Business</span>
+                    <span class="sm:hidden">New</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-400 text-gray-900">Pro</span>
+                </button>
+                @else
+                <a href="{{ route('businesses.create') }}" wire:navigate
                    class="inline-flex items-center gap-2 px-4 py-2.5
                           bg-primary hover:bg-accent text-white
                           text-sm font-semibold rounded-xl
@@ -51,6 +66,7 @@
                     <span class="hidden sm:inline">New Business</span>
                     <span class="sm:hidden">New</span>
                 </a>
+                @endif
             </div>
         </div>
     </div>
@@ -424,7 +440,7 @@
                                             </svg>
                                         </a>
                                     @endif
-                                    @if($isOwner && !$isLocked)
+                                    @if(in_array($role, ['owner', 'editor'], true) && !$isLocked)
                                         <a href="{{ route('businesses.show', $business) }}?createBook=1" wire:navigate
                                            class="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5
                                                   dark:bg-slate-800 bg-gray-100
@@ -485,7 +501,7 @@
                                 <div class="dark:bg-slate-800 bg-gray-50 dark:border-slate-800 border border-dashed border-gray-200
                                             rounded-2xl px-6 py-8 text-center">
                                     <p class="text-sm dark:text-slate-500 text-gray-400">No books yet.</p>
-                                    @if($isOwner)
+                                    @if(in_array($role, ['owner', 'editor'], true))
                                         <a href="{{ route('businesses.show', $business) }}?createBook=1" wire:navigate
                                            class="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-sm font-semibold
                                                   bg-primary/10 hover:bg-primary text-primary hover:text-white

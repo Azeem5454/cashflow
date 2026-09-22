@@ -236,6 +236,19 @@
                             </div>
 
                             <div class="dark:border-slate-700 border-t border-gray-100">
+                                @if(! auth()->user()->isPro() && auth()->user()->ownedBusinesses()->exists())
+                                    {{-- Free plan already owns a business: open the upgrade modal in place --}}
+                                    <button type="button"
+                                            @click="switcher = false; $dispatch('open-business-upgrade')"
+                                            class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm dark:text-primary text-primary
+                                                   dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
+                                        </svg>
+                                        Add New Business
+                                        <span class="ml-auto text-[10px] font-bold uppercase tracking-wider text-amber-400">Pro</span>
+                                    </button>
+                                @else
                                 <a href="{{ route('businesses.create') }}" wire:navigate @click="switcher = false"
                                    class="flex items-center gap-2.5 px-4 py-2.5 text-sm dark:text-primary text-primary
                                           dark:hover:bg-slate-700/50 hover:bg-gray-50 transition-colors font-medium">
@@ -244,6 +257,7 @@
                                     </svg>
                                     Add New Business
                                 </a>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -471,6 +485,52 @@
         </main>
     </div>
 </div>
+
+{{-- Business-limit upgrade modal (Free plan owns 1 business) — Alpine only,
+     opened in place from any "Add New Business" control via the
+     open-business-upgrade window event. The user is upgrading their own plan. --}}
+@auth
+<div x-data="{ show: false }"
+     @open-business-upgrade.window="show = true"
+     @keydown.escape.window="show = false"
+     x-show="show" x-cloak
+     class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="show = false"></div>
+    <div x-show="show"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         class="relative w-full max-w-md dark:bg-slate-900 bg-white rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
+        <div class="h-1 w-full bg-gradient-to-r from-amber-400 to-amber-500"></div>
+        <div class="p-8 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-amber-400/10 flex items-center justify-center mx-auto mb-5">
+                <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
+                </svg>
+            </div>
+            <h2 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 mb-2">Upgrade to Pro</h2>
+            <p class="text-sm dark:text-slate-400 text-gray-500 mb-1 leading-relaxed">
+                The Free plan includes <strong class="dark:text-white text-gray-900">1 business</strong>.
+                Upgrade to Pro to manage unlimited businesses, team members, and more.
+            </p>
+            <p class="text-xs dark:text-slate-500 text-gray-400 mb-7">Just $5/month — cancel anytime.</p>
+            <div class="flex flex-col gap-3">
+                <a href="{{ route('billing') }}" wire:navigate
+                   class="inline-flex items-center justify-center gap-2 w-full px-6 py-3
+                          bg-amber-400 hover:brightness-105 text-gray-900 shadow-lg shadow-amber-400/25 hover:shadow-xl
+                          text-sm font-bold rounded-xl transition-all duration-200">
+                    Upgrade to Pro — $5/mo
+                </a>
+                <button type="button" @click="show = false"
+                        class="w-full px-4 py-2.5 text-sm font-medium rounded-xl dark:text-slate-400 text-gray-500
+                               dark:hover:text-white hover:text-gray-900 dark:hover:bg-slate-800 hover:bg-gray-100 transition-all duration-150">
+                    Not Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endauth
 
 @livewireScripts
 </body>

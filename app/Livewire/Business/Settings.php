@@ -4,6 +4,7 @@ namespace App\Livewire\Business;
 
 use App\Mail\TeamInvitation;
 use App\Models\Business;
+use App\Support\BusinessLock;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -40,8 +41,30 @@ class Settings extends Component
         $this->description = $business->description ?? '';
     }
 
+    /**
+     * Owner re-checked from the DB on every action. Livewire updates skip the
+     * route middleware, so a Free owner's locked extra business is re-checked
+     * here too (same rule as the API). Deleting a locked business stays allowed.
+     */
+    private function guardOwner(bool $allowLocked = false): void
+    {
+        $user = auth()->user();
+        $role = \Illuminate\Support\Facades\DB::table('business_user')
+            ->where('business_id', $this->business->id)
+            ->where('user_id', $user?->id)
+            ->value('role');
+
+        abort_unless($role === 'owner', 403);
+
+        if (! $allowLocked && BusinessLock::isLocked($user, $this->business, $role)) {
+            abort(403, 'This business is locked on the Free plan.');
+        }
+    }
+
     public function saveGeneral(): void
     {
+        $this->guardOwner();
+
         $data = $this->validate([
             'name'        => 'required|string|max:100',
             'description' => 'nullable|string|max:500',
@@ -53,6 +76,8 @@ class Settings extends Component
 
     public function sendInvite(): void
     {
+        $this->guardOwner();
+
         $this->inviteSent = false;
 
         $this->validate([
@@ -97,11 +122,15 @@ class Settings extends Component
 
     public function cancelInvitation(string $id): void
     {
+        $this->guardOwner();
+
         $this->business->invitations()->where('id', $id)->delete();
     }
 
     public function removeMember(string $userId): void
     {
+        $this->guardOwner();
+
         if ($userId === $this->business->owner_id) {
             return;
         }
@@ -112,6 +141,8 @@ class Settings extends Component
 
     public function updateMemberRole(string $userId, string $role): void
     {
+        $this->guardOwner();
+
         if ($userId === $this->business->owner_id) {
             return;
         }
@@ -123,6 +154,8 @@ class Settings extends Component
 
     public function deleteBusiness(): void
     {
+        $this->guardOwner(allowLocked: true);
+
         if ($this->deleteConfirmInput !== $this->business->name) {
             $this->addError('deleteConfirmInput', 'Business name does not match.');
             return;
@@ -146,7 +179,8 @@ class Settings extends Component
         return view('livewire.business.settings', [
             'members'     => $members,
             'pending'     => $pending,
-            'memberLimit' => auth()->user()->isPro() ? null : Business::FREE_MEMBER_LIMIT,
+            'memberLimit' => $this->business->memberLimit(),
+            'seatsUsed'   => $this->business->seatsUsed(),
         ]);
     }
 }

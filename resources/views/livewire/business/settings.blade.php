@@ -250,7 +250,8 @@
                         <x-verify-email-notice class="mb-4" :resent="$verificationEmailResent" action="invite teammates" />
                     @endif
 
-                    @if($memberLimit !== null && ($members->count() + $business->pendingInvitations()->count()) >= $memberLimit)
+                    @php $teamFull = $memberLimit !== null && $seatsUsed >= $memberLimit; @endphp
+                    @if($teamFull)
                         <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 mb-4 rounded-xl
                                     bg-amber-50 dark:bg-slate-800 border border-amber-200 dark:border-slate-700">
                             <p class="text-sm text-amber-800 dark:text-slate-300">
@@ -268,7 +269,8 @@
                             <input wire:model="inviteEmail"
                                    type="email"
                                    placeholder="colleague@example.com"
-                                   class="w-full px-4 py-2.5 text-sm rounded-xl
+                                   @if($teamFull) disabled @endif
+                                   class="w-full px-4 py-2.5 text-sm rounded-xl disabled:opacity-50 disabled:cursor-not-allowed
                                           dark:bg-navy bg-gray-50
                                           dark:border-slate-700 border-gray-200 border
                                           dark:text-white text-gray-900
@@ -329,7 +331,19 @@
                             </div>
                         </div>
 
-                        {{-- Send button --}}
+                        {{-- Send button (team full → Upgrade, opens the team modal in place) --}}
+                        @if($teamFull)
+                        <button type="button"
+                                wire:click="$set('upgradeModalFeature', 'team')"
+                                class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold
+                                       bg-amber-400 hover:brightness-105 text-gray-900 rounded-xl
+                                       transition-all duration-200 shadow-md shadow-amber-400/25 hover:shadow-lg whitespace-nowrap flex-shrink-0">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
+                            </svg>
+                            Upgrade
+                        </button>
+                        @else
                         <button wire:click="sendInvite"
                                 wire:loading.attr="disabled"
                                 wire:target="sendInvite"
@@ -352,6 +366,7 @@
                                 Sending…
                             </span>
                         </button>
+                        @endif
                     </div>
                 </div>
             </div>

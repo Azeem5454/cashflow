@@ -251,6 +251,7 @@
                             @endif
                         </button>
 
+                        @if($userRole === 'owner')
                         <div class="my-1 dark:border-t dark:border-slate-700 border-t border-gray-100"></div>
                         <button @click="$wire.openDeleteBook(); open = false"
                                 class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body
@@ -261,6 +262,7 @@
                             </svg>
                             Delete Book
                         </button>
+                        @endif
                     </div>
                 </div>
             @endif
@@ -1425,6 +1427,9 @@
                                 @endif
                             </div>
                             Custom…
+                            @if(!$business->isPro())
+                                <span class="ml-auto px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400">PRO</span>
+                            @endif
                         </button>
                     </div>
                 </div>
@@ -2112,12 +2117,17 @@
                                                     x-cloak
                                                     class="flex-shrink-0 flex items-center gap-0.5 transition-colors
                                                            {{ $entry->comments_count > 0 ? 'dark:text-violet-400 text-violet-500' : 'dark:text-slate-400 text-gray-400' }}"
-                                                    title="{{ $entry->comments_count > 0 ? $entry->comments_count . ' comment(s)' : 'Add comment' }}">
+                                                    title="{{ $entry->comments_count > 0 ? $entry->comments_count . ' comment(s)' : ($business->isPro() ? 'Add comment' : 'Comments — Pro') }}">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/>
                                                 </svg>
                                                 @if($entry->comments_count > 0)
                                                     <span class="text-[10px] font-mono leading-none">{{ $entry->comments_count }}</span>
+                                                @endif
+                                                @if(!$business->isPro() && $entry->comments_count === 0)
+                                                    <svg class="w-2.5 h-2.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-label="Pro">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
+                                                    </svg>
                                                 @endif
                                             </button>
                                         </p>
@@ -2255,12 +2265,17 @@
                                         <button wire:click.stop="openComments('{{ $entry->id }}')"
                                                 class="flex items-center gap-0.5 transition-colors
                                                        {{ $entry->comments_count > 0 ? 'dark:text-violet-400 text-violet-500' : 'dark:text-slate-600 text-gray-300' }}"
-                                                title="{{ $entry->comments_count > 0 ? $entry->comments_count . ' comment(s)' : 'Add comment' }}">
+                                                title="{{ $entry->comments_count > 0 ? $entry->comments_count . ' comment(s)' : ($business->isPro() ? 'Add comment' : 'Comments — Pro') }}">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/>
                                             </svg>
                                             @if($entry->comments_count > 0)
                                                 <span class="text-[10px] font-mono leading-none">{{ $entry->comments_count }}</span>
+                                            @endif
+                                            @if(!$business->isPro() && $entry->comments_count === 0)
+                                                <svg class="w-2.5 h-2.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-label="Pro">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
+                                                </svg>
                                             @endif
                                         </button>
                                     </div>
@@ -4049,8 +4064,17 @@
                 @endif
             </div>
 
+            {{-- Free plan: threads are readable, posting is Pro --}}
+            @if($userRole !== 'viewer' && !$business->isPro())
+                <div class="flex-shrink-0 px-5 py-4 border-t dark:border-slate-800 border-gray-100 flex items-center justify-between gap-3">
+                    <p class="text-xs font-body dark:text-slate-400 text-gray-500">Adding comments is available on the Pro plan.</p>
+                    <button type="button" wire:click="$set('upgradeModalFeature', 'comments')"
+                            class="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-500/20 hover:brightness-110 transition-all">PRO</button>
+                </div>
+            @endif
+
             {{-- Add comment input (viewers can read but not comment) --}}
-            @if($userRole !== 'viewer')
+            @if($userRole !== 'viewer' && $business->isPro())
                 <div class="flex-shrink-0 px-5 py-4 border-t dark:border-slate-800 border-gray-100"
                      x-data="{
                          body: @entangle('commentBody').live,
@@ -4686,7 +4710,7 @@
                         <button type="button"
                                 x-show="supported"
                                 x-cloak
-                                @click="toggle()"
+                                @if($business->isPro()) @click="toggle()" @else @click.prevent="$wire.parseEntryText()" @endif
                                 :aria-label="listening ? 'Stop listening' : 'Speak your entry'"
                                 :title="listening ? 'Tap to stop' : 'Tap to speak'"
                                 class="absolute left-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-md flex items-center justify-center transition-all"
@@ -4707,6 +4731,10 @@
                                x-ref="nlpField"
                                wire:model="nlpInput"
                                wire:keydown.enter.prevent="parseEntryText"
+                               @if(!$business->isPro())
+                               readonly
+                               @focus="$el.blur(); $wire.parseEntryText()"
+                               @endif
                                :placeholder="listening ? 'Listening…' : 'e.g. &quot;Paid 5000 for office rent yesterday from HBL&quot;'"
                                maxlength="500"
                                :class="supported ? 'pl-12' : 'pl-3'"
@@ -4769,15 +4797,18 @@
 
             {{-- ── AI Scan Receipt (new entries only, non-viewer) ── --}}
             @if(!$editingEntryId && $userRole !== 'viewer')
-            <div x-data @open-ocr-picker.window="$refs.ocrInput.click()">
+            <div x-data @open-ocr-picker.window="$refs.ocrInput && $refs.ocrInput.click()">
 
                 {{-- OCR file input — visually hidden but focus/click-able so mobile Safari/Chrome can open
-                     camera + gallery picker. display:none blocks .click() on some mobile browsers. --}}
+                     camera + gallery picker. display:none blocks .click() on some mobile browsers.
+                     Pro businesses only (the server also rejects Free uploads). --}}
+                @if($business->isPro())
                 <input type="file"
                        wire:model="ocrFile"
                        accept="image/png,image/jpeg,image/jpg"
                        style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"
                        x-ref="ocrInput">
+                @endif
 
                 {{-- Scanning state (shown while wire:loading on ocrFile) --}}
                 <div wire:loading wire:target="ocrFile">

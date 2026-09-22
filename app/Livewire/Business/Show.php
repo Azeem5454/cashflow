@@ -4,11 +4,16 @@ namespace App\Livewire\Business;
 
 use App\Models\Book;
 use App\Models\Business;
+use App\Support\BusinessLock;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class Show extends Component
 {
     public Business $business;
+    // Display-only; writes re-check the role from the DB (guardEditor/guardOwner).
+    #[Locked]
     public string $userRole = '';
     public string $search   = '';
     public string $sortBy   = 'updated_at';
@@ -52,10 +57,60 @@ class Show extends Component
         $this->userRole = $business->userRole(auth()->user()) ?? 'viewer';
     }
 
+    // ── Authorization ──────────────────────────────────────────
+
+    /**
+     * Role re-read from the pivot on every call (never trusted from Livewire
+     * state). A Free owner's locked extra business yields null — Livewire
+     * updates bypass the route-level lock gate.
+     */
+    private function currentRole(): ?string
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return null;
+        }
+
+        $role = DB::table('business_user')
+            ->where('business_id', $this->business->id)
+            ->where('user_id', $user->id)
+            ->value('role');
+
+        if ($role && BusinessLock::isLocked($user, $this->business, $role)) {
+            return null;
+        }
+
+        return $role;
+    }
+
+    private function canEdit(): bool
+    {
+        $role = $this->currentRole();
+
+        return $role !== null && $role !== 'viewer';
+    }
+
+    private function isOwner(): bool
+    {
+        return $this->currentRole() === 'owner';
+    }
+
+    private function guardEditor(): void
+    {
+        abort_unless($this->canEdit(), 403);
+    }
+
+    private function guardOwner(): void
+    {
+        abort_unless($this->isOwner(), 403);
+    }
+
     // ── Create ─────────────────────────────────────────────────
 
     public function openCreateBook(): void
     {
+        if (! $this->canEdit()) return;
+
         $this->bookName            = '';
         $this->bookDescription     = null;
         $this->bookOpeningBalance  = '';
@@ -67,7 +122,7 @@ class Show extends Component
 
     public function createBook(string $periodStart = '', string $periodEnd = ''): void
     {
-        if ($this->userRole === 'viewer') return;
+        $this->guardEditor();
 
         $this->validate([
             'bookName'           => 'required|string|max:100',
@@ -90,7 +145,7 @@ class Show extends Component
 
     public function openEditBook(string $bookId): void
     {
-        if ($this->userRole === 'viewer') return;
+        if (! $this->canEdit()) return;
 
         $book = $this->business->books()->findOrFail($bookId);
 
@@ -106,7 +161,7 @@ class Show extends Component
 
     public function saveEditBook(string $periodStart = '', string $periodEnd = ''): void
     {
-        if ($this->userRole === 'viewer') return;
+        $this->guardEditor();
 
         $this->validate([
             'editBookName'           => 'required|string|max:100',
@@ -130,7 +185,7 @@ class Show extends Component
 
     public function openDuplicateBook(string $bookId): void
     {
-        if ($this->userRole === 'viewer') return;
+        if (! $this->canEdit()) return;
 
         $book = $this->business->books()->findOrFail($bookId);
 
@@ -147,7 +202,7 @@ class Show extends Component
 
     public function executeDuplicate(string $periodStart = '', string $periodEnd = ''): void
     {
-        if ($this->userRole === 'viewer') return;
+        $this->guardEditor();
 
         $this->validate([
             'duplicateBookName' => 'required|string|max:100',
@@ -158,7 +213,7 @@ class Show extends Component
         $newBook = $this->business->books()->create([
             'name'             => $this->duplicateBookName,
             'description'      => $source->description,
-            'opening_balance'  => 0,
+            'opening_balance'  => $source->opening_balance ?? 0,
             'period_starts_at' => $periodStart ?: null,
             'period_ends_at'   => $periodEnd ?: null,
         ]);
@@ -198,7 +253,8 @@ class Show extends Component
 
     public function openDeleteBook(string $bookId): void
     {
-        if ($this->userRole === 'viewer') return;
+        // Deleting a whole book is owner-only.
+        if (! $this->isOwner()) return;
 
         $book = $this->business->books()->findOrFail($bookId);
 
@@ -211,7 +267,7 @@ class Show extends Component
 
     public function deleteBook(): void
     {
-        if ($this->userRole === 'viewer') return;
+        $this->guardOwner();
 
         $this->validate([
             'deleteConfirmName' => [
@@ -233,7 +289,7 @@ class Show extends Component
     // ── Kept for backward compat (inline rename, if still used) ─
     public function renameBook(string $bookId, string $name): void
     {
-        if ($this->userRole === 'viewer') return;
+        $this->guardEditor();
 
         $name = trim($name);
         if ($name === '') return;

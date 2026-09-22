@@ -13,6 +13,7 @@ use App\Support\BusinessLock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\RateLimiter;
 
 class BookController extends Controller
 {
@@ -42,7 +43,7 @@ class BookController extends Controller
     public function entries(Request $request, string $id): AnonymousResourceCollection
     {
         $book    = $this->findAuthorizedBook($request, $id);
-        $filters = $this->validatedFilters($request);
+        $filters = $this->validatedFilters($request, $book);
 
         $request->validate([
             'page'    => ['nullable', 'integer', 'min:1'],
@@ -80,7 +81,7 @@ class BookController extends Controller
     public function summary(Request $request, string $id): JsonResponse
     {
         $book    = $this->findAuthorizedBook($request, $id);
-        $filters = $this->validatedFilters($request);
+        $filters = $this->validatedFilters($request, $book);
 
         $all       = BookLedger::chronological($book);
         $isFiltered = BookLedger::hasFilters($filters);
@@ -220,13 +221,26 @@ class BookController extends Controller
      */
     public function suggestCategory(Request $request, string $id): JsonResponse
     {
-        $book = $this->findAuthorizedBook($request, $id);
+        // Suggestions are for people writing entries — editor+ only.
+        $book = $this->findAuthorizedBook($request, $id, requireEditor: true);
 
         if (! $book->business->isPro()) {
             return response()->json(['category' => null]);
         }
 
-        $request->validate(['description' => ['required', 'string', 'min:3']]);
+        $request->validate([
+            'description' => ['required', 'string', 'min:3', 'max:255'],
+            'type'        => ['nullable', 'in:in,out'],
+        ]);
+
+        // Per-user burst limit, shared with the web (Book\Show::suggestCategory).
+        $key = \App\Livewire\Book\Show::SUGGEST_RATE_KEY . $request->user()->id;
+        if (! RateLimiter::attempt($key, \App\Livewire\Book\Show::SUGGEST_RATE_LIMIT, fn () => true, 60)) {
+            return response()->json([
+                'category' => null,
+                'message'  => 'Too many suggestions. Please wait a moment.',
+            ], 429);
+        }
 
         try {
             $categories = $book->categories()->pluck('name')->toArray();
@@ -349,6 +363,15 @@ class BookController extends Controller
         }
 
         $newStatus = $recurring->isActive() ? 'paused' : 'active';
+
+        // Pausing is always allowed; resuming a rule is a Pro feature.
+        if ($newStatus === 'active' && ! $book->business->isPro()) {
+            return response()->json([
+                'message' => 'Resuming recurring entries requires a Pro subscription.',
+                'code'    => 'pro_required',
+            ], 403);
+        }
+
         $recurring->update(['status' => $newStatus]);
 
         $this->logBookActivity($book, $request, $newStatus === 'paused' ? 'recurring_paused' : 'recurring_resumed', null, [
@@ -466,6 +489,11 @@ class BookController extends Controller
             return response()->json(['message' => 'Format must be pdf or csv.'], 422);
         }
 
+        // Same budget as the web ExportController (shared key): 10/min per user.
+        if (! RateLimiter::attempt('export:' . $request->user()->id, 10, fn () => true, 60)) {
+            return response()->json(['message' => 'Too many exports. Please wait a minute and try again.'], 429);
+        }
+
         $business = $book->business;
         $entries  = $this->entriesWithRunningBalance($book);
         $slug     = str()->slug($business->name) . '-' . str()->slug($book->name);
@@ -544,8 +572,13 @@ class BookController extends Controller
     public function destroy(Request $request, string $id): JsonResponse
     {
         $book = $this->findAuthorizedBook($request, $id);
-        $this->ensureEditor($request, $book);
+        // Deleting a whole book is owner-only (editors keep create/edit/duplicate).
+        $this->ensureOwnerRole(
+            $this->memberRole($request->user(), $book->business_id),
+            'Only the business owner can delete a book.'
+        );
 
+        $book->reportSchedule()->delete();
         $book->delete();
 
         return response()->json(['message' => 'Book deleted.']);
@@ -719,16 +752,47 @@ class BookController extends Controller
             'isActive'   => ['boolean'],
         ]);
 
+        $recipients = array_values(array_unique(array_map(
+            fn ($e) => strtolower(trim($e)),
+            $validated['recipients']
+        )));
+
         $schedule = \App\Models\ReportSchedule::updateOrCreate(
             ['book_id' => $book->id],
             [
                 'frequency'  => $validated['frequency'],
-                'recipients' => $validated['recipients'],
+                'recipients' => $recipients,
                 'is_active'  => $validated['isActive'] ?? true,
             ]
         );
 
-        return response()->json(['message' => 'Report schedule saved.', 'id' => $schedule->id]);
+        // Like the web (Book\Show::saveEmailReport): a newly created, active
+        // schedule sends its first report right away.
+        $firstSent = false;
+        if ($schedule->wasRecentlyCreated && $schedule->is_active) {
+            try {
+                $schedule->setRelation('book', $book);
+                $reportData = $schedule->buildReportData();
+                foreach ($schedule->recipients as $recipientEmail) {
+                    \Illuminate\Support\Facades\Mail::to($recipientEmail)->queue(
+                        new \App\Mail\BookEmailReport($book, $reportData, $schedule->frequency)
+                    );
+                }
+                $schedule->update(['last_sent_at' => now()]);
+                $firstSent = true;
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('First email report send failed', [
+                    'book_id' => $book->id,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'message'   => $firstSent ? 'Report schedule saved. First report sent.' : 'Report schedule saved.',
+            'id'        => $schedule->id,
+            'firstSent' => $firstSent,
+        ]);
     }
 
     /**
@@ -782,7 +846,15 @@ class BookController extends Controller
         ];
     }
 
-    private function validatedFilters(Request $request): array
+    /**
+     * Free businesses keep the preset windows the apps send (Today, Yesterday,
+     * Last 7 / 30 days — each a ≤30-day window ending around today; a couple
+     * of days' slack covers client time zones). Any other from/to is a custom
+     * range, which is Pro: it's ignored, and the response is all-time.
+     */
+    public const FREE_RANGE_MAX_DAYS = 30;
+
+    private function validatedFilters(Request $request, \App\Models\Book $book): array
     {
         $request->validate([
             'type'          => ['nullable', 'in:in,out,all'],
@@ -804,7 +876,35 @@ class BookController extends Controller
             $filters[$key] = $value;
         }
 
+        if (! $book->business->isPro() && ! $this->isPresetRange($filters['from'] ?? null, $filters['to'] ?? null)) {
+            $filters['from'] = null;
+            $filters['to']   = null;
+        }
+
         return $filters;
+    }
+
+    private function isPresetRange(?string $from, ?string $to): bool
+    {
+        if (($from === null || $from === '') && ($to === null || $to === '')) {
+            return true; // no date filter at all
+        }
+        if (! $from || ! $to) {
+            return false; // open-ended ranges are custom
+        }
+
+        try {
+            $fromDate = \Carbon\Carbon::createFromFormat('Y-m-d', $from)->startOfDay();
+            $toDate   = \Carbon\Carbon::createFromFormat('Y-m-d', $to)->startOfDay();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        $today = now()->startOfDay();
+
+        return $fromDate->lte($toDate)
+            && $fromDate->diffInDays($toDate) < self::FREE_RANGE_MAX_DAYS
+            && $toDate->between($today->copy()->subDays(2), $today->copy()->addDay());
     }
 
     private function validatedListName(Request $request): string

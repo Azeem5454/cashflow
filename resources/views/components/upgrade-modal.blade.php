@@ -28,7 +28,7 @@
     $features = match($feature) {
         'business'     => ['Unlimited businesses', 'Unlimited team members', 'PDF & CSV export', 'Priority support'],
         'export'       => ['PDF export with professional layout', 'CSV export for Excel / Google Sheets', 'Unlimited businesses', 'Unlimited team members'],
-        'recurring'    => ['Auto-create entries on a daily, weekly, monthly, or yearly schedule', 'Pause or delete rules anytime', 'All Pro features included'],
+        'recurring'    => ['Auto-create entries daily, weekly, or every 2 weeks', 'Pause or delete rules anytime', 'All Pro features included'],
         'ai'           => ['AI receipt scanning — photo a receipt, fields fill themselves', 'AI auto-categorization on description', 'AI cash flow insights on the Reports tab', '200 OCR scans/month included'],
         'comments'     => ['Comment on any entry and @mention teammates', 'In-app notification bell for mentions', 'Full comment history per entry'],
         'daterange'    => ['Filter entries by any custom date range', 'Compare two periods side-by-side (this month vs last month)', 'See % change in Cash In, Cash Out, and Net'],
@@ -37,6 +37,19 @@
     };
 
     $ctaLabel = $isTeam ? 'View Plans' : 'Upgrade to Pro — $5/mo';
+
+    // Non-owners (editors/viewers) can't upgrade someone else's business:
+    // no billing link, no price — just who to ask.
+    $featureLabel = match($feature) {
+        'export'       => 'Export',
+        'recurring'    => 'Recurring entries',
+        'ai'           => 'AI features',
+        'comments'     => 'Posting comments',
+        'daterange'    => 'Custom date ranges',
+        'emailreports' => 'Email reports',
+        'team'         => 'Adding more team members',
+        default        => 'This feature',
+    };
 @endphp
 
 @if($show)
@@ -99,11 +112,11 @@
             <h2 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 mb-2">{{ $heading }}</h2>
 
             {{-- Body copy --}}
-            @if($isExport && !$isOwner)
-                <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
-                    Export is available on <strong class="dark:text-white text-gray-900">Pro</strong> businesses.
-                    Ask the owner of <strong class="dark:text-white text-gray-900">{{ $businessName }}</strong>
-                    to upgrade to unlock PDF and CSV export for the whole team.
+            @if(!$isOwner)
+                <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-7">
+                    {{ $featureLabel }} {{ $featureLabel === 'AI features' ? 'are' : 'is' }} available on <strong class="dark:text-white text-gray-900">Pro</strong> businesses.
+                    Ask the owner of <strong class="dark:text-white text-gray-900">{{ $businessName ?: 'this business' }}</strong>
+                    to upgrade — it unlocks it for the whole team.
                 </p>
             @elseif($isExport)
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
@@ -117,8 +130,8 @@
                 </p>
             @elseif($isRecurring)
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
-                    Set entries to repeat automatically on any schedule —
-                    <strong class="dark:text-white text-gray-900">daily, weekly, monthly, or yearly</strong>.
+                    Set entries to repeat automatically —
+                    <strong class="dark:text-white text-gray-900">daily, weekly, or every 2 weeks</strong>.
                     Stop re-entering the same transactions every period.
                 </p>
             @elseif($isAi)
@@ -148,10 +161,12 @@
                 </p>
             @endif
 
+            @if($isOwner)
             <p class="text-xs dark:text-slate-500 text-gray-400 mb-7">Just $5/month — cancel anytime.</p>
+            @endif
 
             {{-- Feature list --}}
-            @if(count($features))
+            @if(count($features) && $isOwner)
                 <ul class="text-left space-y-2.5 mb-7">
                     @foreach($features as $feat)
                         <li class="flex items-center gap-3 text-sm dark:text-slate-300 text-gray-700">
@@ -169,8 +184,8 @@
             {{-- Actions --}}
             <div class="flex flex-col gap-3">
 
-                {{-- Primary CTA — hidden for non-owner export --}}
-                @if(!$isExport || $isOwner)
+                {{-- Primary CTA — owners only (non-owners can't upgrade someone else's business) --}}
+                @if($isOwner)
                     <a href="{{ route('billing') }}"
                        class="inline-flex items-center justify-center gap-2 w-full px-6 py-3
                               bg-amber-400 hover:bg-amber-300 text-gray-900 shadow-lg shadow-amber-400/25
@@ -198,7 +213,7 @@
                                    dark:hover:text-white hover:text-gray-900
                                    dark:hover:bg-slate-800 hover:bg-gray-100
                                    transition-all duration-150">
-                        {{ ($isExport && !$isOwner) ? 'Got it' : 'Not Now' }}
+                        {{ !$isOwner ? 'Got it' : 'Not Now' }}
                     </button>
                 @endif
 

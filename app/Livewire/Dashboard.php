@@ -32,8 +32,14 @@ class Dashboard extends Component
         $sharedBusinesses = $businesses->whereIn('pivot.role', ['editor', 'viewer'])->values();
         $firstOwnedId     = $user->ownedBusinesses()->oldest()->value('id');
 
-        // Recent entries across all accessible books (activity feed)
-        $businessIds       = $businesses->pluck('id');
+        // Recent entries across all accessible books (activity feed). Free-plan
+        // locked businesses are left out (same rule as the API's recentBooks) —
+        // their books redirect to billing and their data shouldn't surface here.
+        // (BusinessLock's rule, using the already-fetched oldest owned id.)
+        $isPro             = $user->isPro();
+        $businessIds       = $businesses
+            ->reject(fn ($b) => ! $isPro && $b->pivot?->role === 'owner' && $b->id !== $firstOwnedId)
+            ->pluck('id');
         $accessibleBookIds = Book::whereIn('business_id', $businessIds)->pluck('id');
 
         $recentEntries = Entry::whereIn('book_id', $accessibleBookIds)
@@ -50,6 +56,8 @@ class Dashboard extends Component
             'sharedBusinesses' => $sharedBusinesses,
             'firstOwnedId'     => $firstOwnedId,
             'recentEntries'    => $recentEntries,
+            // Free plan includes 1 owned business — "New Business" opens the upgrade modal.
+            'businessLimitReached' => ! $isPro && $ownedBusinesses->isNotEmpty(),
         ]);
     }
 }

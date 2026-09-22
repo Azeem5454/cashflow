@@ -71,8 +71,12 @@ class Accept extends Component
 
     private function isOverSeatLimit(Invitation $invitation): bool
     {
-        return ! $invitation->business->isPro()
-            && $invitation->business->members()->count() >= 2;
+        // Same plan limit as invites (Business::memberLimit()). The invitation
+        // being accepted already holds a seat, so only current members count.
+        $limit = $invitation->business->memberLimit();
+
+        return $limit !== null
+            && $invitation->business->members()->count() >= $limit;
     }
 
     public function render()
