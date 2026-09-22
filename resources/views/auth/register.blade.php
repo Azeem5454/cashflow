@@ -12,7 +12,7 @@
             <p class="guest-body text-sm text-slate-500 dark:text-slate-400">Create your account — you'll go to checkout right after.</p>
         @else
             <h1 class="guest-display font-extrabold text-3xl text-slate-900 dark:text-white mb-2">Create your account</h1>
-            <p class="guest-body text-sm text-slate-500 dark:text-slate-400">Free forever — no credit card required</p>
+            <p class="guest-body text-sm text-slate-500 dark:text-slate-400">Free forever — includes {{ \App\Services\AiQuota::FREE_MONTHLY_LIMIT }} AI entries a month. No credit card.</p>
         @endif
     </div>
 

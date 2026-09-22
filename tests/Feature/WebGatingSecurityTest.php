@@ -12,6 +12,7 @@ use App\Models\Business;
 use App\Models\EntryComment;
 use App\Models\RecurringEntry;
 use App\Models\User;
+use App\Services\AiQuota;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
@@ -280,15 +281,18 @@ class WebGatingSecurityTest extends ApiTestCase
         $this->assertSame(0, $book->categories()->count());
     }
 
-    // ── 3. OCR is Pro ───────────────────────────────────────────
+    // ── 3. OCR is quota-gated (Free: 10 AI entries/month) ───────
 
-    public function test_free_ocr_upload_is_rejected_without_calling_ai(): void
+    public function test_free_ocr_upload_is_rejected_without_calling_ai_once_quota_is_used(): void
     {
         Http::fake();
 
         $owner    = $this->makeUser();
         $business = $this->makeBusiness($owner);
         $book     = $this->makeBook($business);
+        for ($i = 0; $i < \App\Services\AiQuota::FREE_MONTHLY_LIMIT; $i++) {
+            AiUsageLog::create(['user_id' => $owner->id, 'type' => $i % 2 ? 'ocr' : 'nlp', 'tokens_in' => 1, 'tokens_out' => 1, 'cost_usd' => 0, 'created_at' => now()]);
+        }
 
         $this->bookShow($owner, $business, $book)
             ->set('ocrFile', UploadedFile::fake()->image('receipt.jpg'))
@@ -297,10 +301,10 @@ class WebGatingSecurityTest extends ApiTestCase
             ->assertSet('aiFilledFields', []);
 
         Http::assertNothingSent();
-        $this->assertSame(0, AiUsageLog::count());
+        $this->assertSame(AiQuota::FREE_MONTHLY_LIMIT, AiUsageLog::count());
     }
 
-    public function test_free_book_page_does_not_render_the_ocr_input(): void
+    public function test_book_page_renders_the_ocr_input_until_free_quota_is_used(): void
     {
         $owner    = $this->makeUser();
         $business = $this->makeBusiness($owner);
@@ -308,12 +312,21 @@ class WebGatingSecurityTest extends ApiTestCase
 
         $this->bookShow($owner, $business, $book)
             ->call('openAddEntry')
+            ->assertSeeHtml('wire:model="ocrFile"')
+            ->assertSee('free AI entries left this month');
+
+        for ($i = 0; $i < AiQuota::FREE_MONTHLY_LIMIT; $i++) {
+            AiUsageLog::create(['user_id' => $owner->id, 'type' => 'ocr', 'tokens_in' => 1, 'tokens_out' => 1, 'cost_usd' => 0, 'created_at' => now()]);
+        }
+        $this->bookShow($owner, $business, $book)
+            ->call('openAddEntry')
             ->assertDontSeeHtml('wire:model="ocrFile"');
 
         [$proOwner, $proBiz, $proBook] = $this->proBusinessWithBook();
         $this->bookShow($proOwner, $proBiz, $proBook)
             ->call('openAddEntry')
-            ->assertSeeHtml('wire:model="ocrFile"');
+            ->assertSeeHtml('wire:model="ocrFile"')
+            ->assertSee('scans left this month');
     }
 
     // ── 4. Comments scoped to this book ─────────────────────────

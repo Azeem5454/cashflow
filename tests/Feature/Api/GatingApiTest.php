@@ -183,7 +183,7 @@ class GatingApiTest extends ApiTestCase
         Mail::assertNothingQueued();
     }
 
-    public function test_free_ocr_scan_is_blocked_without_calling_ai(): void
+    public function test_free_ocr_scan_is_blocked_without_calling_ai_once_quota_is_used(): void
     {
         Http::fake();
 
@@ -192,9 +192,15 @@ class GatingApiTest extends ApiTestCase
         $book     = $this->makeBook($business);
         $this->actingAsUser($owner);
 
+        for ($i = 0; $i < \App\Services\AiQuota::FREE_MONTHLY_LIMIT; $i++) {
+            \App\Models\AiUsageLog::create(['user_id' => $owner->id, 'type' => 'ocr', 'tokens_in' => 1, 'tokens_out' => 1, 'cost_usd' => 0, 'created_at' => now()]);
+        }
+
         $this->post("/api/v1/books/{$book->id}/scan", [
-            'file' => \Illuminate\Http\UploadedFile::fake()->image('r.jpg'),
-        ], ['Accept' => 'application/json'])->assertForbidden();
+            'receipt' => \Illuminate\Http\UploadedFile::fake()->image('r.jpg'),
+        ], ['Accept' => 'application/json'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'ai_quota_exhausted');
 
         Http::assertNothingSent();
     }

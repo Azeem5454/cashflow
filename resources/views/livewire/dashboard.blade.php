@@ -1,109 +1,47 @@
 <div class="min-h-full">
 
     {{-- ══════════════════════════════════════════════════════
-         HEADER — Total balance + quick add
+         HEADER — greeting + New business (secondary)
     ══════════════════════════════════════════════════════ --}}
-    <div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-5
+    @php $hasBusinesses = $ownedBusinesses->isNotEmpty() || $sharedBusinesses->isNotEmpty(); @endphp
+    <div class="px-4 sm:px-6 lg:px-8 py-4
                 dark:bg-navy bg-white
                 border-b border-gray-200 dark:border-slate-800
                 sticky top-0 z-10 backdrop-blur-sm">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <h1 class="min-w-0 truncate font-display font-extrabold text-xl sm:text-2xl dark:text-white text-gray-900 tracking-tight leading-tight">
+                {{ $hasBusinesses ? 'Welcome back' : 'Welcome' }}, {{ explode(' ', auth()->user()->name)[0] }}
+            </h1>
 
-            {{-- Totals --}}
-            <div class="min-w-0" data-testid="dashboard-totals">
-                @if($totals->isEmpty())
-                    <h1 class="font-display font-extrabold text-2xl sm:text-3xl dark:text-white text-gray-900 tracking-tight leading-none">
-                        Welcome, {{ explode(' ', auth()->user()->name)[0] }}
-                    </h1>
-                @else
-                    <h1 class="text-[11px] font-body font-medium uppercase tracking-widest text-gray-500 dark:text-slate-400">
-                        Total balance
-                    </h1>
-                    <div class="mt-1 flex flex-wrap items-end gap-x-6 gap-y-2">
-                        @foreach($totals as $t)
-                            <div class="min-w-0">
-                                <p class="inline-flex items-center gap-1.5 font-bold leading-none tracking-tight
-                                          {{ $totals->count() > 1 ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl' }}">
-                                    @if($t['balance'] < 0)
-                                        <svg class="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" role="img" aria-label="Negative balance">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.306-4.306a11.95 11.95 0 0 1 5.814 5.518l2.74 1.22m0 0-5.94 2.281m5.94-2.28-2.28-5.941"/>
-                                        </svg>
-                                    @endif
-                                    <x-amount :value="$t['balance']" :symbol="$t['symbol']" tone="net" />
-                                </p>
-                                <p class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs font-body text-gray-500 dark:text-slate-400">
-                                    <span>In <x-amount :value="$t['in']" :symbol="$t['symbol']" tone="in" /></span>
-                                    <span>Out <x-amount :value="$t['out']" :symbol="$t['symbol']" tone="out" /></span>
-                                </p>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-
-            {{-- Actions --}}
-            <div class="flex items-center flex-wrap gap-2 flex-shrink-0">
-                @if($quickAddBook)
-                    @php $qaUrl = route('businesses.books.show', [$quickAddBook['business'], $quickAddBook['book']]); @endphp
-                    <div class="flex flex-col gap-1">
-                        <div class="flex items-center gap-2">
-                            <a href="{{ $qaUrl }}?addEntry=in" wire:navigate
-                               class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg
-                                      bg-emerald-600 text-white text-sm font-semibold
-                                      shadow-md shadow-emerald-600/20 hover:brightness-110 hover:shadow-lg
-                                      transition-all duration-200">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                                </svg>
-                                Cash In
-                            </a>
-                            <a href="{{ $qaUrl }}?addEntry=out" wire:navigate
-                               class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg
-                                      bg-red-600 text-white text-sm font-semibold
-                                      shadow-md shadow-red-600/20 hover:brightness-110 hover:shadow-lg
-                                      transition-all duration-200">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
-                                </svg>
-                                Cash Out
-                            </a>
-                        </div>
-                        <p class="text-[11px] font-body text-gray-500 dark:text-slate-400 truncate max-w-[16rem]">
-                            Adds to <span class="font-medium text-gray-700 dark:text-slate-300">{{ $quickAddBook['book']->name }}</span>
-                        </p>
-                    </div>
-                @endif
-
-                @if($businessLimitReached)
-                    {{-- Free plan already owns a business: upgrade modal in place, no page load --}}
-                    <button type="button" @click="$dispatch('open-business-upgrade')"
-                            class="self-start inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold
-                                   {{ $quickAddBook
-                                       ? 'border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
-                                       : 'bg-primary text-white shadow-lg shadow-primary/25 hover:brightness-110 hover:shadow-xl' }}
-                                   transition-all duration-200">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.25" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                        </svg>
-                        New business
-                        <x-pro-badge />
-                    </button>
-                @else
-                    <a href="{{ route('businesses.create') }}" wire:navigate
-                       class="self-start inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold
-                              {{ $quickAddBook
-                                  ? 'border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
-                                  : 'bg-primary text-white shadow-lg shadow-primary/25 hover:brightness-110 hover:shadow-xl' }}
-                              transition-all duration-200">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                        </svg>
-                        New business
-                    </a>
-                @endif
-            </div>
+            @php
+                $newBizClass = 'flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold font-body
+                                border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300
+                                hover:bg-gray-50 dark:hover:bg-slate-800 hover:shadow-md
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy
+                                transition-all duration-200';
+            @endphp
+            @if($businessLimitReached)
+                {{-- Free plan already owns a business: upgrade modal in place, no page load --}}
+                <button type="button" @click="$dispatch('open-business-upgrade')" class="{{ $newBizClass }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.25" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    <span class="hidden sm:inline">New business</span>
+                    <span class="sm:hidden">New</span>
+                    <x-pro-badge />
+                </button>
+            @else
+                <a href="{{ route('businesses.create') }}" wire:navigate class="{{ $newBizClass }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    <span class="hidden sm:inline">New business</span>
+                    <span class="sm:hidden">New</span>
+                </a>
+            @endif
         </div>
     </div>
+
 
     {{-- ══════════════════════════════════════════════════════
          ANNOUNCEMENT BANNER
@@ -148,6 +86,15 @@
                     </svg>
                 </button>
             </div>
+        </div>
+    @endif
+
+    {{-- ══════════════════════════════════════════════════════
+         CONTINUE IN — one named book, its balance, its buttons
+    ══════════════════════════════════════════════════════ --}}
+    @if($hasBusinesses)
+        <div class="px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 max-w-7xl mx-auto">
+            @include('livewire.dashboard.continue-card')
         </div>
     @endif
 
@@ -334,16 +281,12 @@
                 @else
                     {{-- ── Recently edited books quick-jump ────────── --}}
                     @php
-                        $recentBooks = collect();
-                        foreach ($allGrouped as $grp) {
-                            foreach ($grp['business']->books as $b) {
-                                $b->_business = $grp['business'];
-                                $recentBooks->push($b);
-                            }
-                        }
-                        $recentBooks = $recentBooks
-                            ->sortByDesc(fn($b) => $b->last_entry_at ?? $b->updated_at ?? $b->created_at)
-                            ->take(3);
+                        // Same order as the Continue-in card (latest entry or book update),
+                        // unlocked businesses only.
+                        $recentBooks = $bookChoices->take(3)->map(function ($c) {
+                            $c['book']->_business = $c['business'];
+                            return $c['book'];
+                        });
                     @endphp
                     @if($recentBooks->isNotEmpty())
                         <div class="mb-7">
@@ -438,7 +381,7 @@
                                                       hover:text-primary dark:hover:text-primary transition-colors truncate">
                                                 {{ $business->name }}
                                             </a>
-                                            @if($business->books->isNotEmpty() && ($businessCashIn > 0 || $businessCashOut > 0))
+                                            @if($business->books->isNotEmpty() && ($businessCashIn > 0 || $businessCashOut > 0 || $businessNet != 0))
                                                 <span class="inline-flex items-center gap-1 text-xs font-bold flex-shrink-0">
                                                     @if($businessNet < 0)<svg class="w-3.5 h-3.5 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" role="img" aria-label="Negative balance"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.306-4.306a11.95 11.95 0 0 1 5.814 5.518l2.74 1.22m0 0-5.94 2.281m5.94-2.28-2.28-5.941"/></svg>@endif
                                                     <x-amount :value="$businessNet" :symbol="$business->currencySymbol()" tone="net" />
@@ -709,7 +652,7 @@
 
             {{-- ── RIGHT: Recent Activity feed ──────────────────── --}}
             <div class="lg:w-64 xl:w-72 flex-shrink-0">
-                <div class="lg:sticky lg:top-[132px]">
+                <div class="lg:sticky lg:top-[92px]">
                     <div class="dark:bg-dark bg-white dark:border-slate-700 border border-gray-200 rounded-xl overflow-hidden">
 
                         <div class="px-5 py-4 dark:border-b dark:border-slate-800 border-b border-gray-100 flex items-center justify-between">

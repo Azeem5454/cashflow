@@ -3346,7 +3346,7 @@
                     <h2 id="entry-panel-title" class="font-heading font-bold text-base dark:text-white text-gray-900">
                         {{ $editingEntryId ? 'Edit entry' : 'New entry' }}
                     </h2>
-                    <p class="text-xs dark:text-slate-400 text-gray-500 font-body truncate">{{ $book->name }} · {{ $business->currency }}</p>
+                    <p class="text-xs dark:text-slate-400 text-gray-500 font-body truncate">{{ $editingEntryId ? 'In' : 'Adding to' }} {{ $business->name }} › {{ $book->name }} · {{ $business->currency }}</p>
                 </div>
                 <button type="button" @click="show = false" aria-label="Close"
                         class="p-2 rounded-lg dark:text-slate-400 text-gray-500
@@ -3388,6 +3388,13 @@
 
             {{-- ── AI helpers: one compact row of chips (new entries only, non-viewer) ── --}}
             @if(!$editingEntryId && $userRole !== 'viewer')
+                @php
+                    // AI entries: Free = 10/month (scans + typed, shared); Pro = 200 scans/month.
+                    // When a Free allowance is used up the chips route to prepareScan /
+                    // parseEntryText, which open the upgrade modal server-side.
+                    $aiLocked   = $aiQuota && ! $aiQuota['isPro'] && $aiQuota['exhausted'];
+                    $aiResetsOn = $aiQuota ? \Carbon\Carbon::parse($aiQuota['resetsAt'])->format('M j') : null;
+                @endphp
                 <div x-data="nlpVoice()"
                      x-on:livewire:navigated.window="teardown()"
                      @open-ocr-picker.window="$refs.ocrInput && $refs.ocrInput.click()"
@@ -3396,7 +3403,7 @@
                     {{-- OCR file input — visually hidden but click-able so mobile Safari/Chrome can open
                          the camera + gallery picker (display:none blocks .click() on some browsers).
                          Pro businesses only (the server also rejects Free uploads). --}}
-                    @if($business->isPro())
+                    @if(!$aiLocked)
                         <input type="file" id="entry-ocr-file"
                                wire:model="ocrFile"
                                accept="image/png,image/jpeg,image/jpg"
@@ -3414,7 +3421,7 @@
                         {{-- Scan receipt: Pro users click the hidden input directly in the user gesture
                              (mobile browsers refuse a deferred .click()); Free users hit prepareScan() → upgrade modal. --}}
                         <button type="button" class="{{ $chip }}"
-                                @if($business->isPro()) @click="$refs.ocrInput.click()" @else wire:click="prepareScan" @endif
+                                @if(!$aiLocked) @click="$refs.ocrInput.click()" @else wire:click="prepareScan" @endif
                                 wire:loading.attr="disabled" wire:target="ocrFile">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"/>
@@ -3423,7 +3430,7 @@
                             Scan receipt
                         </button>
                         <button type="button" class="{{ $chip }}"
-                                @if($business->isPro()) @click="open = !open; $nextTick(() => open && $refs.nlpField?.focus())" @else wire:click="parseEntryText" @endif
+                                @if(!$aiLocked) @click="open = !open; $nextTick(() => open && $refs.nlpField?.focus())" @else wire:click="parseEntryText" @endif
                                 :aria-expanded="open.toString()">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>
@@ -3431,7 +3438,7 @@
                             Type it
                         </button>
                         <button type="button" class="{{ $chip }}" x-show="supported" x-cloak
-                                @if($business->isPro()) @click="open = true; $nextTick(() => toggle())" @else wire:click="parseEntryText" @endif
+                                @if(!$aiLocked) @click="open = true; $nextTick(() => toggle())" @else wire:click="parseEntryText" @endif
                                 :aria-label="listening ? 'Stop listening' : 'Speak your entry'">
                             <svg x-show="!listening" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"/>
@@ -3439,13 +3446,45 @@
                             <span x-show="listening" x-cloak class="w-2.5 h-2.5 rounded-sm bg-red-500 animate-pulse" aria-hidden="true"></span>
                             <span x-text="listening ? 'Stop' : 'Speak'">Speak</span>
                         </button>
-                        @if(!$business->isPro())
+                        @if($aiLocked)
                             <x-pro-badge class="ml-auto" />
                         @endif
                     </div>
 
+                    {{-- AI entry allowance — what's left and when it resets --}}
+                    @if($aiQuota)
+                        @php
+                            $q      = $aiQuota;
+                            $warnAt = (int) floor($q['limit'] * 0.2);
+                            $tone   = $q['remaining'] === 0 ? 'empty' : ($q['remaining'] <= $warnAt ? 'warn' : 'ok');
+                            $typedNear = $q['isPro'] && $q['typed']['remaining'] <= (int) floor($q['typed']['limit'] * 0.2);
+                        @endphp
+                        <p class="flex items-center gap-1.5 flex-wrap text-[11px] font-body
+                                  {{ $tone === 'empty' ? 'text-red-600 dark:text-red-400' : ($tone === 'warn' ? 'text-amber-700 dark:text-amber-300' : 'dark:text-slate-400 text-gray-500') }}"
+                           aria-live="polite">
+                            @if(! $q['isPro'])
+                                <span><span class="font-mono font-semibold">{{ $q['remaining'] }}</span> of <span class="font-mono">{{ $q['limit'] }}</span> free AI entries left this month</span>
+                            @else
+                                <span><span class="font-mono font-semibold">{{ $q['scans']['remaining'] }}</span> scans left this month</span>
+                                @if($typedNear)
+                                    <span aria-hidden="true">·</span>
+                                    <span><span class="font-mono font-semibold">{{ $q['typed']['remaining'] }}</span> typed {{ $q['typed']['remaining'] === 1 ? 'entry' : 'entries' }} left today</span>
+                                @endif
+                            @endif
+                            <span aria-hidden="true">·</span>
+                            <span>resets {{ $aiResetsOn }}</span>
+                            @if($aiLocked)
+                                @if(auth()->id() === $business->owner_id)
+                                    <a href="{{ route('billing') }}" class="ml-1 font-semibold underline underline-offset-2">Upgrade for 200 scans/month</a>
+                                @else
+                                    <span class="ml-1">— ask the owner to upgrade</span>
+                                @endif
+                            @endif
+                        </p>
+                    @endif
+
                     {{-- Type it / Speak panel --}}
-                    @if($business->isPro())
+                    @if(!$aiLocked)
                     <div x-show="open" x-cloak x-transition.opacity.duration.150ms class="space-y-1.5">
                         <label for="entry-nlp" class="sr-only">Describe a transaction</label>
                         <div class="relative">

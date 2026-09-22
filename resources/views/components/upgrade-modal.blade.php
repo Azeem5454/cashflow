@@ -18,7 +18,7 @@
     $heading = match($feature) {
         'export'       => 'Export is a Pro feature',
         'recurring'    => 'Recurring entries is a Pro feature',
-        'ai'           => 'AI features are Pro-only',
+        'ai'           => "You've used your free AI entries",
         'comments'     => 'Comments are a Pro feature',
         'daterange'    => 'Date range filtering is Pro',
         'emailreports' => 'Email reports are a Pro feature',
@@ -29,7 +29,7 @@
         'business'     => ['Unlimited businesses', 'Unlimited team members', 'PDF & CSV export', 'Priority support'],
         'export'       => ['PDF export with professional layout', 'CSV export for Excel / Google Sheets', 'Unlimited businesses', 'Unlimited team members'],
         'recurring'    => ['Auto-create entries daily, weekly, or every 2 weeks', 'Pause or delete rules anytime', 'All Pro features included'],
-        'ai'           => ['AI receipt scanning — photo a receipt, fields fill themselves', 'AI auto-categorization on description', 'AI cash flow insights on the Reports tab', '200 OCR scans/month included'],
+        'ai'           => ['200 AI receipt scans every month', 'Type or say entries — AI fills the form (fair use)', 'AI cash flow insights on the Reports tab', 'Export, recurring entries, reports & more'],
         'comments'     => ['Comment on any entry and @mention teammates', 'In-app notification bell for mentions', 'Full comment history per entry'],
         'daterange'    => ['Filter entries by any custom date range', 'Compare two periods side-by-side (this month vs last month)', 'See % change in Cash In, Cash Out, and Net'],
         'emailreports' => ['Automated weekly or monthly summary emails', 'Period totals, top categories, recent entries', 'Send to up to 10 recipients per book', 'Branded HTML email with direct book link'],
@@ -112,7 +112,14 @@
             <h2 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 mb-2">{{ $heading }}</h2>
 
             {{-- Body copy --}}
-            @if(!$isOwner)
+            @if(!$isOwner && $isAi)
+                <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-7">
+                    The Free plan includes <strong class="dark:text-white text-gray-900">{{ \App\Services\AiQuota::FREE_MONTHLY_LIMIT }} AI entries a month</strong>
+                    (receipt scans and typed entries), and you've used them. They come back on the 1st.
+                    Ask the owner of <strong class="dark:text-white text-gray-900">{{ $businessName ?: 'this business' }}</strong>
+                    to upgrade — Pro gives the whole team {{ \App\Services\AiQuota::PRO_MONTHLY_SCANS }} receipt scans a month.
+                </p>
+            @elseif(!$isOwner)
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-7">
                     {{ $featureLabel }} {{ $featureLabel === 'AI features' ? 'are' : 'is' }} available on <strong class="dark:text-white text-gray-900">Pro</strong> businesses.
                     Ask the owner of <strong class="dark:text-white text-gray-900">{{ $businessName ?: 'this business' }}</strong>
@@ -136,8 +143,10 @@
                 </p>
             @elseif($isAi)
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">
-                    Upgrade to <strong class="dark:text-white text-gray-900">{{ config('app.name', 'TheCashFox') }} Pro</strong> to unlock
-                    AI receipt scanning, auto-categorization, and cash flow insights.
+                    The Free plan includes <strong class="dark:text-white text-gray-900">{{ \App\Services\AiQuota::FREE_MONTHLY_LIMIT }} AI entries a month</strong>
+                    (receipt scans and typed entries). They come back on the 1st — or upgrade to
+                    <strong class="dark:text-white text-gray-900">{{ config('app.name', 'TheCashFox') }} Pro</strong> for
+                    {{ \App\Services\AiQuota::PRO_MONTHLY_SCANS }} receipt scans a month and AI cash flow insights.
                 </p>
             @elseif($isComments)
                 <p class="text-sm dark:text-slate-400 text-gray-500 leading-relaxed mb-1">

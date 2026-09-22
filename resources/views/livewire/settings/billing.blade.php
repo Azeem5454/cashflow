@@ -152,6 +152,70 @@
             </div>
         </div>
 
+        {{-- ===== AI USAGE ===== --}}
+        @php
+            $q        = $aiQuota;
+            $resetsOn = \Carbon\Carbon::parse($q['resetsAt']);
+            $bars     = $q['isPro']
+                ? [
+                    ['label' => 'Receipt scans this month', 'used' => $q['scans']['used'], 'limit' => $q['scans']['limit'], 'remaining' => $q['scans']['remaining']],
+                    ['label' => 'Typed entries today',      'used' => $q['typed']['used'], 'limit' => $q['typed']['limit'], 'remaining' => $q['typed']['remaining']],
+                  ]
+                : [
+                    ['label' => 'AI entries this month', 'used' => $q['used'], 'limit' => $q['limit'], 'remaining' => $q['remaining']],
+                  ];
+        @endphp
+        <div class="dark:bg-[#1e293b] bg-white dark:border dark:border-slate-700/60 border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+            <div class="p-5 sm:p-6 space-y-4">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/20">
+                            <x-ai-sparkle class="w-5 h-5 text-primary dark:text-blue-light" />
+                        </div>
+                        <div>
+                            <p class="font-heading font-bold text-base dark:text-white text-gray-900">AI usage</p>
+                            <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">
+                                {{ $q['isPro'] ? 'Receipt scans and typed entries on Pro' : 'Receipt scans and typed entries share your free allowance' }}
+                            </p>
+                        </div>
+                    </div>
+                    <p class="text-xs dark:text-slate-400 text-gray-500">
+                        Resets on {{ $resetsOn->format('j M') }} · in {{ $q['resetsInDays'] }} {{ $q['resetsInDays'] === 1 ? 'day' : 'days' }}
+                    </p>
+                </div>
+
+                @foreach($bars as $bar)
+                    @php
+                        $pct  = $bar['limit'] > 0 ? min(100, round($bar['used'] / $bar['limit'] * 100)) : 0;
+                        $tone = $bar['remaining'] === 0 ? 'empty' : ($bar['remaining'] <= floor($bar['limit'] * 0.2) ? 'warn' : 'ok');
+                    @endphp
+                    <div>
+                        <div class="flex items-baseline justify-between gap-3 mb-1.5">
+                            <span class="text-sm dark:text-slate-300 text-gray-700">{{ $bar['label'] }}</span>
+                            <span class="text-sm font-mono {{ $tone === 'empty' ? 'text-red-500' : ($tone === 'warn' ? 'text-amber-500' : 'dark:text-white text-gray-900') }}">
+                                {{ $bar['used'] }} / {{ $bar['limit'] }}
+                            </span>
+                        </div>
+                        <div class="h-2 rounded-full dark:bg-slate-800 bg-gray-100 overflow-hidden"
+                             role="progressbar" aria-label="{{ $bar['label'] }}" aria-valuemin="0" aria-valuemax="{{ $bar['limit'] }}" aria-valuenow="{{ $bar['used'] }}">
+                            <div class="h-full rounded-full transition-all duration-500 {{ $tone === 'empty' ? 'bg-red-500' : ($tone === 'warn' ? 'bg-amber-400' : 'bg-primary') }}"
+                                 style="width: {{ $pct }}%"></div>
+                        </div>
+                        <p class="text-xs mt-1 {{ $tone === 'empty' ? 'text-red-500' : ($tone === 'warn' ? 'text-amber-500' : 'dark:text-slate-500 text-gray-400') }}">
+                            <span class="font-mono">{{ $bar['remaining'] }}</span> left
+                        </p>
+                    </div>
+                @endforeach
+
+                @unless($q['isPro'])
+                    <p class="text-sm dark:text-slate-400 text-gray-500">
+                        AI category suggestions are free and don't count.
+                        <a href="#pro-plan" class="font-semibold text-primary dark:text-blue-light hover:underline">Get {{ \App\Services\AiQuota::PRO_MONTHLY_SCANS }} scans a month with Pro</a>
+                    </p>
+                @endunless
+            </div>
+        </div>
+
         {{-- ===== PLAN COMPARISON ===== --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -176,6 +240,8 @@
                             ['✓', 'Unlimited books'],
                             ['✓', 'Unlimited entries'],
                             ['✓', 'Up to 2 team members'],
+                            ['✓', \App\Services\AiQuota::FREE_MONTHLY_LIMIT . ' AI entries a month (receipt scans + typed)'],
+                            ['✓', 'AI category suggestions'],
                             ['✗', 'PDF & CSV export'],
                             ['✗', 'Priority support'],
                         ] as [$icon, $label])
@@ -209,7 +275,7 @@
             </div>
 
             {{-- PRO PLAN --}}
-            <div class="relative dark:bg-[#1e293b] bg-white
+            <div id="pro-plan" class="relative dark:bg-[#1e293b] bg-white
                         dark:border border
                         dark:border-primary/40 border-primary/30
                         dark:shadow-lg dark:shadow-primary/10
@@ -242,8 +308,9 @@
                             ['✓', 'PDF & CSV export'],
                             ['✓', 'Book reports & charts'],
                             ['✓', 'Recurring entries'],
-                            ['✓', 'AI receipt OCR (200/month)'],
-                            ['✓', 'AI auto-categorization'],
+                            ['✓', \App\Services\AiQuota::PRO_MONTHLY_SCANS . ' AI receipt scans a month'],
+                            ['✓', 'Typed & spoken AI entries (fair use)'],
+                            ['✓', 'AI category suggestions'],
                             ['✓', 'AI cash flow insights'],
                             ['✓', 'Priority support'],
                         ] as [$icon, $label])

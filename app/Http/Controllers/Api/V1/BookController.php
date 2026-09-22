@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\BookResource;
 use App\Http\Resources\V1\EntryResource;
 use App\Models\RecurringEntry;
+use App\Services\AiQuota;
 use App\Services\BookInsightsService;
 use App\Services\BookLedger;
 use App\Support\BusinessLock;
@@ -224,10 +225,8 @@ class BookController extends Controller
         // Suggestions are for people writing entries — editor+ only.
         $book = $this->findAuthorizedBook($request, $id, requireEditor: true);
 
-        if (! $book->business->isPro()) {
-            return response()->json(['category' => null]);
-        }
-
+        // Free for every plan (not counted against the AI entry quota) —
+        // only the per-user burst limit below applies.
         $request->validate([
             'description' => ['required', 'string', 'min:3', 'max:255'],
             'type'        => ['nullable', 'in:in,out'],
@@ -254,6 +253,90 @@ class BookController extends Controller
         } catch (\Exception $e) {
             return response()->json(['category' => null]);
         }
+    }
+
+    /**
+     * GET /api/v1/books/{id}/ai-quota
+     * AI entry allowance that applies inside this book (the business's plan).
+     */
+    public function aiQuota(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id);
+
+        return response()->json(['quota' => AiQuota::remaining($request->user(), $book->business)]);
+    }
+
+    /**
+     * POST /api/v1/books/{id}/parse  {text}
+     * "Paid 120 for fuel today" → entry fields. Same parsing + sanitisation as
+     * the web (Book\Show::parseEntryText → AiService::parseNaturalLanguage).
+     * Counts as one AI entry (type 'nlp') against AiQuota.
+     *
+     * 200 {fields:{type,amount,description,category,paymentMode,date,reference}, quota}
+     * 403 {code:'ai_quota_exhausted', message, resetsAt, quota}   (Free, allowance used)
+     * 422 {code:'parse_failed', message, quota}                    (not a transaction)
+     * 429 {code:'ai_typed_daily_limit'|'rate_limited', message, ...}
+     */
+    public function parseEntry(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findAuthorizedBook($request, $id, requireEditor: true);
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'text' => ['required', 'string', 'min:3', 'max:300'],
+        ]);
+        $text = trim($validated['text']);
+        if (mb_strlen($text) < 3) {
+            return response()->json([
+                'message' => 'Describe the transaction in a few words.',
+                'errors'  => ['text' => ['Describe the transaction in a few words.']],
+            ], 422);
+        }
+
+        // Burst limit shared with the web (Book\Show::parseEntryText).
+        $burstKey = 'nlp-burst:' . $user->id;
+        if (RateLimiter::tooManyAttempts($burstKey, \App\Livewire\Book\Show::NLP_BURST_LIMIT)) {
+            return response()->json([
+                'code'    => 'rate_limited',
+                'message' => "You're going a bit fast. Wait a moment and try again.",
+            ], 429);
+        }
+        RateLimiter::hit($burstKey, \App\Livewire\Book\Show::NLP_BURST_WINDOW);
+
+        $business = $book->business;
+        if ($denied = AiQuota::check($user, $business, AiQuota::TYPE_TYPED)) {
+            return response()->json($denied->toResponseArray(), $denied->httpStatus());
+        }
+
+        $parsed = app(\App\Services\AiService::class)->parseNaturalLanguage(
+            $text,
+            $business->currency ?: 'USD',
+            $book->categories()->pluck('name')->toArray(),
+            $book->paymentModes()->pluck('name')->toArray(),
+        );
+
+        $quota = AiQuota::remaining($user, $business);
+
+        if (! $parsed) {
+            return response()->json([
+                'code'    => 'parse_failed',
+                'message' => "Couldn't read that as a transaction. Try something like \"Paid 120 for fuel today\".",
+                'quota'   => $quota,
+            ], 422);
+        }
+
+        return response()->json([
+            'fields' => [
+                'type'        => $parsed['type'] ?? null,
+                'amount'      => isset($parsed['amount']) ? number_format((float) $parsed['amount'], 2, '.', '') : null,
+                'description' => $parsed['description'] ?? null,
+                'category'    => $parsed['category'] ?? null,
+                'paymentMode' => $parsed['payment_mode'] ?? null,
+                'date'        => $parsed['date'] ?? null,
+                'reference'   => $parsed['reference'] ?? null,
+            ],
+            'quota' => $quota,
+        ]);
     }
 
     /**

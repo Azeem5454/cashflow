@@ -26,6 +26,15 @@ class SettingsController extends Controller
     }
 
     /**
+     * GET /api/v1/ai-quota — AI entry allowance for the user's OWN plan
+     * (business-independent; inside a book use GET /books/{id}/ai-quota).
+     */
+    public function aiQuota(Request $request): JsonResponse
+    {
+        return response()->json(['quota' => \App\Services\AiQuota::remaining($request->user())]);
+    }
+
+    /**
      * GET /api/v1/announcement — current active announcement, if any
      */
     public function announcement(): JsonResponse

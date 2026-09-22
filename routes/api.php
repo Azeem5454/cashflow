@@ -103,6 +103,9 @@ Route::prefix('v1')->group(function () {
         Route::put   ('books/{id}/report-schedule', [BookController::class, 'saveReportSchedule'])->middleware('api.verified');
         Route::delete('books/{id}/report-schedule', [BookController::class, 'deleteReportSchedule']);
         Route::post  ('books/{id}/suggest-category', [BookController::class, 'suggestCategory']);
+        // AI entries: typed / spoken transaction → entry fields, and the quota that governs them
+        Route::post  ('books/{id}/parse',    [BookController::class, 'parseEntry'])->middleware('throttle:20,1');
+        Route::get   ('books/{id}/ai-quota', [BookController::class, 'aiQuota']);
 
         // Entries
         Route::post  ('books/{id}/entries',              [EntryController::class, 'store']);
@@ -140,6 +143,8 @@ Route::prefix('v1')->group(function () {
         // In-app purchase: pull the user's store entitlement from RevenueCat right after purchase/restore
         Route::post  ('billing/sync',                [BillingController::class, 'sync'])->middleware('throttle:10,1');
         Route::get   ('announcement',                [SettingsController::class, 'announcement']);
+        // AI usage for the user's OWN plan (profile / billing usage card)
+        Route::get   ('ai-quota',                    [SettingsController::class, 'aiQuota']);
         Route::get   ('notifications',               [SettingsController::class, 'notifications']);
         Route::post  ('notifications/mark-all-read', [SettingsController::class, 'markAllRead']);
         Route::delete('notifications/{id}',          [SettingsController::class, 'deleteNotification']);

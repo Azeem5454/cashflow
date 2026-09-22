@@ -662,8 +662,8 @@ class Show extends Component
     {
         $this->guardEditor();
 
-        if (!$this->business->isPro()) {
-            $this->upgradeModalFeature = 'ai';
+        // Free: 10 AI entries/month (shared with typed entries); Pro: 200 scans.
+        if ($this->aiQuotaDenied(\App\Services\AiQuota::TYPE_SCAN)) {
             return;
         }
         // Dispatch browser event so Alpine clicks the hidden file input
@@ -678,10 +678,10 @@ class Show extends Component
             return;
         }
 
-        // Pro only — checked before validation or any (paid) Claude call.
-        if (! $this->business->isPro()) {
-            $this->ocrFile             = null;
-            $this->upgradeModalFeature = 'ai';
+        // Monthly AI allowance (AiQuota) — checked before validation or any
+        // (paid) Claude call. Free: 10 AI entries/month; Pro: 200 scans.
+        if ($this->aiQuotaDenied(\App\Services\AiQuota::TYPE_SCAN)) {
+            $this->ocrFile = null;
             return;
         }
 
@@ -694,13 +694,6 @@ class Show extends Component
         $rateLimitKey = 'ocr-scan:' . auth()->id();
         if (!\Illuminate\Support\Facades\RateLimiter::attempt($rateLimitKey, 5, fn () => true, 60)) {
             $this->scanError = 'Too many scans. Please wait a moment before scanning again.';
-            $this->ocrFile   = null;
-            return;
-        }
-
-        // Monthly limit (200/month per Pro user)
-        if (\App\Models\AiUsageLog::monthlyOcrCount(auth()->id()) >= 200) {
-            $this->scanError = 'You\'ve used all 200 AI scans for this month. Resets on the 1st.';
             $this->ocrFile   = null;
             return;
         }
@@ -778,6 +771,29 @@ class Show extends Component
         }
 
         $this->ocrFile = null;
+    }
+
+    /**
+     * Apply the AI entry quota (App\Services\AiQuota). Free plan out of
+     * entries → upgrade modal ('ai'); Pro fair-use caps → inline error.
+     * Returns true when the action must stop.
+     */
+    private function aiQuotaDenied(string $type): bool
+    {
+        $denied = \App\Services\AiQuota::check(auth()->user(), $this->business, $type);
+        if (! $denied) {
+            return false;
+        }
+
+        if ($denied->isUpgradeable()) {
+            $this->upgradeModalFeature = 'ai';
+        } elseif ($type === \App\Services\AiQuota::TYPE_SCAN) {
+            $this->scanError = $denied->getMessage();
+        } else {
+            $this->nlpError = $denied->getMessage();
+        }
+
+        return true;
     }
 
     public function clearOcrScan(): void
@@ -1510,10 +1526,8 @@ class Show extends Component
 
     public function suggestCategory(): void
     {
-        // Pro only — free users: silent no-op (no modal, no error)
-        if (! $this->business->isPro()) {
-            return;
-        }
+        // Free for every plan — not counted against the AI entry quota; only
+        // the per-user burst limit below applies.
 
         // Only people who can write entries get (paid) suggestions — silent.
         if (! $this->canEdit()) {
@@ -1593,8 +1607,8 @@ class Show extends Component
     public string $nlpError = '';
     public array  $nlpFilledFields = [];     // which fields were auto-filled this round
 
-    /** Per-user daily + burst rate limits on NLP calls. */
-    public const NLP_DAILY_LIMIT  = 30;
+    /** Per-user burst rate limit on NLP calls (daily/monthly caps live in AiQuota). */
+    public const NLP_DAILY_LIMIT  = \App\Services\AiQuota::PRO_DAILY_TYPED;
     public const NLP_BURST_LIMIT  = 10;
     public const NLP_BURST_WINDOW = 60;     // seconds
 
@@ -1609,8 +1623,8 @@ class Show extends Component
         $this->nlpError        = '';
         $this->nlpFilledFields = [];
 
-        if (! $this->business->isPro()) {
-            $this->upgradeModalFeature = 'ai';
+        // Monthly AI allowance (Free: 10 shared with scans) / Pro daily cap.
+        if ($this->aiQuotaDenied(\App\Services\AiQuota::TYPE_TYPED)) {
             return;
         }
 
@@ -1633,16 +1647,6 @@ class Show extends Component
             return;
         }
         \Illuminate\Support\Facades\RateLimiter::hit($burstKey, self::NLP_BURST_WINDOW);
-
-        // Daily cap: count today's nlp calls from ai_usage_logs
-        $todayCount = \App\Models\AiUsageLog::where('user_id', auth()->id())
-            ->where('type', 'nlp')
-            ->whereDate('created_at', today())
-            ->count();
-        if ($todayCount >= self::NLP_DAILY_LIMIT) {
-            $this->nlpError = 'Daily AI parse limit reached. Type the entry manually, or try again tomorrow.';
-            return;
-        }
 
         $this->nlpLoading = true;
 
@@ -2306,8 +2310,13 @@ class Show extends Component
                 ->get()
             : collect();
 
+        // AI entry allowance for the entry slide-over (new entries, editors+).
+        $aiQuota = ($this->showEntryPanel && ! $this->editingEntryId && $this->userRole !== 'viewer')
+            ? \App\Services\AiQuota::remaining(auth()->user(), $this->business)
+            : null;
+
         return view('livewire.book.show', compact(
-            'entries', 'totalIn', 'totalOut', 'balance', 'bookBalance', 'hasFilters', 'filteredCount',
+            'aiQuota', 'entries', 'totalIn', 'totalOut', 'balance', 'bookBalance', 'hasFilters', 'filteredCount',
             'hasMoreEntries', 'activeFilters', 'categories', 'paymentModes', 'reportData',
             'activityLog', 'activityTotal', 'activityMembers',
             'recurringEntries', 'commentThread', 'commentMembers', 'comparisonData'

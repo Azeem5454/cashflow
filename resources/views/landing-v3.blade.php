@@ -33,6 +33,7 @@
                 ['What if I want to cancel?','Cancel any time from your billing settings — no questions asked, no tricks, no guilt emails. Your data stays accessible on the free plan so you never lose your history.'],
                 ['Does it work on my phone?','Yes. The app works in any mobile browser — adding an entry takes about 10 seconds on a phone. A dedicated mobile app is on the roadmap.'],
                 ['How does the photo receipt feature work?','Take a photo of any receipt inside the app, or upload one from your phone. The app reads the amount, what it was for, and the date — then fills the entry form for you automatically. You just check it and tap Save. No typing needed.'],
+                ['Is the AI free to use?','Yes. Every free account gets ' . \App\Services\AiQuota::FREE_MONTHLY_LIMIT . ' AI entries a month — scan a receipt, or just type or say "Paid 120 for fuel today" and the entry fills itself. AI category suggestions are free and unlimited. Pro gives you ' . \App\Services\AiQuota::PRO_MONTHLY_SCANS . ' receipt scans a month plus AI cash flow insights.'],
             ];
 @endphp
     <meta charset="UTF-8">
@@ -646,7 +647,7 @@
                 Point your phone at any receipt. The app reads the amount, what it was for, and the date — then fills in the entry for you. You tap Save. That's it. Works on paper receipts, invoices, and digital screenshots.
             </p>
             <ul class="space-y-2.5 mb-6">
-                @foreach(['Works with any receipt in any language or currency','Photo is saved and attached to the entry automatically','Suggests the right category — you can always change it'] as $f)
+                @foreach(['Works with any receipt in any language or currency','Photo is saved and attached to the entry automatically','Suggests the right category — you can always change it','Free plan includes ' . \App\Services\AiQuota::FREE_MONTHLY_LIMIT . ' AI entries a month'] as $f)
                 <li class="flex items-center gap-3 text-sm" style="color:rgba(248,250,252,0.55)">
                     <span class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(59,130,246,0.15)">
                         <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -742,7 +743,7 @@
                 <p class="fm font-bold mb-1" style="color:#fff;font-size:2.5rem">$0</p>
                 <p class="text-xs mb-7" style="color:rgba(255,255,255,0.55)">Forever free · no card needed</p>
                 <ul class="space-y-2.5 mb-8 text-sm" style="color:rgba(255,255,255,0.65)">
-                    @foreach(['1 business','Unlimited books & entries','2 team members','Receipt photo attachments','Activity audit log'] as $f)
+                    @foreach(['1 business','Unlimited books & entries','2 team members',\App\Services\AiQuota::FREE_MONTHLY_LIMIT . ' AI entries a month (scan or type)','AI category suggestions','Receipt photo attachments','Activity audit log'] as $f)
                     <li class="flex items-center gap-2.5">
                         <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none"><path d="M3 8l3 3 7-7" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ $f }}
                     </li>
@@ -760,10 +761,10 @@
                 <p class="text-xs mb-7 mt-1" style="color:rgba(248,250,252,0.55)">Billed monthly · Cancel any time</p>
                 {{-- Hero benefit --}}
                 <div class="rounded-xl p-3.5 mb-6" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2)">
-                    <p class="text-sm" style="color:rgba(248,250,252,0.7)">Photo receipts fill entries automatically. Takes 2 seconds. Saves hours.</p>
+                    <p class="text-sm" style="color:rgba(248,250,252,0.7)">{{ \App\Services\AiQuota::PRO_MONTHLY_SCANS }} AI receipt scans a month. Photo in, entry filled in 2 seconds.</p>
                 </div>
                 <ul class="space-y-2.5 mb-8 text-sm" style="color:rgba(248,250,252,0.65)">
-                    @foreach(['Everything in Free','Unlimited businesses & team members','Receipt photo → auto-fill entry','Monthly cash flow reports & charts','AI reads your numbers, tells you what happened','Recurring entries (rent, retainers, subscriptions)','PDF & CSV export'] as $f)
+                    @foreach(['Everything in Free','Unlimited businesses & team members',\App\Services\AiQuota::PRO_MONTHLY_SCANS . ' AI receipt scans a month','Type or say entries — AI fills them in (fair use)','Monthly cash flow reports & charts','AI reads your numbers, tells you what happened','Recurring entries (rent, retainers, subscriptions)','PDF & CSV export'] as $f)
                     <li class="flex items-center gap-2.5">
                         <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none"><path d="M3 8l3 3 7-7" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ $f }}
                     </li>

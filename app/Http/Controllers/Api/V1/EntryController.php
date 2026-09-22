@@ -10,6 +10,7 @@ use App\Models\Entry;
 use App\Models\EntryComment;
 use App\Models\User;
 use App\Notifications\MentionedInComment;
+use App\Services\AiQuota;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -242,25 +243,16 @@ class EntryController extends Controller
 
         $book = $this->findAuthorizedBook($request, $bookId, requireEditor: true);
 
-        // Pro gate
-        if (! $book->business->isPro()) {
-            return response()->json(['message' => 'Pro subscription required for AI receipt scanning.'], 403);
-        }
-
-        // Rate limit: 5/minute
+        // Rate limit: 5/minute (burst)
         $rateLimitKey = 'ocr:' . $request->user()->id;
         if (! \Illuminate\Support\Facades\RateLimiter::attempt($rateLimitKey, 5, fn () => true, 60)) {
-            return response()->json(['message' => 'Too many scan requests. Try again in a minute.'], 429);
+            return response()->json(['code' => 'rate_limited', 'message' => 'Too many scan requests. Try again in a minute.'], 429);
         }
 
-        // Monthly limit: 200
-        $monthlyCount = \App\Models\AiUsageLog::where('user_id', $request->user()->id)
-            ->where('type', 'ocr')
-            ->where('created_at', '>=', now()->startOfMonth())
-            ->count();
-
-        if ($monthlyCount >= 200) {
-            return response()->json(['message' => 'Monthly OCR limit reached (200 scans).'], 429);
+        // Monthly AI allowance — Free: 10 AI entries shared with typed entries;
+        // Pro: 200 scans. Checked before any upload or (paid) Claude call.
+        if ($denied = AiQuota::check($request->user(), $book->business, AiQuota::TYPE_SCAN)) {
+            return response()->json($denied->toResponseArray(), $denied->httpStatus());
         }
 
         $request->validate([
@@ -305,6 +297,7 @@ class EntryController extends Controller
                 'attachmentPath'    => $path,
                 'ocrOriginalAmount' => $ocrOriginalAmount,
                 'ocrConvertedAt'    => $ocrConvertedAt,
+                'quota'             => AiQuota::remaining($request->user(), $book->business),
             ]);
         } catch (\Exception $e) {
             Storage::disk('local')->delete($path);

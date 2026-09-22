@@ -175,6 +175,8 @@ class Billing extends Component
             // Active store entitlement (even if another source wins): never offer Stripe checkout.
             'hasStoreEntitlement' => $plans->hasStoreEntitlement($user),
             'storeName'    => self::storeName($user->store_platform),
+            // AI entry allowance on the user's OWN plan.
+            'aiQuota'      => \App\Services\AiQuota::remaining($user),
         ]);
     }
 }

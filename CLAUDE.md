@@ -206,9 +206,11 @@ Account (User)
 | Email reports (weekly/monthly)  | No                   | Yes                   |
 | Date range comparison           | No                   | Yes                   |
 | Entry notes/comments            | No                   | Yes                   |
-| **AI receipt OCR**              | No                   | Yes (200 scans/month) |
-| **AI auto-categorization**      | No                   | Yes (unlimited)       |
+| **AI entries** (receipt scans + typed/spoken entries) | **10/month combined** | 200 scans/month + typed entries (fair use, 30/day) |
+| **AI category suggestions**     | Yes (unlimited, 30/min burst) | Yes (unlimited, 30/min burst) |
 | **AI cash flow insights**       | No                   | Yes                   |
+
+> **AI quota rule** lives in ONE place: `App\Services\AiQuota` (`remaining()`, `check()`, `assertCanUse()`), used by web `Book\Show`, the billing page usage card, and the API (`/books/{id}/scan`, `/books/{id}/parse`, `/books/{id}/ai-quota`, `/ai-quota`). Counts `ai_usage_logs` types `ocr` + `nlp` for the acting user per UTC calendar month; plan = the business's plan inside a book, the user's own plan elsewhere. Free out of entries → API 403 `{code:"ai_quota_exhausted"}` / web upgrade modal `ai`.
 | Support                         | Community            | Priority              |
 
 ### Pro Features Roadmap

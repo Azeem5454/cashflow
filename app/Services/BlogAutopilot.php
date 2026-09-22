@@ -84,6 +84,7 @@ class BlogAutopilot
 - Receipt / invoice attachments on entries (photo or PDF)
 - Book activity log (who added, changed or deleted what)
 - Categories, payment methods, search and filters, bulk edit / move / copy / delete
+- AI on the Free plan: 10 AI entries a month (receipt scans and typed/spoken entries share the 10), plus unlimited AI category suggestions
 - You can start using it straight away; verifying your email is only needed to invite teammates or schedule email reports
 
 **Pro plan — {pro_price}/month on the web (billed monthly, cancel anytime):**
@@ -96,11 +97,11 @@ class BlogAutopilot
 - Comments on entries for team discussion
 - AI features (below)
 
-**Pro AI features:**
-- Receipt scan: photograph or upload a receipt and the entry fills itself in (200 scans per month)
-- Auto-categorisation: suggests a category from the entry's description
-- Cash flow insights: three plain-English points on the period with a Healthy / Watch / Concern label
-- Type or dictate an entry in plain words ("paid 5,000 for rent yesterday") and it becomes a filled-in entry (dictation works in browsers that support speech input)
+**AI features (the headline — Free gets a taste, Pro gets the full amount):**
+- Receipt scan: photograph or upload a receipt and the entry fills itself in (Free: counts toward 10 AI entries a month; Pro: 200 scans per month)
+- Type or say an entry in plain words ("paid 5,000 for rent yesterday") and it becomes a filled-in entry (Free: counts toward the same 10 a month; Pro: fair-use daily cap; dictation works where speech input is supported)
+- Category suggestions: suggests a category from the entry's description — free for everyone
+- Cash flow insights (Pro only): three plain-English points on the period with a Healthy / Watch / Concern label
 - Unusual-amount flags: marks an entry that is about 3× the usual amount for that category
 
 **Mobile:** iOS and Android apps are coming soon — they are NOT available yet. Do not tell readers to download them. Face ID / fingerprint sign-in is planned for the apps.
@@ -168,7 +169,8 @@ BRIEF;
             "- Pro costs {$price}/month on the web, billed monthly. There is no annual plan and no Pro trial.",
             '- Free plan: 1 business, up to 2 team members, unlimited books and entries.',
             '- Recurring entries repeat daily, weekly or every 2 weeks only — never say monthly or yearly.',
-            '- AI receipt scanning: 200 scans per month on Pro.',
+            '- AI entries: Free gets 10 a month (receipt scans and typed entries combined); Pro gets 200 receipt scans a month plus typed entries within fair use.',
+            '- AI category suggestions are free on every plan. AI cash flow insights are Pro only.',
             '- The iOS and Android apps are coming soon and are NOT available yet.',
             '- No bank sync, invoicing, payroll, tax filing, forecasting, offline mode or automatic backups.',
         ]);
