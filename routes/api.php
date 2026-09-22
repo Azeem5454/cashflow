@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\EntryController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SocialAuthController;
+use App\Http\Controllers\Webhooks\RevenueCatWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,6 +19,11 @@ use Illuminate\Support\Facades\Route;
 | Auth: Laravel Sanctum token-based authentication.
 |
 */
+
+// ── Webhooks (no auth; verified by shared secret; API routes carry no CSRF) ──
+Route::post('webhooks/revenuecat', RevenueCatWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('webhooks.revenuecat');
 
 Route::prefix('v1')->group(function () {
 
@@ -130,6 +137,8 @@ Route::prefix('v1')->group(function () {
 
         // Settings, billing, notifications, announcements
         Route::get   ('billing/checkout-url',        [SettingsController::class, 'billingCheckoutUrl']);
+        // In-app purchase: pull the user's store entitlement from RevenueCat right after purchase/restore
+        Route::post  ('billing/sync',                [BillingController::class, 'sync'])->middleware('throttle:10,1');
         Route::get   ('announcement',                [SettingsController::class, 'announcement']);
         Route::get   ('notifications',               [SettingsController::class, 'notifications']);
         Route::post  ('notifications/mark-all-read', [SettingsController::class, 'markAllRead']);

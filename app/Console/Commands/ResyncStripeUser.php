@@ -58,8 +58,9 @@ class ResyncStripeUser extends Command
             $user->pm_type       = null;
             $user->pm_last_four  = null;
             $user->trial_ends_at = null;
-            $user->plan          = 'free';
             $user->save();
+            // Store / admin grants still count; no downgrade side-effects on a resync.
+            app(\App\Services\PlanService::class)->applyStripeStatus($user, 'canceled', sideEffects: false);
 
             $this->info("User reset. They can now subscribe fresh via /settings/billing.");
             return self::SUCCESS;
@@ -80,8 +81,9 @@ class ResyncStripeUser extends Command
 
         // Update user.stripe_id to point at the real customer (not in $fillable).
         $user->stripe_id = $customer->id;
-        $user->plan      = $activeSub ? 'pro' : 'free';
         $user->save();
+        // Store / admin grants still count; no downgrade side-effects on a resync.
+        app(\App\Services\PlanService::class)->applyStripeStatus($user, $activeSub ? 'active' : 'canceled', sideEffects: false);
 
         // Drop stale cashier subscription rows that don't match the current customer
         $user->subscriptions()->where('stripe_id', '!=', $activeSub?->id)->delete();
@@ -96,7 +98,7 @@ class ResyncStripeUser extends Command
         $this->newLine();
         $this->info("✅ Resync complete.");
         $this->line("New stripe_id: {$customer->id}");
-        $this->line("New plan:      " . ($activeSub ? 'pro' : 'free'));
+        $this->line("New plan:      {$user->plan}");
 
         return self::SUCCESS;
     }

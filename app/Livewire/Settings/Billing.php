@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Services\PlanService;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -54,9 +55,8 @@ class Billing extends Component
 
             $hasActive = ! empty($stripeSubs->data);
 
-            if ($hasActive && $user->plan !== 'pro') {
-                $user->plan = 'pro';
-                $user->save();
+            if ($hasActive && ($user->plan !== 'pro' || $user->plan_source !== PlanService::SOURCE_STRIPE)) {
+                app(PlanService::class)->applyStripeStatus($user, 'active');
             }
         } catch (\Throwable) {
             // Fall through — webhook will update eventually.
@@ -74,6 +74,12 @@ class Billing extends Component
         }
 
         if ($user->subscribed('default')) {
+            return;
+        }
+
+        // Already Pro through the App Store / Google Play — a Stripe checkout
+        // would bill them twice. Enforced here, not only by hiding the button.
+        if ($this->refuseIfStoreBilled($user)) {
             return;
         }
 
@@ -104,10 +110,13 @@ class Billing extends Component
         $user         = auth()->user();
         $subscription = $user->subscription('default');
 
+        if ($this->refuseIfStoreBilled($user)) {
+            return;
+        }
+
         if ($subscription && $subscription->onGracePeriod()) {
             $subscription->resume();
-            $user->plan = 'pro';
-            $user->save();
+            app(PlanService::class)->applyStripeStatus($user, 'active');
             $user->refresh();
             $this->flash = 'resumed';
             return;
@@ -115,6 +124,22 @@ class Billing extends Component
 
         // Subscription already ended — start fresh checkout
         $this->subscribe();
+    }
+
+    private function refuseIfStoreBilled($user): bool
+    {
+        if (! app(PlanService::class)->hasStoreEntitlement($user)) {
+            return false;
+        }
+
+        $this->addError('stripe', 'Your Pro plan is billed through ' . self::storeName($user->store_platform) . '. Manage it on your device.');
+
+        return true;
+    }
+
+    public static function storeName(?string $platform): string
+    {
+        return $platform === PlanService::SOURCE_PLAY_STORE ? 'Google Play' : 'the App Store';
     }
 
     public function openPortal(): void
@@ -140,9 +165,16 @@ class Billing extends Component
         $user         = auth()->user()->fresh();
         $subscription = $user->subscription('default');
 
+        $plans = app(PlanService::class);
+
         return view('livewire.settings.billing', [
             'user'         => $user,
             'subscription' => $subscription,
+            // Pro via App Store / Google Play: hide Stripe checkout + portal.
+            'storeBilled'  => $plans->isStoreBilled($user),
+            // Active store entitlement (even if another source wins): never offer Stripe checkout.
+            'hasStoreEntitlement' => $plans->hasStoreEntitlement($user),
+            'storeName'    => self::storeName($user->store_platform),
         ]);
     }
 }

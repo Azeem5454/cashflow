@@ -24,7 +24,19 @@ class ReportSchedule extends Model
             'recipients'   => 'array',
             'is_active'    => 'boolean',
             'last_sent_at' => 'datetime',
+            'paused_by_system_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Owner toggling the schedule clears the "paused by an automatic
+        // downgrade" marker (see RecurringEntry::booted()).
+        static::saving(function (ReportSchedule $schedule) {
+            if ($schedule->isDirty('is_active') && ! $schedule->isDirty('paused_by_system_at')) {
+                $schedule->paused_by_system_at = null;
+            }
+        });
     }
 
     public function book(): BelongsTo

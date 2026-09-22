@@ -21,6 +21,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Mass-assignable attributes. NOTE: `plan` and `is_admin` are DELIBERATELY excluded —
+     * as are the billing columns `plan_source`, `store_pro_expires_at`,
+     * `store_product_id` and `store_platform` (written only by PlanService /
+     * the RevenueCat webhook + sync) —
      * they must only be set via explicit property assignment after an authorization check
      * (Stripe webhook, admin panel, etc.) to prevent privilege escalation via
      * User::create($request->all()) style calls.
@@ -42,6 +45,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'last_login_at'     => 'datetime',
+            'store_pro_expires_at' => 'datetime',
             'password'          => 'hashed',
             'is_admin'          => 'boolean',
             'has_password'      => 'boolean',

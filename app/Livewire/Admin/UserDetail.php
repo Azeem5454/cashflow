@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin;
 
-use App\Models\RecurringEntry;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -34,8 +33,7 @@ class UserDetail extends Component
     {
         abort_unless(auth()->check() && auth()->user()->is_admin, 403);
 
-        $this->user->plan = 'pro';
-        $this->user->save();
+        app(\App\Services\PlanService::class)->forcePro($this->user);
         $this->user->refresh();
     }
 
@@ -59,24 +57,9 @@ class UserDetail extends Component
             // Continue anyway — admin still wants the user downgraded locally.
         }
 
-        $this->user->plan = 'free';
-        $this->user->save();
-
-        // Pause all recurring entries and email report schedules in books owned by this user
-        $businessIds = $this->user->ownedBusinesses()->pluck('id');
-
-        if ($businessIds->isNotEmpty()) {
-            $bookIds = \App\Models\Book::whereIn('business_id', $businessIds)->pluck('id');
-            if ($bookIds->isNotEmpty()) {
-                RecurringEntry::whereIn('book_id', $bookIds)
-                    ->where('status', 'active')
-                    ->update(['status' => 'paused']);
-
-                \App\Models\ReportSchedule::whereIn('book_id', $bookIds)
-                    ->where('is_active', true)
-                    ->update(['is_active' => false]);
-            }
-        }
+        // Clears the admin grant, sets Free and pauses recurring entries +
+        // email report schedules (shared with the Stripe/RevenueCat paths).
+        app(\App\Services\PlanService::class)->forceFree($this->user);
 
         $this->user->refresh();
     }
@@ -109,8 +92,8 @@ class UserDetail extends Component
                 $this->user->pm_type       = null;
                 $this->user->pm_last_four  = null;
                 $this->user->trial_ends_at = null;
-                $this->user->plan          = 'free';
                 $this->user->save();
+                app(\App\Services\PlanService::class)->applyStripeStatus($this->user, 'canceled', sideEffects: false);
                 $this->user->refresh();
                 $this->resyncMessage = "No Stripe customer found — cleared stale ID, plan reset to Free. User can now subscribe fresh.";
                 return;
@@ -131,8 +114,10 @@ class UserDetail extends Component
 
             // stripe_id isn't in User::$fillable — set directly.
             $this->user->stripe_id = $customer->id;
-            $this->user->plan      = $activeSub ? 'pro' : 'free';
             $this->user->save();
+            // Store (App Store / Google Play) and admin grants still count; no
+            // downgrade side-effects on a resync (unchanged behaviour).
+            app(\App\Services\PlanService::class)->applyStripeStatus($this->user, $activeSub ? 'active' : 'canceled', sideEffects: false);
 
             // Drop cashier subscription rows that don't match the current active sub
             $this->user->subscriptions()

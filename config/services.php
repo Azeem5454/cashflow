@@ -71,4 +71,18 @@ return [
         'ga4_id' => env('GOOGLE_ANALYTICS_ID'),
     ],
 
+    // In-app purchases (App Store / Google Play) via RevenueCat.
+    // webhook_secret: the value RevenueCat sends as "Authorization: Bearer <secret>"
+    //                 (set in RevenueCat → Integrations → Webhooks).
+    // secret_key:     RevenueCat secret API key (sk_...) for GET /v1/subscribers.
+    // Both unset → webhook rejects everything, /billing/sync returns 503.
+    'revenuecat' => [
+        'webhook_secret' => env('REVENUECAT_WEBHOOK_SECRET'),
+        'secret_key'     => env('REVENUECAT_SECRET_KEY'),
+        'entitlement'    => env('REVENUECAT_ENTITLEMENT', 'pro'),
+        // Sandbox purchases grant Pro (Apple review buys with sandbox accounts
+        // against production). Sandbox monthly subs renew every ~5 min and lapse within hours.
+        'allow_sandbox'  => (bool) env('REVENUECAT_ALLOW_SANDBOX', true),
+    ],
+
 ];

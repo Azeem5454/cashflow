@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('entries:generate-recurring')->daily();
 Schedule::command('reports:send')->dailyAt('09:00');
 Schedule::command('blog:generate')->dailyAt('09:00')->withoutOverlapping();
+Schedule::command('billing:expire-store')->hourly()->withoutOverlapping();

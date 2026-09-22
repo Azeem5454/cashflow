@@ -34,6 +34,7 @@ class RecurringEntry extends Model
             'starts_at'   => 'date',
             'next_run_at' => 'date',
             'ends_at'     => 'date',
+            'paused_by_system_at' => 'datetime',
         ];
     }
 
@@ -54,6 +55,19 @@ class RecurringEntry extends Model
     public function entries(): HasMany
     {
         return $this->hasMany(Entry::class);
+    }
+
+    protected static function booted(): void
+    {
+        // Any status change made through the model (the owner pausing/resuming)
+        // clears the "paused by an automatic downgrade" marker, so a manual
+        // pause is never auto-resumed. PlanService writes the marker via bulk
+        // query-builder updates, which don't fire this hook.
+        static::saving(function (RecurringEntry $rule) {
+            if ($rule->isDirty('status') && ! $rule->isDirty('paused_by_system_at')) {
+                $rule->paused_by_system_at = null;
+            }
+        });
     }
 
     public function isActive(): bool

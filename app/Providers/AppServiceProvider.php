@@ -3,8 +3,8 @@
 namespace App\Providers;
 
 use App\Helpers\Setting;
-use App\Models\RecurringEntry;
 use App\Models\User;
+use App\Services\PlanService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
@@ -90,31 +90,10 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            $status = $object['status'] ?? '';
-
-            if ($status === 'active') {
-                $user->plan = 'pro';
-                $user->save();
-            } elseif (in_array($status, ['canceled', 'unpaid', 'incomplete_expired'])) {
-                $user->plan = 'free';
-                $user->save();
-
-                // Pause all recurring entries and email report schedules in books owned by this user
-                $businessIds = $user->ownedBusinesses()->pluck('id');
-
-                if ($businessIds->isNotEmpty()) {
-                    $bookIds = \App\Models\Book::whereIn('business_id', $businessIds)->pluck('id');
-                    if ($bookIds->isNotEmpty()) {
-                        RecurringEntry::whereIn('book_id', $bookIds)
-                            ->where('status', 'active')
-                            ->update(['status' => 'paused']);
-
-                        \App\Models\ReportSchedule::whereIn('book_id', $bookIds)
-                            ->where('is_active', true)
-                            ->update(['is_active' => false]);
-                    }
-                }
-            }
+            // Plan + downgrade side-effects live in PlanService so the App Store /
+            // Google Play (RevenueCat) path shares them. For users without a store
+            // entitlement or admin grant the behaviour is unchanged.
+            app(PlanService::class)->applyStripeStatus($user, (string) ($object['status'] ?? ''));
         });
     }
 }

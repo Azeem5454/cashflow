@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin;
 
-use App\Models\RecurringEntry;
 use App\Models\User;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -29,8 +28,7 @@ class Users extends Component
         abort_unless(auth()->check() && auth()->user()->is_admin, 403);
 
         $user = User::findOrFail($userId);
-        $user->plan = 'pro';
-        $user->save();
+        app(\App\Services\PlanService::class)->forcePro($user);
     }
 
     public function forceFree(string $userId): void
@@ -53,24 +51,9 @@ class Users extends Component
             ]);
         }
 
-        $user->plan = 'free';
-        $user->save();
-
-        // Pause all recurring entries and email report schedules in books owned by this user
-        $businessIds = $user->ownedBusinesses()->pluck('id');
-
-        if ($businessIds->isNotEmpty()) {
-            $bookIds = \App\Models\Book::whereIn('business_id', $businessIds)->pluck('id');
-            if ($bookIds->isNotEmpty()) {
-                RecurringEntry::whereIn('book_id', $bookIds)
-                    ->where('status', 'active')
-                    ->update(['status' => 'paused']);
-
-                \App\Models\ReportSchedule::whereIn('book_id', $bookIds)
-                    ->where('is_active', true)
-                    ->update(['is_active' => false]);
-            }
-        }
+        // Clears the admin grant, sets Free and pauses recurring entries +
+        // email report schedules (shared with the Stripe/RevenueCat paths).
+        app(\App\Services\PlanService::class)->forceFree($user);
     }
 
     public function deleteUser(string $userId): void
