@@ -627,7 +627,7 @@ Groups:
 All responses: JSON, camelCase keys, ISO 8601 dates, amounts as strings (not floats).
 
 ### Phase 2 — Mobile App (React Native + Expo) — feature-complete, store prep in progress
-Core screens implemented and live on Expo Go. Stack: Expo SDK 54, expo-router v6, React Native 0.81, TypeScript strict. Font: Bricolage Grotesque + Plus Jakarta Sans + Outfit + Geist Mono. Theme: dark-luxe navy (default) + light mode toggle in profile.
+Core screens implemented and live on Expo Go. Stack: Expo SDK 57, expo-router 57, React Native 0.86, React 19.2, reanimated 4.5, TypeScript strict (upgraded from SDK 54 on 2026-09-22; `.npmrc` has legacy-peer-deps=true because datetimepicker lists react-native-windows as a peer). Test with the App Store Expo Go app (it only supports the latest SDK). Font: Bricolage Grotesque + Plus Jakarta Sans + Outfit + Geist Mono. Theme: dark-luxe navy (default) + light mode toggle in profile.
 
 **Implemented screens** (`project-mobile/app/`):
 - `(auth)/login.tsx`, `(auth)/register.tsx`, `(auth)/forgot-password.tsx` — Breeze-equivalent auth, toast feedback, error sanitization
