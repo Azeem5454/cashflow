@@ -21,6 +21,7 @@ use Livewire\WithFileUploads;
 class Show extends Component
 {
     use WithFileUploads;
+    use \App\Livewire\Concerns\RequiresVerifiedEmail;
     public Book $book;
     public Business $business;
     public string $userRole   = '';
@@ -1295,6 +1296,7 @@ class Show extends Component
         }
 
         $this->sendingTestReport    = false;
+        $this->emailVerificationRequired = false;
         $this->showEmailReportModal = true;
     }
 
@@ -1303,6 +1305,11 @@ class Show extends Component
         $this->guardEditor();
 
         if (! $this->business->isPro()) {
+            return;
+        }
+
+        // Soft verification: reports email other people.
+        if (! $this->ensureVerifiedEmail()) {
             return;
         }
 
@@ -1384,6 +1391,10 @@ class Show extends Component
         $this->guardEditor();
 
         if (! $this->business->isPro()) {
+            return;
+        }
+
+        if (! $this->ensureVerifiedEmail()) {
             return;
         }
 

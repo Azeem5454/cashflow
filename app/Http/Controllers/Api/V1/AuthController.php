@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\UserResource;
 use App\Models\User;
+use App\Services\StarterWorkspace;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,12 +17,20 @@ class AuthController extends Controller
     /**
      * POST /api/v1/auth/register
      */
-    public function register(Request $request): JsonResponse
+    public function register(Request $request, StarterWorkspace $starter): JsonResponse
     {
         $validated = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'confirmed', Password::defaults()],
+            // No confirm field on mobile (show/hide eye instead). If an older
+            // client still sends password_confirmation, it must match.
+            'password' => array_merge(
+                ['required', 'string', Password::defaults()],
+                $request->has('password_confirmation') ? ['confirmed'] : [],
+            ),
+            // Optional ISO 4217 code for the auto-created first business
+            // (same rule as business creation). Defaults to USD.
+            'currency' => ['sometimes', 'nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
         ]);
 
         $user = User::create([
@@ -36,12 +45,46 @@ class AuthController extends Controller
 
         $user->sendEmailVerificationNotification();
 
+        $onboarding = $starter->provision($user, $validated['currency'] ?? null);
+
         $token = $user->createToken('mobile')->plainTextToken;
 
+        return response()->json(array_filter([
+            'user'       => new UserResource($user),
+            'token'      => $token,
+            // Present only when a first business + book were auto-created.
+            'onboarding' => $onboarding,
+        ], fn ($v) => $v !== null), 201);
+    }
+
+    /**
+     * POST /api/v1/auth/check-email  { email }
+     *
+     * Email-first sign-in: tells the app whether to show the password step,
+     * the create-account step, or a "use Google/Apple" hint. Deliberately
+     * returns no name or other profile data. Public; throttled per IP.
+     *
+     * → 200 { exists: bool, provider: 'google'|'apple'|null, hasPassword: bool }
+     */
+    public function checkEmail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'email', 'max:255'],
+        ]);
+
+        $email = strtolower(trim($validated['email']));
+        $user  = User::where('email', $validated['email'])->first()
+            ?? User::whereRaw('LOWER(email) = ?', [$email])->first();
+
+        if (! $user) {
+            return response()->json(['exists' => false, 'provider' => null, 'hasPassword' => false]);
+        }
+
         return response()->json([
-            'user'  => new UserResource($user),
-            'token' => $token,
-        ], 201);
+            'exists'      => true,
+            'provider'    => $user->authProvider(),
+            'hasPassword' => (bool) ($user->has_password ?? true),
+        ]);
     }
 
     /**

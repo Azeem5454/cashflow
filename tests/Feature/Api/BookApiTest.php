@@ -301,18 +301,23 @@ class BookApiTest extends ApiTestCase
             ->assertJsonPath('status', 'failed');
     }
 
-    public function test_unverified_users_are_blocked_from_data_endpoints(): void
+    public function test_unverified_users_can_use_data_endpoints_but_not_email_others(): void
     {
         $user = $this->makeUser(attrs: ['email_verified_at' => null]);
         $this->actingAsUser($user);
 
-        $this->getJson('/api/v1/businesses')->assertForbidden()
-            ->assertExactJson(['message' => 'Please verify your email address.', 'code' => 'email_unverified']);
-        $this->getJson('/api/v1/notifications')->assertForbidden();
-
+        // Soft verification: the product works right away…
+        $this->getJson('/api/v1/businesses')->assertOk();
+        $this->getJson('/api/v1/notifications')->assertOk();
         $this->getJson('/api/v1/user')->assertOk();
         $this->putJson('/api/v1/profile', ['name' => 'New Name', 'email' => $user->email])->assertOk();
         $this->postJson('/api/v1/auth/email/resend')->assertSuccessful();
+
+        // …only actions that email other people need a verified address.
+        $business = $this->makeBusiness($user);
+        $this->postJson("/api/v1/businesses/{$business->id}/invitations", ['email' => 'm@example.com', 'role' => 'viewer'])
+            ->assertForbidden()
+            ->assertExactJson(['message' => 'Please verify your email address first.', 'code' => 'email_unverified']);
     }
 
     public function test_report_schedule_viewer_gets_clear_message(): void

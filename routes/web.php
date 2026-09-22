@@ -95,11 +95,14 @@ Route::get('/auth/google/mobile', [\App\Http\Controllers\Auth\SocialAuthControll
     ->name('social.mobile');
 
 
+// Soft email verification: the app works right after sign-up. Only actions
+// that email other people (team invites, email reports) check verification —
+// see Business\Settings::sendInvite and Book\Show::saveEmailReport.
 Route::get('/dashboard', \App\Livewire\Dashboard::class)
-    ->middleware(['auth', 'verified', 'redirect_admin'])
+    ->middleware(['auth', 'redirect_admin'])
     ->name('dashboard');
 
-Route::middleware(['auth', 'verified', 'redirect_admin'])->group(function () {
+Route::middleware(['auth', 'redirect_admin'])->group(function () {
     Route::get('/businesses/create', function () {
         return view('business.create');
     })->name('businesses.create');

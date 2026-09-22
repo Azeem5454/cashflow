@@ -246,6 +246,10 @@
                         </div>
                     @endif
 
+                    @if($emailVerificationRequired)
+                        <x-verify-email-notice class="mb-4" :resent="$verificationEmailResent" action="invite teammates" />
+                    @endif
+
                     @if($memberLimit !== null && ($members->count() + $business->pendingInvitations()->count()) >= $memberLimit)
                         <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 mb-4 rounded-xl
                                     bg-amber-50 dark:bg-slate-800 border border-amber-200 dark:border-slate-700">

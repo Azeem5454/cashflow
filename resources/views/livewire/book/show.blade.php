@@ -979,6 +979,10 @@
                     @enderror
                 </div>
 
+                @if($emailVerificationRequired)
+                    <x-verify-email-notice :resent="$verificationEmailResent" action="send email reports" />
+                @endif
+
                 {{-- Last sent + Send test --}}
                 @if($hasExistingSchedule)
                 <div class="flex items-center justify-between p-3 rounded-xl dark:bg-slate-800/50 bg-gray-50 border dark:border-slate-700 border-gray-200">

@@ -8,8 +8,9 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * API equivalent of the web `verified` middleware: data endpoints require a
- * verified email. Returns a JSON 403 the mobile app can recognise by `code`.
+ * Soft email verification: applied ONLY to API actions that email other
+ * people (team invitations, email report schedules). Everything else works
+ * for unverified users. Returns a JSON 403 the app recognises by `code`.
  */
 class EnsureApiEmailVerified
 {
@@ -19,7 +20,7 @@ class EnsureApiEmailVerified
 
         if ($user instanceof MustVerifyEmail && ! $user->hasVerifiedEmail()) {
             return response()->json([
-                'message' => 'Please verify your email address.',
+                'message' => 'Please verify your email address first.',
                 'code'    => 'email_unverified',
             ], 403);
         }

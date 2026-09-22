@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Services\MobileSocialLogin;
 use App\Services\SocialAccountService;
+use App\Services\StarterWorkspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -168,9 +169,15 @@ class SocialAuthController extends Controller
 
         if ($mobile) {
             // Don't log the browser in — hand the app a one-time code instead.
-            $code = $this->mobileLogin->issueCode($user->id, $mobile['code_challenge'] ?? null);
+            // A brand-new account's starter workspace is created on exchange,
+            // where the app can pass its device currency.
+            $code = $this->mobileLogin->issueCode($user->id, $mobile['code_challenge'] ?? null, $user->wasRecentlyCreated);
 
             return redirect()->away(MobileSocialLogin::appendQuery($mobile['redirect_uri'], ['code' => $code]));
+        }
+
+        if ($user->wasRecentlyCreated) {
+            app(StarterWorkspace::class)->provision($user, StarterWorkspace::DEFAULT_CURRENCY);
         }
 
         Auth::login($user, remember: true);

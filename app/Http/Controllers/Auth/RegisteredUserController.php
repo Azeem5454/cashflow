@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\StarterWorkspace;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,9 +21,38 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('auth.register');
+        return view('auth.register', [
+            'invitationRedirect' => self::safeInvitationPath($request->query('redirect')),
+        ]);
+    }
+
+    /**
+     * The invitation accept page links here with ?redirect=<accept URL>.
+     * Only a same-site /invitations/{token}/accept path is honoured, so this
+     * can never become an open redirect.
+     */
+    public static function safeInvitationPath(mixed $url): ?string
+    {
+        if (! is_string($url) || $url === '' || strlen($url) > 512) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false) {
+            return null;
+        }
+
+        $host = $parts['host'] ?? null;
+        if ($host !== null && strcasecmp($host, parse_url(config('app.url'), PHP_URL_HOST) ?? '') !== 0
+            && strcasecmp($host, request()->getHost()) !== 0) {
+            return null;
+        }
+
+        $path = $parts['path'] ?? '';
+
+        return preg_match('#^/invitations/[A-Za-z0-9]{16,128}/accept$#', $path) === 1 ? $path : null;
     }
 
     /**
@@ -30,7 +60,7 @@ class RegisteredUserController extends Controller
      *
      * @throws ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, StarterWorkspace $starter): RedirectResponse
     {
         // Cloudflare Turnstile anti-bot verification. Skipped when the keys
         // aren't configured so local dev / CI keeps working.
@@ -39,9 +69,12 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            // No confirm field — the form has a show/hide toggle instead.
+            'password' => ['required', Rules\Password::defaults()],
             'intended_plan' => ['nullable', 'in:pro'],
         ]);
+
+        $invitationPath = self::safeInvitationPath($request->input('redirect'));
 
         $user = User::create([
             'name' => $request->name,
@@ -51,7 +84,17 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
+        // First-run: a starter business + this month's book, unless they're
+        // signing up to join someone else's business via an invitation.
+        if (! $invitationPath) {
+            $starter->provision($user, StarterWorkspace::DEFAULT_CURRENCY);
+        }
+
         Auth::login($user);
+
+        if ($invitationPath) {
+            return redirect($invitationPath);
+        }
 
         // If the user signed up from the Pro tier on the landing page, take
         // them straight to billing to complete Stripe Checkout.

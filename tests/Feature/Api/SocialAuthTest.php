@@ -325,6 +325,90 @@ class SocialAuthTest extends ApiTestCase
 
     // ── Helpers ──────────────────────────────────────────────────────
 
+    // ── Starter workspace on social sign-up ─────────────────────────
+
+    public function test_mobile_google_new_user_gets_starter_workspace_with_app_currency_on_exchange(): void
+    {
+        $this->mockGoogleUser('g-777', 'fresh@example.com', 'Fresh User');
+
+        $location = $this->withSession([MobileSocialLogin::SESSION_KEY => [
+            'mobile' => 1, 'redirect_uri' => 'thecashfox://auth', 'code_challenge' => null,
+        ]])->get('/auth/google/callback?code=x&state=y')->headers->get('Location');
+        parse_str(parse_url($location, PHP_URL_QUERY), $query);
+
+        $user = User::where('email', 'fresh@example.com')->firstOrFail();
+        $this->assertSame(0, $user->businesses()->count(), 'created on exchange, not callback');
+
+        $response = $this->postJson('/api/v1/auth/social/exchange', ['code' => $query['code'], 'currency' => 'PKR'])
+            ->assertOk()
+            ->assertJsonStructure(['user', 'token', 'onboarding' => ['businessId', 'bookId']]);
+
+        $business = $user->businesses()->firstOrFail();
+        $this->assertSame('PKR', $business->currency);
+        $this->assertSame($business->id, $response->json('onboarding.businessId'));
+        $this->assertSame(1, $business->books()->count());
+    }
+
+    public function test_mobile_google_existing_user_gets_no_workspace(): void
+    {
+        $existing = $this->makeUser(attrs: ['email' => 'old@example.com']);
+        $this->mockGoogleUser('g-778', 'old@example.com', 'Old User');
+
+        $location = $this->withSession([MobileSocialLogin::SESSION_KEY => [
+            'mobile' => 1, 'redirect_uri' => 'thecashfox://auth', 'code_challenge' => null,
+        ]])->get('/auth/google/callback?code=x&state=y')->headers->get('Location');
+        parse_str(parse_url($location, PHP_URL_QUERY), $query);
+
+        $this->postJson('/api/v1/auth/social/exchange', ['code' => $query['code'], 'currency' => 'PKR'])
+            ->assertOk()
+            ->assertJsonMissingPath('onboarding');
+
+        $this->assertSame(0, $existing->businesses()->count());
+    }
+
+    public function test_web_google_new_user_gets_usd_starter_workspace(): void
+    {
+        $this->mockGoogleUser('g-779', 'webnew@example.com', 'Web New');
+
+        $this->get('/auth/google/callback?code=x&state=y')->assertRedirect(route('dashboard'));
+
+        $business = User::where('email', 'webnew@example.com')->firstOrFail()->businesses()->firstOrFail();
+        $this->assertSame('USD', $business->currency);
+        $this->assertSame('My Business', $business->name);
+    }
+
+    public function test_apple_new_user_gets_workspace_once_with_currency(): void
+    {
+        $this->fakeAppleKeys();
+
+        $this->postJson('/api/v1/auth/apple', [
+            'identityToken' => $this->appleToken(['email' => 'apple.new@example.com']),
+            'currency'      => 'EUR',
+        ])->assertOk()->assertJsonStructure(['onboarding' => ['businessId', 'bookId']]);
+
+        // Second sign-in: not a new account → no onboarding, no duplicate.
+        $this->postJson('/api/v1/auth/apple', [
+            'identityToken' => $this->appleToken(['email' => null]),
+            'currency'      => 'EUR',
+        ])->assertOk()->assertJsonMissingPath('onboarding');
+
+        $user = User::where('email', 'apple.new@example.com')->firstOrFail();
+        $this->assertSame(1, $user->businesses()->count());
+        $this->assertSame('EUR', $user->businesses()->first()->currency);
+    }
+
+    public function test_apple_invalid_currency_falls_back_to_usd(): void
+    {
+        $this->fakeAppleKeys();
+
+        $this->postJson('/api/v1/auth/apple', [
+            'identityToken' => $this->appleToken(['email' => 'apple.usd@example.com']),
+            'currency'      => 'eu',
+        ])->assertOk();
+
+        $this->assertSame('USD', User::where('email', 'apple.usd@example.com')->firstOrFail()->businesses()->first()->currency);
+    }
+
     private function mockGoogleRedirect(): void
     {
         $provider = Mockery::mock(Provider::class);

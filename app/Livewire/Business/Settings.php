@@ -10,6 +10,8 @@ use Livewire\Component;
 
 class Settings extends Component
 {
+    use \App\Livewire\Concerns\RequiresVerifiedEmail;
+
     public Business $business;
 
     // General form
@@ -57,6 +59,11 @@ class Settings extends Component
             'inviteEmail' => 'required|email|max:255',
             'inviteRole'  => 'required|in:editor,viewer',
         ]);
+
+        // Soft verification: invitations email other people.
+        if (! $this->ensureVerifiedEmail()) {
+            return;
+        }
 
         // Plan seat limit: members (owner included) + open invitations.
         // Re-sending an invitation that's already open doesn't take a new seat.

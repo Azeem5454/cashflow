@@ -30,6 +30,10 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])
         ->middleware('throttle:5,1');
 
+    // Email-first sign-in: which step to show next (password / create / social hint)
+    Route::post('auth/check-email', [AuthController::class, 'checkEmail'])
+        ->middleware('throttle:10,1');
+
     // Mobile social sign-in (public; same response shape as auth/login)
     Route::post('auth/social/exchange', [SocialAuthController::class, 'exchange'])
         ->middleware('throttle:10,1');
@@ -46,14 +50,16 @@ Route::prefix('v1')->group(function () {
         Route::post  ('auth/biometric-token', [AuthController::class, 'createBiometricToken'])->middleware('throttle:10,1');
         Route::delete('auth/biometric-token', [AuthController::class, 'deleteBiometricToken'])->middleware('throttle:10,1');
         Route::post  ('auth/biometric-login', [AuthController::class, 'biometricLogin'])->middleware('throttle:10,1');
-        Route::post('auth/email/resend',   [AuthController::class, 'resendVerification']);
+        Route::post('auth/email/resend',   [AuthController::class, 'resendVerification'])->middleware('throttle:6,1');
         Route::get ('user',                [AuthController::class, 'user']);
         Route::put ('profile',             [AuthController::class, 'updateProfile']);
         Route::put ('profile/password',    [AuthController::class, 'changePassword']);
         Route::delete('profile',           [AuthController::class, 'deleteAccount']);
 
-        // ── Data endpoints: verified email required (same as web `verified`) ──
-        Route::middleware('api.verified')->group(function () {
+        // ── Data endpoints ──
+        // Soft verification: unverified users can use the product right away.
+        // Only actions that email OTHER people require a verified address
+        // (`api.verified` on team invitations + email report schedules).
 
         // Businesses
         Route::get   ('businesses',                  [BusinessController::class, 'index']);
@@ -65,7 +71,7 @@ Route::prefix('v1')->group(function () {
         Route::post  ('businesses/{id}/books',       [BusinessController::class, 'createBook']);
         Route::get   ('businesses/{id}/members',     [BusinessController::class, 'members']);
         Route::get   ('businesses/{id}/invitations', [BusinessController::class, 'invitations']);
-        Route::post  ('businesses/{id}/invitations', [BusinessController::class, 'invite']);
+        Route::post  ('businesses/{id}/invitations', [BusinessController::class, 'invite'])->middleware('api.verified');
         Route::delete('invitations/{id}',            [BusinessController::class, 'cancelInvitation']);
         Route::put   ('businesses/{businessId}/members/{userId}',    [BusinessController::class, 'updateMemberRole']);
         Route::delete('businesses/{businessId}/members/{userId}',    [BusinessController::class, 'removeMember']);
@@ -87,7 +93,7 @@ Route::prefix('v1')->group(function () {
         Route::get   ('books/{id}/insights',   [BookController::class, 'aiInsights']);
         Route::get   ('books/{id}/report-data',     [BookController::class, 'reportData']);
         Route::get   ('books/{id}/report-schedule', [BookController::class, 'reportSchedule']);
-        Route::put   ('books/{id}/report-schedule', [BookController::class, 'saveReportSchedule']);
+        Route::put   ('books/{id}/report-schedule', [BookController::class, 'saveReportSchedule'])->middleware('api.verified');
         Route::delete('books/{id}/report-schedule', [BookController::class, 'deleteReportSchedule']);
         Route::post  ('books/{id}/suggest-category', [BookController::class, 'suggestCategory']);
 
@@ -128,7 +134,5 @@ Route::prefix('v1')->group(function () {
         Route::get   ('notifications',               [SettingsController::class, 'notifications']);
         Route::post  ('notifications/mark-all-read', [SettingsController::class, 'markAllRead']);
         Route::delete('notifications/{id}',          [SettingsController::class, 'deleteNotification']);
-
-        }); // api.verified
     });
 });

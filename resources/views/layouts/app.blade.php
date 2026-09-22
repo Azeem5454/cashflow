@@ -428,6 +428,43 @@
             </div>
         @endif
 
+        {{-- Soft email verification banner. The app works without a verified
+             email; only invites + email reports need it. Dismissal lasts for
+             this browser session. --}}
+        @if(auth()->check() && ! auth()->user()->hasVerifiedEmail())
+            <div x-data="{ open: (() => { try { return sessionStorage.getItem('cf_verify_banner_dismissed') !== '1' } catch (e) { return true } })() }"
+                 x-show="open"
+                 x-cloak
+                 data-testid="verify-email-banner"
+                 class="flex items-center justify-between gap-3 px-4 py-2.5 flex-shrink-0
+                        bg-blue-50 dark:bg-slate-900 border-b border-blue-100 dark:border-slate-800">
+                <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 text-sm font-body text-slate-700 dark:text-slate-300">
+                    <svg class="w-4 h-4 flex-shrink-0 text-primary dark:text-blue-light" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"/>
+                    </svg>
+                    @if(session('status') === 'verification-link-sent')
+                        <span>Verification email sent to <span class="font-semibold">{{ auth()->user()->email }}</span>. Check your inbox.</span>
+                    @else
+                        <span class="min-w-0">Verify your email to invite teammates and send reports.</span>
+                        <form method="POST" action="{{ route('verification.send') }}" class="flex-shrink-0">
+                            @csrf
+                            <button type="submit" class="font-semibold text-primary dark:text-blue-light hover:text-accent transition-colors whitespace-nowrap">
+                                Resend email
+                            </button>
+                        </form>
+                    @endif
+                </div>
+                <button type="button"
+                        @click="open = false; try { sessionStorage.setItem('cf_verify_banner_dismissed', '1') } catch (e) {}"
+                        aria-label="Dismiss"
+                        class="p-2 -mr-2 rounded-lg flex-shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        @endif
+
         {{-- Page content --}}
         <main class="flex-1 overflow-y-auto dark:bg-navy bg-slate-50">
             {{ $slot }}

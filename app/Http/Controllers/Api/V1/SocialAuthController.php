@@ -9,6 +9,7 @@ use App\Services\AppleIdentityTokenVerifier;
 use App\Services\AppleTokenInvalid;
 use App\Services\MobileSocialLogin;
 use App\Services\SocialAccountService;
+use App\Services\StarterWorkspace;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -26,15 +27,18 @@ class SocialAuthController extends Controller
      * POST /api/v1/auth/social/exchange  { code, codeVerifier? }
      * Redeems the one-time code issued by the Google mobile callback.
      */
-    public function exchange(Request $request, MobileSocialLogin $mobileLogin): JsonResponse
+    public function exchange(Request $request, MobileSocialLogin $mobileLogin, StarterWorkspace $starter): JsonResponse
     {
         $validated = $request->validate([
             'code'         => ['required', 'string', 'min:32', 'max:256'],
             'codeVerifier' => ['sometimes', 'nullable', 'string', 'min:43', 'max:128'],
+            // Optional device currency for a brand-new account's first business.
+            // Lenient: anything that isn't a 3-letter code falls back to USD.
+            'currency'     => ['sometimes', 'nullable', 'string', 'max:8'],
         ]);
 
-        $userId = $mobileLogin->consumeCode($validated['code'], $validated['codeVerifier'] ?? null);
-        $user   = $userId ? User::find($userId) : null;
+        $payload = $mobileLogin->consumeCodePayload($validated['code'], $validated['codeVerifier'] ?? null);
+        $user    = $payload ? User::find($payload['user_id']) : null;
 
         if (! $user) {
             Log::info('Mobile social code exchange rejected', ['ip' => $request->ip()]);
@@ -44,7 +48,11 @@ class SocialAuthController extends Controller
             ], 422);
         }
 
-        return $this->issueToken($user);
+        $onboarding = ($payload['new_user'] && ! $user->is_admin)
+            ? $starter->provision($user, $validated['currency'] ?? null)
+            : null;
+
+        return $this->issueToken($user, $onboarding);
     }
 
     /**
@@ -57,6 +65,7 @@ class SocialAuthController extends Controller
         Request $request,
         AppleIdentityTokenVerifier $verifier,
         SocialAccountService $accounts,
+        StarterWorkspace $starter,
     ): JsonResponse {
         $validated = $request->validate([
             'identityToken'       => ['required', 'string', 'max:8192'],
@@ -64,6 +73,7 @@ class SocialAuthController extends Controller
             'fullName.givenName'  => ['sometimes', 'nullable', 'string', 'max:100'],
             'fullName.familyName' => ['sometimes', 'nullable', 'string', 'max:100'],
             'email'               => ['sometimes', 'nullable', 'string', 'max:255'],
+            'currency'            => ['sometimes', 'nullable', 'string', 'max:8'],
         ]);
 
         try {
@@ -98,10 +108,17 @@ class SocialAuthController extends Controller
             ], 422);
         }
 
-        return $this->issueToken($user);
+        $onboarding = ($user->wasRecentlyCreated && ! $user->is_admin)
+            ? $starter->provision($user, $validated['currency'] ?? null)
+            : null;
+
+        return $this->issueToken($user, $onboarding);
     }
 
-    private function issueToken(User $user): JsonResponse
+    /**
+     * @param  array{businessId: string, bookId: string}|null  $onboarding  set when a starter workspace was just created
+     */
+    private function issueToken(User $user, ?array $onboarding = null): JsonResponse
     {
         if ($user->is_admin) {
             return response()->json([
@@ -111,9 +128,10 @@ class SocialAuthController extends Controller
 
         $token = $user->createToken('mobile')->plainTextToken;
 
-        return response()->json([
-            'user'  => new UserResource($user),
-            'token' => $token,
-        ]);
+        return response()->json(array_filter([
+            'user'       => new UserResource($user),
+            'token'      => $token,
+            'onboarding' => $onboarding,
+        ], fn ($v) => $v !== null));
     }
 }

@@ -75,13 +75,19 @@ class MobileSocialLogin
             : $uri . '&' . $query;
     }
 
-    public function issueCode(string $userId, ?string $codeChallenge = null): string
+    /**
+     * @param  bool  $newUser  the account was created by this sign-in — the
+     *                         exchange then sets up the starter workspace
+     *                         (with the app's currency).
+     */
+    public function issueCode(string $userId, ?string $codeChallenge = null, bool $newUser = false): string
     {
         $code = Str::random(80);
 
         Cache::put(self::CODE_PREFIX . hash('sha256', $code), [
             'user_id'        => $userId,
             'code_challenge' => $codeChallenge,
+            'new_user'       => $newUser,
         ], self::CODE_TTL);
 
         return $code;
@@ -92,6 +98,16 @@ class MobileSocialLogin
      * expired, already used, or the PKCE verifier doesn't match.
      */
     public function consumeCode(string $code, ?string $codeVerifier = null): ?string
+    {
+        return $this->consumeCodePayload($code, $codeVerifier)['user_id'] ?? null;
+    }
+
+    /**
+     * Same as consumeCode() but also returns whether the account is new.
+     *
+     * @return array{user_id: string, new_user: bool}|null
+     */
+    public function consumeCodePayload(string $code, ?string $codeVerifier = null): ?array
     {
         $hash = hash('sha256', $code);
 
@@ -117,6 +133,9 @@ class MobileSocialLogin
             }
         }
 
-        return (string) $payload['user_id'];
+        return [
+            'user_id'  => (string) $payload['user_id'],
+            'new_user' => (bool) ($payload['new_user'] ?? false),
+        ];
     }
 }
