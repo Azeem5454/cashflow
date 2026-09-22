@@ -7,7 +7,7 @@
 <head>
     @php
         $appName   = config('app.name', 'TheCashFox');
-        $appUrl    = rtrim(config('app.url', 'https://cashflow.app'), '/');
+        $appUrl    = rtrim(config('app.url', 'https://thecashfox.com'), '/');
         $pageTitle = trim(View::yieldContent('title')) ?: 'Legal';
         $pageDesc  = trim(View::yieldContent('description')) ?: ('Legal information for ' . $appName);
         $fullTitle = $pageTitle . ' — ' . $appName;

@@ -6,7 +6,7 @@
         // preloaded from the settings table in AppServiceProvider::boot().
         // Views must never hit the DB on a cold-start healthcheck request.
         $appName = config('app.name', 'TheCashFox');
-        $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
+        $appUrl  = rtrim(config('app.url', 'https://thecashfox.com'), '/');
         $ogTitle = $appName . ' — Your business balance. Live. Always.';
         $ogDesc  = config('app.tagline') ?: 'Track every transaction, scan receipts with AI, and get cash flow insights. The smartest cash book for small businesses worldwide.';
 

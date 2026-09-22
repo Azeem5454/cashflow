@@ -115,7 +115,7 @@
 
     {{-- Footer note --}}
     <p class="anim-fade-up-d3 relative z-10 mt-8 font-body text-xs text-slate-600 text-center">
-        @php $support = config('app.support_email') ?: 'hello@' . (parse_url(config('app.url', 'https://cashflow.app'), PHP_URL_HOST) ?: 'cashflow.app'); @endphp
+        @php $support = config('app.support_email') ?: 'hello@' . (parse_url(config('app.url', 'https://thecashfox.com'), PHP_URL_HOST) ?: 'thecashfox.com'); @endphp
         Having trouble? <a href="mailto:{{ $support }}" class="text-blue-light hover:text-accent transition-colors underline underline-offset-2">Contact support</a>
     </p>
 

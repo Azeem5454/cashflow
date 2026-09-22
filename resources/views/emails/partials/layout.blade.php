@@ -1,6 +1,6 @@
 @php
     $appName = config('app.name', 'TheCashFox');
-    $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
+    $appUrl  = rtrim(config('app.url', 'https://thecashfox.com'), '/');
     // Use absolute URL — emails are rendered far from a request context,
     // and the route helper can't emit relative URLs to image src anyway.
     $hasLogo = \App\Models\UploadedAsset::has('logo-dark');

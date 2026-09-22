@@ -64,7 +64,7 @@
                     {{-- Support Email --}}
                     <div>
                         <label class="block text-xs font-medium text-slate-400 font-body mb-1.5">Support Email</label>
-                        <input type="email" wire:model="supportEmail" placeholder="support@cashflow.app"
+                        <input type="email" wire:model="supportEmail" placeholder="support@thecashfox.com"
                                class="w-full px-4 py-2.5 text-sm font-body dark:bg-slate-800 bg-white border border-gray-300 dark:border-slate-700
                                       dark:text-white text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
                                       dark:placeholder:text-slate-500 placeholder:text-gray-400 transition-all duration-150">
@@ -74,7 +74,7 @@
                     {{-- App URL --}}
                     <div>
                         <label class="block text-xs font-medium text-slate-400 font-body mb-1.5">App URL</label>
-                        <input type="url" wire:model="appUrl" placeholder="https://cashflow.app"
+                        <input type="url" wire:model="appUrl" placeholder="https://thecashfox.com"
                                class="w-full px-4 py-2.5 text-sm font-body dark:bg-slate-800 bg-white border border-gray-300 dark:border-slate-700
                                       dark:text-white text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
                                       dark:placeholder:text-slate-500 placeholder:text-gray-400 transition-all duration-150">
@@ -433,7 +433,7 @@
                     {{-- From Address --}}
                     <div>
                         <label class="block text-xs font-medium text-slate-400 font-body mb-1.5">From Address</label>
-                        <input type="email" wire:model="mailFromAddress" placeholder="hello@cashflow.app"
+                        <input type="email" wire:model="mailFromAddress" placeholder="hello@thecashfox.com"
                                class="w-full px-4 py-2.5 text-sm font-body dark:bg-slate-800 bg-white border border-gray-300 dark:border-slate-700
                                       dark:text-white text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50
                                       dark:placeholder:text-slate-500 placeholder:text-gray-400 transition-all duration-150">

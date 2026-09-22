@@ -7,7 +7,7 @@
 
     @php
         $appName = config('app.name', 'TheCashFox');
-        $appUrl  = rtrim(config('app.url', 'https://cashflow.app'), '/');
+        $appUrl  = rtrim(config('app.url', 'https://thecashfox.com'), '/');
 
         // Per-route title + description (conversion-focused, distinct per page,
         // under SEO-friendly length limits). Falls back to generic for any
