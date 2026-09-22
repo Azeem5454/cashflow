@@ -110,12 +110,12 @@
 
             {{-- Cash In / Cash Out — split primary CTA --}}
             @if($userRole !== 'viewer')
-                <div class="flex items-center flex-shrink-0 rounded-lg shadow-sm" role="group" aria-label="Add entry">
+                <div class="flex items-center gap-2 flex-shrink-0" role="group" aria-label="Add entry">
                     <button type="button" wire:click="openAddEntry('in')" x-on:click="$dispatch('open-entry-panel')"
                             aria-label="Add cash in entry"
-                            class="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-l-lg
-                                   bg-emerald-600 text-white text-sm font-semibold font-body
-                                   hover:brightness-110 hover:shadow-md hover:shadow-emerald-600/25
+                            class="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg border text-sm font-semibold font-body
+                                   bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300
+                                   dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-900
                                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy
                                    transition-all duration-150">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
@@ -125,9 +125,9 @@
                     </button>
                     <button type="button" wire:click="openAddEntry('out')" x-on:click="$dispatch('open-entry-panel')"
                             aria-label="Add cash out entry"
-                            class="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-r-lg border-l border-white/20
-                                   bg-red-600 text-white text-sm font-semibold font-body
-                                   hover:brightness-110 hover:shadow-md hover:shadow-red-600/25
+                            class="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg border text-sm font-semibold font-body
+                                   bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:border-red-300
+                                   dark:bg-red-950 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-900
                                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy
                                    transition-all duration-150">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
