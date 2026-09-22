@@ -15,7 +15,9 @@ class Dashboard extends Component
         $totalUsers       = User::count();
         $proUsers         = User::where('plan', 'pro')->count();
         $activeSubs       = Subscription::where('stripe_status', 'active')->count();
-        $mrr              = $activeSubs * 3; // $3/month
+        // MRR counts only subscriptions that will renew (excludes cancelled-but-in-grace-period)
+        $renewingSubs     = Subscription::where('stripe_status', 'active')->whereNull('ends_at')->count();
+        $mrr              = $renewingSubs * config('services.stripe.pro_monthly_usd');
 
         // Churned in last 30 days: subscriptions canceled within last 30 days
         $churned30 = Subscription::where('stripe_status', 'canceled')

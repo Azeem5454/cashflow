@@ -37,6 +37,8 @@ return [
 
     'stripe' => [
         'pro_price_id' => env('STRIPE_PRO_PRICE_ID'),
+        // Monthly Pro price in USD — used for admin MRR figures. Keep in sync with the Stripe price.
+        'pro_monthly_usd' => (float) env('STRIPE_PRO_MONTHLY_USD', 5),
     ],
 
     'anthropic' => [

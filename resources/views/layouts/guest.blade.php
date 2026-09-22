@@ -202,19 +202,6 @@
             border-bottom-color: rgba(255,255,255,0.03);
         }
 
-        /* Testimonial card */
-        .guest-testimonial {
-            background: rgba(255,255,255,0.72);
-            border: 1px solid rgba(0,0,0,0.07);
-            border-radius: 12px;
-            padding: 16px 20px;
-            backdrop-filter: blur(8px);
-        }
-        html.dark .guest-testimonial {
-            background: rgba(255,255,255,0.04);
-            border-color: rgba(255,255,255,0.07);
-        }
-
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(16px); }
             to   { opacity: 1; transform: translateY(0); }
@@ -315,9 +302,9 @@
                 {{-- Stats grid --}}
                 <div class="grid grid-cols-3 gap-3">
                     @foreach([
-                        ['500+',  'Businesses',   'tracking cash'],
-                        ['₨1T+',  'Transactions', 'recorded'],
-                        ['4.9★',  'Average',      'user rating'],
+                        ['$0',    'Free plan',    'forever'],
+                        ['60+',   'Currencies',   'supported'],
+                        ['AI',    'Receipt',      'scanning'],
                     ] as $stat)
                     <div class="guest-stat-card">
                         <p class="guest-mono text-lg font-semibold text-primary dark:text-blue-light mb-1">{{ $stat[0] }}</p>
@@ -329,7 +316,7 @@
                 {{-- Trust bullets --}}
                 <div class="space-y-3">
                     @foreach([
-                        ['M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',    'End-to-end encrypted — your data stays yours'],
+                        ['M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',    'Encrypted connections — only your team sees your books'],
                         ['M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z', 'No card needed — free plan, forever'],
                         ['M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z', 'Your books sync across all devices instantly'],
                     ] as $item)
@@ -391,23 +378,23 @@
                     <div class="mock-balance-strip">
                         <div class="mock-balance-col">
                             <p class="guest-body" style="font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:4px;">Cash In</p>
-                            <p class="guest-mono" style="font-size:12px;font-weight:600;color:#16a34a;">₨ 2,45,800</p>
+                            <p class="guest-mono" style="font-size:12px;font-weight:600;color:#16a34a;">$24,580</p>
                         </div>
                         <div class="mock-balance-col">
                             <p class="guest-body" style="font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:4px;">Cash Out</p>
-                            <p class="guest-mono" style="font-size:12px;font-weight:600;color:#dc2626;">₨ 98,500</p>
+                            <p class="guest-mono" style="font-size:12px;font-weight:600;color:#dc2626;">$9,850</p>
                         </div>
                         <div class="mock-balance-col">
                             <p class="guest-body" style="font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:4px;">Balance</p>
-                            <p class="guest-mono" style="font-size:12px;font-weight:600;color:#1a56db;">₨ 1,47,300</p>
+                            <p class="guest-mono" style="font-size:12px;font-weight:600;color:#1a56db;">$14,730</p>
                         </div>
                     </div>
 
                     {{-- Entry rows --}}
                     @foreach([
-                        ['Client payment — Eveso Ltd',  '+₨ 45,000', '#16a34a', '#34d399'],
-                        ['Office rent — March 2025',    '−₨ 15,000', '#dc2626', '#f87171'],
-                        ['Supplier invoice #812',       '−₨ 5,000',  '#dc2626', '#f87171'],
+                        ['Client payment — Eveso Ltd',  '+$4,500', '#16a34a', '#34d399'],
+                        ['Office rent — March',         '−$1,500', '#dc2626', '#f87171'],
+                        ['Supplier invoice #812',       '−$500',    '#dc2626', '#f87171'],
                     ] as $row)
                     <div class="mock-entry-row">
                         <div style="display:flex;align-items:center;gap:10px;">
@@ -425,21 +412,6 @@
             </div>
 
             @endif
-
-            {{-- Shared testimonial --}}
-            <div class="guest-testimonial mt-6">
-                <div style="display:flex;align-items:flex-start;gap:12px;">
-                    <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a56db,#3b82f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <span class="guest-body" style="font-size:11px;font-weight:700;color:#fff;">MW</span>
-                    </div>
-                    <div>
-                        <p class="guest-body text-slate-600 dark:text-slate-300" style="font-size:13px;line-height:1.5;margin-bottom:6px;">
-                            "Cleared 3 months of backlog in one afternoon. Finally a cash tracker that doesn't need an accountant to operate."
-                        </p>
-                        <span class="guest-body text-slate-400 dark:text-blue-light" style="font-size:11px;">Marcus Webb · Toronto, Canada</span>
-                    </div>
-                </div>
-            </div>
 
         </div>{{-- /content wrapper --}}
     </div>{{-- /left panel --}}

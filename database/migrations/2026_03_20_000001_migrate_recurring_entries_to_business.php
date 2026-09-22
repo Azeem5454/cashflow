@@ -15,11 +15,10 @@ return new class extends Migration
         });
 
         // Step 2: Populate business_id from the book's business
+        // Correlated subquery (not UPDATE ... FROM) so it also runs on SQLite in tests
         DB::statement('
-            UPDATE recurring_entries re
-            SET business_id = b.business_id
-            FROM books b
-            WHERE re.book_id = b.id
+            UPDATE recurring_entries
+            SET business_id = (SELECT books.business_id FROM books WHERE books.id = recurring_entries.book_id)
         ');
 
         // Step 3: Add status column, drop old index
@@ -33,10 +32,17 @@ return new class extends Migration
         // Step 5: Drop old columns + index, add FK, make business_id NOT NULL, add new index
         Schema::table('recurring_entries', function (Blueprint $table) {
             $table->dropIndex(['is_active', 'next_run_at']);
+            $table->dropForeign(['book_id']);
             $table->dropColumn(['is_active', 'book_id']);
         });
 
-        DB::statement('ALTER TABLE recurring_entries ALTER COLUMN business_id SET NOT NULL');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE recurring_entries ALTER COLUMN business_id SET NOT NULL');
+        } else {
+            Schema::table('recurring_entries', function (Blueprint $table) {
+                $table->uuid('business_id')->nullable(false)->change();
+            });
+        }
 
         Schema::table('recurring_entries', function (Blueprint $table) {
             $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();

@@ -2856,9 +2856,9 @@
                                     <div class="flex-1">
                                         <p class="text-sm font-semibold font-body dark:text-white text-gray-900 mb-1">Are you earning more than you're spending?</p>
                                         <p class="text-xs font-body dark:text-slate-400 text-gray-500 leading-relaxed mb-3">
-                                            For every rupee you spend, how many rupees are you earning? If your total income is
-                                            <span class="font-semibold dark:text-slate-300 text-gray-700">Rs 10,000</span> and your total expenses are
-                                            <span class="font-semibold dark:text-slate-300 text-gray-700">Rs 5,000</span>, your ratio is <span class="font-mono font-bold text-emerald-500">2.0×</span> — you earned twice what you spent.
+                                            For every dollar you spend, how much are you earning? If your total income is
+                                            <span class="font-semibold dark:text-slate-300 text-gray-700">{{ $business->currency ?? 'USD' }} 10,000</span> and your total expenses are
+                                            <span class="font-semibold dark:text-slate-300 text-gray-700">{{ $business->currency ?? 'USD' }} 5,000</span>, your ratio is <span class="font-mono font-bold text-emerald-500">2.0×</span> — you earned twice what you spent.
                                             The closer this ratio is to 1.0×, the more carefully you need to watch your spending.
                                         </p>
                                         <div class="flex flex-wrap gap-3 text-[11px] font-body">
@@ -2929,7 +2929,7 @@
                                         <p class="text-xs font-body dark:text-slate-400 text-gray-500 leading-relaxed mb-3">
                                             This looks at how <span class="font-semibold dark:text-slate-300 text-gray-700">similar your income entries are</span> to each other.
                                             If you receive roughly the same amount every week or month — like a salary or regular client payment — that's consistent.
-                                            If one payment is Rs 1,000 and the next is Rs 80,000, that's irregular and harder to plan around.
+                                            If one payment is {{ $business->currency ?? 'USD' }} 1,000 and the next is {{ $business->currency ?? 'USD' }} 80,000, that's irregular and harder to plan around.
                                             Predictable income = you can budget with confidence.
                                         </p>
                                         <div class="flex flex-wrap gap-3 text-[11px] font-body">
@@ -3693,7 +3693,7 @@
                                                 <span class="text-sm font-body dark:text-white text-gray-900">{{ $desc }}</span>
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase dark:bg-slate-800 bg-gray-100 dark:text-slate-400 text-gray-500">{{ ucfirst($freq) }}</span>
                                             </div>
-                                            <span class="font-mono text-sm {{ $type === 'in' ? 'text-emerald-400' : 'text-red-400' }} mt-1 block">{{ $type === 'in' ? '+' : '-' }}PKR {{ $amt }}</span>
+                                            <span class="font-mono text-sm {{ $type === 'in' ? 'text-emerald-400' : 'text-red-400' }} mt-1 block">{{ $type === 'in' ? '+' : '-' }}${{ $amt }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -3910,7 +3910,7 @@
                                                 @if($amount !== null)
                                                     <span class="font-mono font-semibold
                                                                  {{ $entryType === 'in' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
-                                                        · {{ $business->currency ?? 'PKR' }} {{ $amount }}
+                                                        · {{ $business->currency ?? 'USD' }} {{ $amount }}
                                                     </span>
                                                 @endif
                                             </p>

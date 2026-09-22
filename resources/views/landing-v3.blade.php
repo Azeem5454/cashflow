@@ -63,16 +63,11 @@
         "url": @json($appUrl . '/'),
         "image": @json($ogImage),
         @verbatim"applicationCategory": "BusinessApplication",
-        "operatingSystem": "Web, iOS, Android",
+        "operatingSystem": "Web",
         "offers": [
             {"@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free"},
             {"@type": "Offer", "price": "5", "priceCurrency": "USD", "name": "Pro (monthly)"}
-        ],
-        "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.9",
-            "reviewCount": "1200"
-        }
+        ]
     }@endverbatim
     </script>
     <script type="application/ld+json">
@@ -330,14 +325,10 @@
 
         {{-- Left: copy --}}
         <div class="pb-12 md:pb-24">
-            {{-- Trust signal --}}
+            {{-- Trust signal (factual only — no invented user counts or ratings) --}}
             <div class="hu hu1 flex items-center gap-3 mb-6 flex-wrap">
-                <div class="flex items-center gap-1">
-                    @for($i=0;$i<5;$i++)
-                    <svg class="w-4 h-4" viewBox="0 0 20 20" fill="#f59e0b"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                    @endfor
-                </div>
-                <span class="text-sm" style="color:rgba(248,250,252,0.5)">Trusted by <strong style="color:#f8fafc">1,200+ businesses</strong> in 60+ countries</span>
+                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="#22c55e" aria-hidden="true"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
+                <span class="text-sm" style="color:rgba(248,250,252,0.5)"><strong style="color:#f8fafc">Free plan, forever</strong> · No card required · Any currency</span>
             </div>
 
             <h1 class="fd font-black leading-[0.92] tracking-tight mb-6 hu hu2"
@@ -724,66 +715,6 @@
                 </div>
             </div>
             @endforeach
-        </div>
-    </div>
-</section>
-
-
-{{-- ══ TESTIMONIALS ════════════════════════════════════════════════════ --}}
-<section style="background:var(--dark2)" class="relative overflow-hidden px-6 py-20 md:py-28">
-    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-60 rounded-full blur-3xl pointer-events-none glow-pulse" style="background:rgba(26,86,219,0.09)"></div>
-    <div class="relative max-w-5xl mx-auto">
-        <div class="text-center mb-14">
-            <p class="sr text-xs font-semibold uppercase tracking-widest mb-4" style="color:rgba(255,255,255,0.25)">Real users. Real businesses.</p>
-            <h2 class="sr d1 fd font-black leading-tight" style="color:#f8fafc;font-size:clamp(2rem,4vw,3rem)">
-                What they said after switching.
-            </h2>
-        </div>
-
-        {{-- 3 large static featured quotes --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {{-- Quote 1 --}}
-            <div class="sr rounded-2xl p-7 flex flex-col" style="background:#0d1526;border:1px solid rgba(59,130,246,0.25);box-shadow:0 0 40px rgba(26,86,219,0.08)">
-                <svg class="w-8 h-8 mb-5 flex-shrink-0" viewBox="0 0 32 32" fill="none">
-                    <path d="M9 13h6l-4 8H7l2-8zm10 0h6l-4 8h-4l2-8z" fill="rgba(59,130,246,0.3)"/>
-                </svg>
-                <p class="text-base leading-relaxed mb-6 flex-1" style="color:rgba(248,250,252,0.75)">"My accountant has viewer access now. He stopped calling me for numbers every month. <strong style="color:#f8fafc">That alone is worth the subscription.</strong>"</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style="background:rgba(26,86,219,0.3);color:var(--accent)">B</div>
-                    <div>
-                        <p class="font-semibold text-sm" style="color:#f8fafc">Ben K.</p>
-                        <p class="text-xs" style="color:rgba(248,250,252,0.35)">Agency owner, London</p>
-                    </div>
-                </div>
-            </div>
-            {{-- Quote 2 --}}
-            <div class="sr d1 rounded-2xl p-7 flex flex-col" style="background:#0d1526;border:1px solid rgba(255,255,255,0.09)">
-                <svg class="w-8 h-8 mb-5 flex-shrink-0" viewBox="0 0 32 32" fill="none">
-                    <path d="M9 13h6l-4 8H7l2-8zm10 0h6l-4 8h-4l2-8z" fill="rgba(59,130,246,0.2)"/>
-                </svg>
-                <p class="text-base leading-relaxed mb-6 flex-1" style="color:rgba(248,250,252,0.75)">"I create a new book every month. At the end I know <strong style="color:#f8fafc">exactly</strong> if I made money. Simple, honest, done. I've been looking for something like this for years."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style="background:rgba(26,86,219,0.3);color:var(--accent)">A</div>
-                    <div>
-                        <p class="font-semibold text-sm" style="color:#f8fafc">Aisha M.</p>
-                        <p class="text-xs" style="color:rgba(248,250,252,0.35)">Restaurant owner, Dubai</p>
-                    </div>
-                </div>
-            </div>
-            {{-- Quote 3 --}}
-            <div class="sr d2 rounded-2xl p-7 flex flex-col" style="background:#0d1526;border:1px solid rgba(255,255,255,0.09)">
-                <svg class="w-8 h-8 mb-5 flex-shrink-0" viewBox="0 0 32 32" fill="none">
-                    <path d="M9 13h6l-4 8H7l2-8zm10 0h6l-4 8h-4l2-8z" fill="rgba(59,130,246,0.2)"/>
-                </svg>
-                <p class="text-base leading-relaxed mb-6 flex-1" style="color:rgba(248,250,252,0.75)">"I used to calculate the balance in my head every morning. Now it's <strong style="color:#f8fafc">on the screen the moment I open the app.</strong> I genuinely can't go back to anything else."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style="background:rgba(26,86,219,0.3);color:var(--accent)">M</div>
-                    <div>
-                        <p class="font-semibold text-sm" style="color:#f8fafc">Marcus T.</p>
-                        <p class="text-xs" style="color:rgba(248,250,252,0.35)">Retail shop, Chicago</p>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </section>

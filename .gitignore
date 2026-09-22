@@ -24,3 +24,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Claude Code — personal settings (may contain secrets) and scratch worktrees
+.claude/settings.local.json
+.claude/worktrees/

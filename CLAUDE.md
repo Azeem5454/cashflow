@@ -8,7 +8,7 @@ and collaborate with team members — all with a live balance summary.
 
 ## Stack
 
-- **Backend:** Laravel 11 (PHP 8.3)
+- **Backend:** Laravel 12 (PHP 8.3, pinned via `config.platform.php` for Railpack)
 - **Frontend:** Livewire 3 + Alpine.js + Blade templates
 - **Styling:** Tailwind CSS (utility classes only, no custom CSS files)
 - **Database:** PostgreSQL 16
@@ -190,7 +190,7 @@ Account (User)
 
 ## Subscription Plans
 
-> **Pricing note:** Pro is currently $3/month. Once AI features ship, raise to **$5/month** — still the cheapest AI-powered cash flow tool on the market by 3×. AI cost per Pro user is ~$0.40/month at typical usage, well within margin.
+> **Pricing note:** Pro is **$5/month** (raised from $3 when AI features shipped) — still the cheapest AI-powered cash flow tool on the market by 3×. AI cost per Pro user is ~$0.40/month at typical usage, well within margin.
 
 | Feature                         | Free                 | Pro ($5/month)        |
 |---------------------------------|----------------------|-----------------------|
@@ -496,7 +496,7 @@ database/
 
 ## Current Build Order
 
-- [x] Project setup (Laravel 11, PostgreSQL, Breeze, Livewire, Tailwind)
+- [x] Project setup (Laravel 11 → now 12, PostgreSQL, Breeze, Livewire, Tailwind)
 - [x] Database migrations and models
 - [x] Landing page (/)
 - [x] Login screen (/login)
@@ -548,6 +548,7 @@ database/
 - [x] Entry creator attribution — `created_by` UUID FK on `entries` (nullable, `nullOnDelete`); migration `2026_03_20_100001_add_created_by_to_entries_table.php`; `doSaveEntry()` stamps `auth()->id()` on new entries; `Book\Show::render()` eager-loads `creator`; "by You" / "by [Name]" shown in muted text under description on both desktop and mobile entry rows
 - [x] Dark mode flash fix + theme polish — `theme-transition` CSS class temporarily enables `transition: background-color/color/border-color 200ms` on ALL elements during toggle (class added before + removed after via `setTimeout(300)`); dark mode toggle button icons use CSS `dark:hidden`/`dark:block` instead of Alpine `x-show` (eliminates Alpine-driven DOM mutation); toggle pill uses `dark:bg-primary`/`dark:translate-x-4` CSS instead of Alpine `:class`
 - [x] UX polish II — comment icon hover behavior (always visible with count when comments exist, hover-reveal when none); upgrade modal migrated to string-property pattern with feature-specific gold copy for all 6 features; tab reorder (Entries | Activity | Reports | Recurring); activity log extended with comment/attachment/recurring events; delete comment confirmation modal; flash messages on all actions; notification bell full-width sidebar row (`sidebar` prop); entry ordering stability (three-level sort: date → created_at → id); book detail "Rename Book" + "Duplicate Book" upgraded to full period-picker modals matching All Books page
+- [x] Blog autopilot (daily AI post generation) — `blog_autopilot_queue` table (admin-managed title queue), `BlogAutopilot` orchestrator service (Claude Haiku generation + validation + image render + post persistence), `BlogImageRenderer` (GD 1200×630 branded OG image with center safe zone surviving 1:1 crops), product brief injected into every prompt (editable via admin, anti-stuffing rule enforced), smart category auto-picking when row left blank, `Schedule::command('blog:generate')->dailyAt('09:00')`, `/admin/blog/autopilot` UI (toggle + bulk paste + SortableJS drag-sort + live GD/FreeType/fonts diagnostic + amber error banner with retry), per-post "Regenerate image" buttons on admin blog list + edit pages, `blog:regenerate-image` command with --slug / --latest / --all-missing / --all; GD extension installed on Railway via `"ext-gd": "*"` in composer.json (documented Railpack trigger); Bricolage Grotesque + Outfit TTFs bundled at `storage/fonts/`
 
 ### Pending App Features (Priority Order)
 
@@ -562,9 +563,9 @@ database/
 - [x] **AI cash flow insights** — auto-triggers on Reports tab open; `AiService::generateInsights()` sends aggregated data only; 3-bullet card with sentiment badge (Healthy/Watch/Concern) + tip; 24h cache in `books.ai_insights_cache`; cross-book comparison with previous period; 1/min burst + 10/day cap per user; all UI states (shimmer, loaded, failed, not_enough_data, limit); dark/light mode; regenerate button; stale cache shown when limit hit
 
 #### AI Features — Phase 2
-- [ ] **Natural language entry** — free-text field in slide-over: "Paid 5000 for rent yesterday" → AI parses into full entry form
-- [ ] **Anomaly detection** — queued job after entry save; flags unusual entries with `entries.is_flagged` + `flag_reason`; amber badge on entry rows
-- [ ] **Cash flow forecast** — 30-day projection on Reports tab using recurring entries + 90-day trailing averages
+- [x] **Natural language entry** — `Book\Show::parseEntryText()` + `AiService::parseNaturalLanguage()` — free-text field in slide-over: "Paid 5000 for rent yesterday" → AI parses into full entry form
+- [x] **Anomaly detection** — `App\Services\AnomalyDetector` + hook in `Entry` model — queued job after entry save; flags unusual entries with `entries.is_flagged` + `flag_reason`; amber badge on entry rows
+- [x] **Cash flow forecast** — `Book::forecast30Days()` — 30-day projection on Reports tab using recurring entries + 90-day trailing averages
 
 ### Pending Admin Tasks
 
@@ -625,14 +626,14 @@ Groups:
 
 All responses: JSON, camelCase keys, ISO 8601 dates, amounts as strings (not floats).
 
-### Phase 2 — Mobile App (React Native + Expo) — ⚠️ ~90% DONE
+### Phase 2 — Mobile App (React Native + Expo) — feature-complete, store prep in progress
 Core screens implemented and live on Expo Go. Stack: Expo SDK 54, expo-router v6, React Native 0.81, TypeScript strict. Font: Bricolage Grotesque + Plus Jakarta Sans + Outfit + Geist Mono. Theme: dark-luxe navy (default) + light mode toggle in profile.
 
 **Implemented screens** (`project-mobile/app/`):
 - `(auth)/login.tsx`, `(auth)/register.tsx`, `(auth)/forgot-password.tsx` — Breeze-equivalent auth, toast feedback, error sanitization
 - `(app)/index.tsx` — Dashboard with owned/shared split, recently-edited books, notifications bell, announcement banner, skeleton loaders, empty state CTA
 - `(app)/profile/index.tsx` + `profile/edit.tsx` — Profile view with actions (Edit Profile / Billing / Dark Mode toggle) + edit form (name/email/password)
-- `(app)/billing.tsx` — WebView wrapping `/settings/billing` for Stripe Checkout (auto-detects `?checkout=success`)
+- ~~`(app)/billing.tsx`~~ — REMOVED 2026-09-22. The app has NO purchase UI (no prices, upgrade buttons, or billing links) to comply with Apple 3.1.1 / Google Play billing. Pro-gated features show a neutral "Available on the Pro plan" locked state. Users upgrade on the web. Do not re-add Stripe links in the app; add IAP (RevenueCat) instead if in-app purchase is ever wanted.
 - `(app)/business/create.tsx` — Create Business with 24-currency searchable picker
 - `(app)/business/[id].tsx` — Business detail with books list + totals strip + search/sort + Rename/Manage Team/Delete menu (owner only) + FAB
 - `(app)/business/members.tsx` — Team management with invite FAB (email + role), pending invitations, change role, remove member
@@ -665,9 +666,9 @@ Core screens implemented and live on Expo Go. Stack: Expo SDK 54, expo-router v6
 - Navigation: expo-router Stack, `headerBackButtonDisplayMode: 'minimal'` at `(app)/_layout.tsx` to hide iOS back label
 - Theme system: `const styles = useThemedStyles(makeStyles)` pattern (profile/dashboard/business detail/ledger/entry form converted; others pending)
 
+**Store readiness (2026-09-22)**: rebranded to TheCashFox, bundle ID `com.thecashfox.app` (iOS + Android, permanent), `eas.json` added (not yet linked — run `eas init`), permission strings set, `supportsTablet: false`, icons generated from the 214px favicon (replace with high-res source before submission). All screens use the theme system.
+
 **Not yet done**:
-- Auth screens still dark-only (light mode not applied)
-- ~10 secondary screens still use static `colors` import
 - Offline SQLite cache
 - Push notifications
 - Certificate pinning (requires ejecting from Expo managed)
@@ -699,7 +700,67 @@ Core screens implemented and live on Expo Go. Stack: Expo SDK 54, expo-router v6
 
 ---
 
-## Session Notes (last updated 2026-04-16)
+## Session Notes (last updated 2026-04-17)
+
+### Completed this session (2026-04-17) — Blog autopilot + daily AI post generation + GD install on Railway
+
+**Blog Autopilot (queue-driven daily AI posting)**
+- New table `blog_autopilot_queue` (id uuid, title unique 255, category_id nullable FK, position integer indexed, timestamps). Admin-managed title queue — row with lowest `position` publishes next, on success is deleted (consumed, not a log).
+- New column `blog_posts.auto_topic_key` (nullable string 120, indexed with created_at) — stamped `q-{uuid}` on auto-generated posts so the 20h cooldown guard can identify them.
+- `App\Services\BlogAutopilot` — orchestrator: pickNextQueueItem → generateWithClaude (Haiku) → validate → BlogImageRenderer → BlogPost::create → delete queue row → update `blog_autopilot.last_run_at`. Rate rails: Setting flag `blog_autopilot.enabled` gates the whole thing (defaults off); `MIN_HOURS_BETWEEN_POSTS = 20` prevents cron double-fire duplication; body word-count guard 800-2400 (prompt asks 1000-2000, validator tolerates ±10% variance).
+- `App\Services\BlogImageRenderer` — GD-based 1200×630 branded OG image. Deep navy diagonal gradient + single large soft radial glow tinted with the post's category colour + deterministic film grain (mt_srand(42)) + centered category pill + dynamic-sized wrapped title (60→38px so long headlines always fit) + tiny brand strip "TheCashFox · cash flow tracking" bottom-centre. All readable content sits in a center 700px safe zone (x=250-950) so even a 1:1 card crop shows the full title.
+- Fonts bundled at `storage/fonts/` (Bricolage Grotesque Bold + Outfit Regular/SemiBold, SIL OFL licensed). Committed to git — Railway ephemeral fs would otherwise wipe them.
+- Image asset flow: renderer calls `UploadedAsset::put('blog-post-{uuid}-featured', $bytes, 'image/png')`. Post's `featured_image_key` column stores the key. BrandAssetController's regex `^(logo-dark|logo-light|favicon|og-image|blog-post-[0-9a-f\-]{36}-featured)$` was extended earlier to permit blog keys.
+- Scheduled: `Schedule::command('blog:generate')->dailyAt('09:00')->withoutOverlapping()` in routes/console.php.
+- Commands: `php artisan blog:generate [--force]`, `php artisan blog:regenerate-image {--slug= | --latest | --all-missing | --all}` (`--all` rewrites every post's image with the current renderer).
+- `AiUsageLog.user_id` made nullable (migration `2026_04_17_100002`) — autopilot logs Claude cost with `user_id=null` for system-generated runs. Postgres path drops+recreates the FK constraint with ON DELETE SET NULL; SQLite path uses `->change()` for tests.
+
+**Smart category picking**
+- When admin leaves the queue row's category dropdown empty, Claude picks the best-fit category by slug from the full list as part of the same generation call (zero extra cost/latency). Admin's explicit choice always wins when set. Prompt enforces "must match a slug from this allowlist — no inventions"; invalid pick silently falls back to the first category alphabetically.
+
+**Product brief — grounded generation**
+- `BlogAutopilot::DEFAULT_PRODUCT_BRIEF` constant holds a ~500-word markdown brief covering features, Free-vs-Pro tier matrix, AI features ($5/mo Pro + 200 OCR scans etc.), voice rules, and security. Injected verbatim into every autopilot prompt as a "PRODUCT FACTS" block. Admin can override via Setting key `blog_autopilot.product_brief` through a collapsible textarea on `/admin/blog/autopilot`; reset-to-default button available.
+- Anti-stuffing rule baked into the prompt: "Reference product features ONLY when they're genuinely relevant. Max 2-3 references per post. NEVER force them. Purely educational topics may skip product mentions entirely."
+- Verified on "Free vs Paid Cash Book Apps for $5/Month" test title: Claude pulled $5 pricing, 200 scans/month, 3× anomaly threshold, 30-day forecast from 90-day baseline, role-based team access — all concrete, all from the brief, no hallucinations.
+
+**Admin UI — /admin/blog/autopilot**
+- Enable/disable pill toggle → `Setting::set('blog_autopilot.enabled', '1'|'0')`
+- Live diagnostic strip at the top shows GD/FreeType/fonts status on every render (independent of persisted errors). Green when ready, red when not.
+- Collapsible product brief card with Save + Reset-to-default + Cancel
+- Two add paths: bulk paste textarea (one title per line, duplicates + <8 char lines skipped) and single-title form with optional category dropdown
+- Queue table with SortableJS drag-and-drop reordering (positions in steps of 10 so reorders don't need full repacks). Top row gets emerald "Next up" badge. Per-row category dropdown + delete with wire:confirm.
+- Amber banner surfaces any failed image renders + counts posts missing images + "Retry all missing" button + "Dismiss" to clear the error.
+- "Generate Now" button bypasses enabled-toggle + cooldown for instant testing.
+- Link from admin blog index header: violet "Autopilot" button next to "Manage categories" / "New post".
+
+**Per-post regenerate-image buttons**
+- On `/admin/blog` list: purple image icon in every row's action column → `Index::regenerateImage($id)` → GD render → `blog-toast` event with success/error message.
+- On `/admin/blog/{id}/edit`: "Generate image" / "Regenerate image" button below the file-upload field (only renders on saved posts since we need the post ID to key the asset). Reads current title + category, so edit those first if wording changed. Both views have the standard Alpine toast listener at the bottom.
+
+**Card layout crop fix**
+- `resources/views/livewire/blog/index.blade.php` — featured hero was using `md:aspect-auto md:h-full` which stretched the image vertically to match text-block height, causing aggressive vertical crops on long titles. Replaced with fixed `aspect-[16/10]` on both hero and grid cards — crops are now predictable (~15% off the sides, safe zone fully inside the visible region).
+
+**Railway PHP-GD install journey (half a day of debugging)**
+- Multi-commit journey before getting GD + FreeType on the Railway PHP container:
+  1. Added `"gd"` to `railpack.json` extensions array — build succeeded but GD not loaded at runtime.
+  2. Added `aptPackages: [...]` top-level field — field silently ignored (not in schema).
+  3. Tried `packages: [...]` as array — build failed with `json: cannot unmarshal array into Go struct field Config.packages of type map[string]string`. Schema expects map.
+  4. Tried `packages: {"freetype": "latest", ...}` — build failed with `Package 'freetype' not available in Mise. Try installing as apt package instead.` Mise doesn't have C libraries.
+  5. Tried `aptPackages: ["libfreetype6-dev", ...]` — undocumented field, silently ignored again.
+  6. **Fix that worked**: added `"ext-gd": "*"` to `composer.json` require block (same pattern as existing `ext-bcmath` + `ext-pdo_pgsql`). This is the documented Railpack trigger — it detects the `ext-*` declaration and installs the extension plus native libs automatically.
+- Dropped `aptPackages` and `packages` from `railpack.json` — only `extensions` list is in the documented schema.
+- Lesson: Railpack's schema is at https://schema.railpack.com — if a field isn't there, it's silently ignored. The documented paths for PHP extensions are `RAILPACK_PHP_EXTENSIONS` env var OR `composer.json` `"ext-*": "*"` entries.
+
+**Error visibility + recovery paths**
+- Image render failure inside `BlogAutopilot::run()` no longer silently dies to `Log::warning` — now also calls `report($e)` (Sentry) and persists the error to Setting `blog_autopilot.last_image_error` so the admin banner can surface it with a timestamp. Successful renders clear the Setting.
+- `BlogImageRenderer::assertReady()` throws descriptive errors per missing piece: "GD extension not loaded", "GD present but FreeType missing (FreeType Support = no)", or "Font file missing at {path}" — whatever hits Sentry next is immediately actionable.
+
+**Key pattern learnings this session**
+- **Railway Railpack PHP extensions**: use `composer.json` `"ext-X": "*"` as the trigger, NOT speculative fields in railpack.json. Schema URL: https://schema.railpack.com. Undocumented fields are silently ignored (no error, just no effect).
+- **Image crop safety**: when designing any image that'll be displayed at multiple aspect ratios, compose everything inside a central "safe zone" sized for the narrowest expected crop (1:1 for blog cards). Width 700px of 1200px total is the minimum safe centre strip.
+- **GD font rendering in Nix-built PHP**: `imagettftext` needs FreeType support compiled in — Nix's `php8xExtensions.gd` bundles it. Check via `gd_info()['FreeType Support']`.
+- **Variable TTF fonts**: Google Fonts' variable `BricolageGrotesque[opsz,wdth,wght].ttf` works with GD's `imagettftext` at the default instance. Source: `https://raw.githubusercontent.com/google/fonts/main/ofl/bricolagegrotesque/`.
+- **SortableJS with Livewire**: instantiate on `x-init`, destroy on teardown, use `onEnd` handler to call `$wire.reorder(ids)`. Positions in multiples of 10 (10, 20, 30...) so later drag-drops don't require a full repack.
 
 ### Completed this session (2026-04-15 → 2026-04-16) — Launch-prep: rebrand, security, social preview, OAuth, observability
 
@@ -1276,7 +1337,7 @@ Internal tool for the CashFlow operator (you). Accessed at `/admin/*`, gated beh
 #### 5. Subscriptions (`/admin/subscriptions`) — `Admin\Subscriptions`
 - Table of all Cashier subscriptions: user, status, Stripe subscription ID, current period end, `ends_at`
 - Filter by status: active / canceled / on_grace_period / ended
-- MRR calculation: count of `active` subscriptions × $3
+- MRR calculation: count of renewing `active` subscriptions (`ends_at` null) × `config('services.stripe.pro_monthly_usd')` (default 5, env `STRIPE_PRO_MONTHLY_USD`)
 - Month-over-month growth indicator
 
 #### 6. Invitations (`/admin/invitations`) — `Admin\Invitations`

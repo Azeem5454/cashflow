@@ -37,7 +37,7 @@ class Subscriptions extends Component
         $subscriptions = $query->paginate(25);
 
         $activeSubs = Subscription::where('stripe_status', 'active')->whereNull('ends_at')->count();
-        $mrr = $activeSubs * 3;
+        $mrr = $activeSubs * config('services.stripe.pro_monthly_usd');
 
         return view('livewire.admin.subscriptions', compact('subscriptions', 'activeSubs', 'mrr'))
             ->layout('layouts.admin');

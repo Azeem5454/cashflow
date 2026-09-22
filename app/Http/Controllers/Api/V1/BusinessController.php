@@ -130,7 +130,7 @@ class BusinessController extends Controller
         // Free plan limit: 1 business
         if (! $user->isPro() && $user->ownedBusinesses()->count() >= 1) {
             return response()->json([
-                'message' => 'Upgrade to Pro to create more than one business.',
+                'message' => 'The Free plan includes one business. More businesses are available on the Pro plan.',
             ], 403);
         }
 
@@ -202,7 +202,7 @@ class BusinessController extends Controller
         // Free plan limit: 2 members total
         if (! $business->isPro() && $business->members()->count() >= 2) {
             return response()->json([
-                'message' => 'Upgrade to Pro to invite more team members.',
+                'message' => 'The Free plan includes up to 2 team members. More are available on the Pro plan.',
             ], 403);
         }
 

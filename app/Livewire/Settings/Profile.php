@@ -35,10 +35,21 @@ class Profile extends Component
             'email' => 'required|email|max:255|unique:users,email,' . $user->id . ',id',
         ]);
 
-        $user->update([
+        $user->fill([
             'name'  => $this->name,
             'email' => $this->email,
         ]);
+
+        $emailChanged = $user->isDirty('email');
+        if ($emailChanged) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+        }
 
         $this->dispatch('profile-saved');
     }
@@ -73,6 +84,18 @@ class Profile extends Component
         }
 
         $user = auth()->user();
+
+        // Stop billing before the account disappears — otherwise Stripe keeps
+        // charging a customer we no longer have a record of.
+        if ($user->subscribed('default')) {
+            try {
+                $user->subscription('default')->cancelNow();
+            } catch (\Throwable $e) {
+                report($e);
+                $this->addError('deleteConfirmInput', 'We could not cancel your subscription. Please try again or contact support.');
+                return;
+            }
+        }
 
         Auth::logout();
         session()->invalidate();

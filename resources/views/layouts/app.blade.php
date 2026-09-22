@@ -178,7 +178,7 @@
                                     @foreach($ownedBizList as $biz)
                                         @php
                                             $bizNet      = isset($sidebarBalances[$biz->id]) ? (float)$sidebarBalances[$biz->id] : null;
-                                            $bizCurrency = $biz->currency ?? 'PKR';
+                                            $bizCurrency = $biz->currency ?? 'USD';
                                             $isActive    = $currentBusiness && $currentBusiness->id === $biz->id;
                                         @endphp
                                         <a href="{{ route('businesses.show', $biz) }}" wire:navigate
@@ -209,7 +209,7 @@
                                     @foreach($sharedBizList as $biz)
                                         @php
                                             $bizNet      = isset($sidebarBalances[$biz->id]) ? (float)$sidebarBalances[$biz->id] : null;
-                                            $bizCurrency = $biz->currency ?? 'PKR';
+                                            $bizCurrency = $biz->currency ?? 'USD';
                                             $isActive    = $currentBusiness && $currentBusiness->id === $biz->id;
                                             $bizRole     = $biz->pivot->role ?? 'viewer';
                                         @endphp

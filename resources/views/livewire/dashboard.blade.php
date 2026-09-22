@@ -307,7 +307,7 @@
                                         $rbIn   = (float)($rb->cash_in  ?? 0);
                                         $rbOut  = (float)($rb->cash_out ?? 0);
                                         $rbNet  = $rbIn - $rbOut;
-                                        $rbCur  = $rb->_business->currency ?? 'PKR';
+                                        $rbCur  = $rb->_business->currency ?? 'USD';
                                         $rbLast = $rb->last_entry_at
                                             ? \Carbon\Carbon::parse($rb->last_entry_at)->diffForHumans(null, true)
                                             : null;
@@ -396,7 +396,7 @@
                                             </a>
                                             @if($business->books->isNotEmpty() && ($businessCashIn > 0 || $businessCashOut > 0))
                                                 <span class="font-mono text-xs font-bold {{ $businessNet < 0 ? 'text-red-400' : 'text-emerald-500' }} flex-shrink-0">
-                                                    {{ $businessNet < 0 ? '−' : '+' }}{{ $business->currency ?? 'PKR' }} {{ $netFormatted }}
+                                                    {{ $businessNet < 0 ? '−' : '+' }}{{ $business->currency ?? 'USD' }} {{ $netFormatted }}
                                                 </span>
                                             @endif
                                         </div>
@@ -563,7 +563,7 @@
                                                     </div>
                                                 @else
                                                     {{-- Net balance --}}
-                                                    @php $bookCurrency = $business->currency ?? 'PKR'; @endphp
+                                                    @php $bookCurrency = $business->currency ?? 'USD'; @endphp
                                                     <div class="mb-3">
                                                         <p class="font-mono font-extrabold text-xl leading-none
                                                                    {{ $isNeg ? 'text-red-400' : 'dark:text-white text-gray-900' }}">
@@ -739,7 +739,7 @@
                                             <div class="w-2 h-2 rounded-full {{ $entry->type === 'in' ? 'bg-emerald-500' : 'bg-red-400' }}"></div>
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            @php $feedCurrency = $entry->book->business->currency ?? 'PKR'; @endphp
+                                            @php $feedCurrency = $entry->book->business->currency ?? 'USD'; @endphp
                                             <div class="flex items-baseline justify-between gap-2">
                                                 <span class="font-mono font-bold text-sm leading-none
                                                              {{ $entry->type === 'in' ? 'text-emerald-500' : 'text-red-400' }}">
