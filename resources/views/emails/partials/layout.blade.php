@@ -1,12 +1,11 @@
 @php
     $appName = config('app.name', 'TheCashFox');
     $appUrl  = rtrim(config('app.url', 'https://thecashfox.com'), '/');
-    // Light transactional design: always use the LIGHT-mode logo (dark wordmark
-    // on a white card). Absolute URL — emails render far from a request context.
-    $hasLogo = \App\Models\UploadedAsset::has('logo-light');
-    $logoUrl = $hasLogo
-        ? $appUrl . route('brand-asset', 'logo-light', false) . '?v=' . \App\Models\UploadedAsset::cacheBuster('logo-light')
-        : null;
+    // Header = blue fox mark (transparent PNG, readable on white AND on the
+    // dark backgrounds that Gmail/Outlook dark mode force) + the app name as
+    // real HTML text, which mail clients recolour correctly in dark mode.
+    // A wordmark image would vanish when a client inverts the colours.
+    $markUrl = $appUrl . '/images/email/fox-mark.png';
 @endphp
 <!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -62,11 +61,14 @@
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                     <td style="vertical-align:middle;">
-                        @if($logoUrl)
-                            <img src="{{ $logoUrl }}" alt="{{ $appName }}" height="32" style="height:32px;width:auto;display:block;border:0;">
-                        @else
-                            <div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;">{{ $appName }}</div>
-                        @endif
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="vertical-align:middle;padding-right:10px;">
+                                    <img src="{{ $markUrl }}" alt="" width="34" height="28" style="width:34px;height:28px;display:block;border:0;">
+                                </td>
+                                <td style="vertical-align:middle;font-size:20px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">{{ $appName }}</td>
+                            </tr>
+                        </table>
                     </td>
                     @if(isset($badge))
                     <td align="right" style="vertical-align:middle;">
