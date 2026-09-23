@@ -25,10 +25,23 @@
     }',
 ])
 
+    {{-- Business logo (absolute URL — the recipient's mail client fetches it) --}}
+    @php $bizLogo = $book->business->logoUrl(absolute: true); @endphp
+    @if($bizLogo)
+        <tr><td class="section-pad" bgcolor="#ffffff" style="padding:24px 32px 0;background-color:#ffffff;">
+            <img src="{{ $bizLogo }}" alt="{{ $book->business->name }}" height="40" style="display:block;max-height:40px;width:auto;border:0;outline:none;text-decoration:none;">
+        </td></tr>
+    @endif
+
     {{-- Book name + period --}}
-    <tr><td class="section-pad" bgcolor="#ffffff" style="padding:24px 32px 0;background-color:#ffffff;">
+    <tr><td class="section-pad" bgcolor="#ffffff" style="padding:{{ $bizLogo ? '12px' : '24px' }} 32px 0;background-color:#ffffff;">
         <div style="font-size:22px;font-weight:700;color:#0f172a;line-height:1.3;">{{ $book->name }}</div>
         <div style="font-size:14px;color:#64748b;margin-top:4px;">{{ $book->business->name }}@if($periodLabel) &middot; {{ $periodLabel }}@endif</div>
+        @if($book->business->contact_phone || $book->business->contact_email)
+            <div style="font-size:12px;color:#94a3b8;margin-top:4px;">
+                {{ trim(collect([$book->business->contact_phone, $book->business->contact_email])->filter()->implode(' · ')) }}
+            </div>
+        @endif
     </td></tr>
 
     {{-- ===== SUMMARY CARDS ===== --}}

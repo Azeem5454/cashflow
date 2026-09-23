@@ -1249,7 +1249,7 @@ class Show extends Component
         $this->validate([
             'editBookName'           => 'required|string|max:100',
             'editBookDescription'    => 'nullable|string|max:500',
-            'editBookOpeningBalance' => 'nullable|numeric|min:0|max:999999999.99',
+            'editBookOpeningBalance' => 'nullable|numeric|min:-999999999.99|max:999999999.99',
         ]);
 
         $this->book->update([

@@ -56,8 +56,22 @@ class NullDescriptionFallbackTest extends ApiTestCase
             ->assertOk()
             ->streamedContent();
 
-        $rows = array_map('str_getcsv', array_filter(explode("\n", trim($csv))));
-        $descriptions = array_column(array_slice($rows, 1), 1);
+        // array_values: array_filter preserves keys, which would desync the
+        // header index from array_slice's positional offset.
+        $rows = array_map('str_getcsv', array_values(array_filter(explode("\n", trim($csv)))));
+
+        // The export opens with business/book metadata rows; entries start
+        // after the column-header row.
+        $headerIndex = null;
+        foreach ($rows as $i => $row) {
+            if (($row[0] ?? null) === 'Date' && ($row[1] ?? null) === 'Description') {
+                $headerIndex = $i;
+                break;
+            }
+        }
+        $this->assertNotNull($headerIndex, 'CSV is missing its column header row.');
+
+        $descriptions = array_column(array_slice($rows, $headerIndex + 1), 1);
 
         $this->assertSame(['Fuel', 'Cash out', 'Cash in', 'Invoice 42'], $descriptions);
     }

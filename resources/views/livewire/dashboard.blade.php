@@ -368,12 +368,18 @@
                             @endphp
                             <div class="flex items-center justify-between mb-4">
                                 <div class="flex items-center gap-3 min-w-0">
-                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0
-                                                {{ $isOwner ? 'bg-primary/15 dark:bg-primary/20' : 'dark:bg-slate-700 bg-gray-100' }}">
-                                        <span class="text-xs font-bold {{ $isOwner ? 'text-primary' : 'dark:text-slate-400 text-gray-500' }}">
-                                            {{ strtoupper(substr($business->name, 0, 1)) }}
-                                        </span>
-                                    </div>
+                                    @if($business->hasLogo())
+                                        <div class="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 dark:bg-slate-800 bg-gray-100">
+                                            <img src="{{ $business->logoUrl() }}" alt="" class="w-full h-full object-contain">
+                                        </div>
+                                    @else
+                                        <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0
+                                                    {{ $isOwner ? 'bg-primary/15 dark:bg-primary/20' : 'dark:bg-slate-700 bg-gray-100' }}">
+                                            <span class="text-xs font-bold {{ $isOwner ? 'text-primary' : 'dark:text-slate-400 text-gray-500' }}">
+                                                {{ strtoupper(substr($business->name, 0, 1)) }}
+                                            </span>
+                                        </div>
+                                    @endif
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-2 flex-wrap">
                                             <a href="{{ route('businesses.show', $business) }}" wire:navigate
@@ -388,13 +394,34 @@
                                                 </span>
                                             @endif
                                         </div>
-                                        <p class="text-[10px] dark:text-slate-500 text-gray-400 mt-0.5">
-                                            @if(!$isOwner)
-                                                <span class="{{ $role === 'editor' ? 'text-emerald-500' : '' }}">{{ ucfirst($role) }}</span> · Owned by {{ $business->owner->name ?? 'Unknown' }}
-                                            @else
-                                                {{ $business->books_count }} {{ Str::plural('book', $business->books_count) }} · {{ $business->members_count }} {{ Str::plural('member', $business->members_count) }}
+                                        @php
+                                            $trend  = $trends[$business->id]['trend'] ?? null;
+                                            $change = $trends[$business->id]['monthChangePct'] ?? null;
+                                            $hasTrend = is_array($trend) && collect($trend)->contains(fn ($v) => (float) $v != 0.0);
+                                        @endphp
+                                        <div class="flex items-center gap-2 mt-0.5">
+                                            <p class="text-[10px] dark:text-slate-500 text-gray-400">
+                                                @if(!$isOwner)
+                                                    <span class="{{ $role === 'editor' ? 'text-emerald-500' : '' }}">{{ ucfirst($role) }}</span> · Owned by {{ $business->owner->name ?? 'Unknown' }}
+                                                @else
+                                                    {{ $business->books_count }} {{ Str::plural('book', $business->books_count) }} · {{ $business->members_count }} {{ Str::plural('member', $business->members_count) }}
+                                                @endif
+                                            </p>
+                                            @if($hasTrend)
+                                                <x-sparkline :values="$trend"
+                                                             label="Daily net for the last 7 days in {{ $business->name }}"
+                                                             class="h-4" />
                                             @endif
-                                        </p>
+                                            @if($change !== null)
+                                                <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold
+                                                             {{ $change > 0 ? 'text-emerald-600 dark:text-emerald-400' : ($change < 0 ? 'text-red-600 dark:text-red-400' : 'dark:text-slate-500 text-gray-400') }}">
+                                                    <span aria-hidden="true">{{ $change > 0 ? '▲' : ($change < 0 ? '▼' : '•') }}</span>
+                                                    {{ number_format(abs($change), abs($change) < 10 ? 1 : 0) }}% vs last month
+                                                </span>
+                                            @elseif($hasTrend)
+                                                <span class="text-[10px] dark:text-slate-600 text-gray-300">No activity last month</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">

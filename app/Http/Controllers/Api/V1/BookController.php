@@ -644,7 +644,7 @@ class BookController extends Controller
         $validated = $request->validate([
             'name'           => ['sometimes', 'string', 'max:255'],
             'description'    => ['nullable', 'string', 'max:1000'],
-            'openingBalance' => ['sometimes', 'numeric', 'min:0', 'max:999999999.99'],
+            'openingBalance' => ['sometimes', 'numeric', 'min:-999999999.99', 'max:999999999.99'],
             'periodStartsAt' => ['nullable', 'date'],
             'periodEndsAt'   => ['nullable', 'date', 'after_or_equal:periodStartsAt'],
         ]);

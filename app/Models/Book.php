@@ -83,6 +83,29 @@ class Book extends Model
     }
 
     /**
+     * Closing balance of this book: opening balance + cash in − cash out.
+     *
+     * Same figure as balance(); named separately because "closing balance" is
+     * the accounting term used when carrying a book forward into the next one.
+     * bcmath on strings — never floats.
+     */
+    public function closingBalance(): string
+    {
+        $row = $this->entries()->toBase()
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'in'  THEN amount ELSE 0 END), 0) AS total_in")
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'out' THEN amount ELSE 0 END), 0) AS total_out")
+            ->first();
+
+        $ledger = \App\Services\BookLedger::class;
+
+        return bcsub(
+            bcadd($ledger::money($this->opening_balance), $ledger::dbMoney($row->total_in ?? 0), 2),
+            $ledger::dbMoney($row->total_out ?? 0),
+            2
+        );
+    }
+
+    /**
      * Pure-statistical 30-day cash flow forecast. No AI, no API calls.
      *
      * Model: trailing 90-day daily-mean for non-recurring baseline

@@ -226,7 +226,6 @@
                                 </span>
                                 <input wire:model="bookOpeningBalance"
                                        type="number"
-                                       min="0"
                                        step="0.01"
                                        placeholder="0.00"
                                        class="w-full pl-9 pr-3 py-2.5 text-sm font-mono rounded-lg
@@ -278,6 +277,26 @@
                             @enderror
                         </div>
                     </div>
+
+                    {{-- Carry forward the previous book's closing balance --}}
+                    @if(($carryForwardAmount ?? null) !== null)
+                        <label class="flex items-start gap-3 p-3 rounded-xl cursor-pointer
+                                      dark:border-slate-700 border-gray-200 border
+                                      dark:hover:bg-slate-800 hover:bg-gray-50
+                                      transition-all duration-150">
+                            <input type="checkbox" wire:model.live="carryForwardEnabled"
+                                   class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary/30 dark:bg-slate-800 cursor-pointer flex-shrink-0">
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold font-body dark:text-slate-200 text-gray-800">
+                                    Start with <span class="dark:text-white text-gray-900">{{ $carryForwardBookName }}</span>'s closing balance
+                                    (<x-amount :value="$carryForwardAmount" :symbol="$business->currencySymbol()" tone="plain" class="text-sm" />)
+                                </p>
+                                <p class="text-xs font-body dark:text-slate-500 text-gray-400 mt-0.5">
+                                    Fills the opening balance above. You can still edit it.
+                                </p>
+                            </div>
+                        </label>
+                    @endif
                 </div>
 
                 {{-- Footer --}}
@@ -412,7 +431,7 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-sm font-mono dark:text-slate-500 text-gray-400 pointer-events-none select-none">
                                 {{ $business->currencySymbol() }}
                             </span>
-                            <input wire:model="editBookOpeningBalance" type="number" min="0" step="0.01" placeholder="0.00"
+                            <input wire:model="editBookOpeningBalance" type="number" step="0.01" placeholder="0.00"
                                    class="w-full pl-9 pr-3 py-2.5 text-sm font-mono rounded-lg
                                           dark:bg-slate-800 bg-gray-50 dark:border-slate-700 border-gray-200 border
                                           dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400

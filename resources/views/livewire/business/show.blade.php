@@ -47,6 +47,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
                     </svg>
                 </a>
+                <x-business-logo :business="$business" size="w-10 h-10" text="text-base" class="hidden sm:flex" />
                 <div class="min-w-0">
                     <div class="flex items-center gap-2.5">
                         <h1 class="font-display font-extrabold text-2xl dark:text-white text-gray-900 tracking-tight leading-none truncate">
@@ -315,9 +316,35 @@
                     @if($userRole !== 'viewer')<div></div>@endif
                 </div>
 
-                {{-- Rows --}}
-                <div class="divide-y dark:divide-slate-800 divide-gray-100">
-                    @foreach($books as $book)
+                {{-- Rows, bucketed into collapsible year sections (flat while searching) --}}
+                @foreach($bookGroups as $group)
+                <div wire:key="grp-{{ $group['key'] }}"
+                     x-data="{ open: {{ $group['open'] ? 'true' : 'false' }} }"
+                     class="dark:border-slate-800 border-gray-100 {{ $loop->first ? '' : 'border-t' }}">
+
+                    @if($group['year'] !== null)
+                        <button type="button" @click="open = !open" :aria-expanded="open.toString()"
+                                class="w-full flex items-center gap-3 px-5 py-2.5 text-left
+                                       dark:bg-slate-900 bg-gray-50
+                                       dark:hover:bg-slate-800 hover:bg-gray-100
+                                       transition-colors duration-150">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0 dark:text-slate-500 text-gray-400 transition-transform duration-200"
+                                 :class="open ? 'rotate-90' : ''"
+                                 fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/>
+                            </svg>
+                            <span class="font-heading font-bold text-sm dark:text-white text-gray-900">{{ $group['year'] }}</span>
+                            <span class="text-xs dark:text-slate-500 text-gray-400 font-body">
+                                · {{ $group['count'] }} {{ \Illuminate\Support\Str::plural('book', $group['count']) }} · net
+                            </span>
+                            <x-amount :value="$group['net']" :symbol="$business->currencySymbol()" tone="net" class="text-xs font-semibold" />
+                        </button>
+                    @endif
+
+                    {{-- Closed sections start hidden in the HTML, so there's no flash before Alpine boots. --}}
+                    <div x-show="open" @if(! $group['open']) style="display:none" @endif
+                         class="divide-y dark:divide-slate-800 divide-gray-100">
+                    @foreach($group['books'] as $book)
                         @php
                             $balance = (float) $book->balance_calculated;
                             $now     = now();
@@ -583,7 +610,11 @@
 
                         </div>
                     @endforeach
+                    </div>{{-- /section body --}}
+                </div>{{-- /year section --}}
+                @endforeach
 
+                <div>
                     {{-- Totals footer row — desktop, only when >1 book --}}
                     @if($books->count() > 1)
                         @php

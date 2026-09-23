@@ -26,6 +26,11 @@
         justify-content: space-between;
         align-items: flex-start;
     }
+    .biz-logo {
+        max-height: 34px;
+        max-width: 120px;
+        margin-bottom: 4px;
+    }
     .brand-name {
         font-size: 18px;
         font-weight: 700;
@@ -160,6 +165,9 @@
 <div class="header">
     <div class="header-top">
         <div>
+            @if(!empty($logoDataUri))
+                <img src="{{ $logoDataUri }}" alt="" class="biz-logo">
+            @endif
             <div class="brand-name">{{ config('app.name', 'TheCashFox') }}</div>
             <div class="book-title">{{ $book->name }}</div>
             <div class="book-sub">
@@ -183,6 +191,12 @@
             <div>Exported {{ now()->format('d M Y, H:i') }}</div>
             <div>{{ $entries->count() }} {{ Str::plural('entry', $entries->count()) }}</div>
             <div>Currency: {{ $business->currency }}</div>
+            @if($business->contact_phone)
+                <div>{{ $business->contact_phone }}</div>
+            @endif
+            @if($business->contact_email)
+                <div>{{ $business->contact_email }}</div>
+            @endif
         </div>
     </div>
 </div>

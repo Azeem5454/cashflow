@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\EntryController;
+use App\Http\Controllers\Api\V1\SearchController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SocialAuthController;
 use App\Http\Controllers\Webhooks\RevenueCatWebhookController;
@@ -68,6 +69,9 @@ Route::prefix('v1')->group(function () {
         // Only actions that email OTHER people require a verified address
         // (`api.verified` on team invitations + email report schedules).
 
+        // Global search — entries across every accessible business + book
+        Route::get('search', [SearchController::class, 'index'])->middleware('throttle:30,1');
+
         // Businesses
         Route::get   ('businesses',                  [BusinessController::class, 'index']);
         Route::post  ('businesses',                  [BusinessController::class, 'store']);
@@ -76,6 +80,9 @@ Route::prefix('v1')->group(function () {
         Route::delete('businesses/{id}',             [BusinessController::class, 'destroy']);
         Route::get   ('businesses/{id}/books',       [BusinessController::class, 'books']);
         Route::post  ('businesses/{id}/books',       [BusinessController::class, 'createBook']);
+        Route::get   ('businesses/{id}/suggested-opening', [BusinessController::class, 'suggestedOpening']);
+        Route::post  ('businesses/{id}/logo',        [BusinessController::class, 'uploadLogo'])->middleware('throttle:20,1');
+        Route::delete('businesses/{id}/logo',        [BusinessController::class, 'deleteLogo']);
         Route::get   ('businesses/{id}/members',     [BusinessController::class, 'members']);
         Route::get   ('businesses/{id}/invitations', [BusinessController::class, 'invitations']);
         Route::post  ('businesses/{id}/invitations', [BusinessController::class, 'invite'])->middleware('api.verified');

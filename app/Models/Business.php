@@ -22,7 +22,58 @@ class Business extends Model
         'name',
         'description',
         'currency',
+        'contact_phone',
+        'contact_email',
     ];
+
+    /**
+     * UploadedAsset key holding this business's logo. Not fillable — set only
+     * through storeLogo()/removeLogo() so the asset row and the column never
+     * drift apart.
+     */
+    public function logoAssetKey(): string
+    {
+        return 'business-' . $this->id . '-logo';
+    }
+
+    public function hasLogo(): bool
+    {
+        return $this->logo_key !== null && UploadedAsset::has($this->logo_key);
+    }
+
+    /** Public URL for the logo, cache-busted. null when there is none. */
+    public function logoUrl(bool $absolute = false): ?string
+    {
+        if (! $this->hasLogo()) {
+            return null;
+        }
+
+        return route('brand-asset', $this->logo_key, absolute: $absolute)
+            . '?v=' . (UploadedAsset::cacheBuster($this->logo_key) ?? 0);
+    }
+
+    /**
+     * Store raw image bytes as this business's logo (normalised to PNG,
+     * max 512px, EXIF dropped — see BusinessLogo).
+     */
+    public function storeLogo(string $bytes): void
+    {
+        $key = $this->logoAssetKey();
+        UploadedAsset::put($key, \App\Support\BusinessLogo::normalise($bytes), 'image/png');
+
+        $this->logo_key = $key;
+        $this->save();
+    }
+
+    public function removeLogo(): void
+    {
+        if ($this->logo_key) {
+            UploadedAsset::forgetKey($this->logo_key);
+        }
+
+        $this->logo_key = null;
+        $this->save();
+    }
 
     public function owner(): BelongsTo
     {
@@ -157,6 +208,105 @@ class Business extends Model
         }
 
         return $out;
+    }
+
+    /** How many days of daily net the business-row sparkline shows. */
+    public const TREND_DAYS = 7;
+
+    /**
+     * Compact activity signal for a set of business rows, in ONE query:
+     *
+     *   trend          last TREND_DAYS daily NET values, oldest → newest
+     *                  (cash in − cash out; days with no entries are 0)
+     *   monthChangePct this calendar month's net vs last month's, as a signed
+     *                  percentage; null when last month had no activity, so
+     *                  the UI can stay quiet rather than print a fake ∞%.
+     *
+     * Each business's figures are in its OWN currency — never summed across
+     * businesses.
+     *
+     * @param  array<int, string>  $businessIds
+     * @return array<string, array{trend: array<int, float>, monthChangePct: ?float}>
+     */
+    public static function trends(array $businessIds): array
+    {
+        $empty = [
+            'trend'          => array_fill(0, self::TREND_DAYS, 0.0),
+            'monthChangePct' => null,
+        ];
+
+        if ($businessIds === []) {
+            return [];
+        }
+
+        $today          = \Carbon\Carbon::today();
+        $trendStart     = $today->copy()->subDays(self::TREND_DAYS - 1);
+        $lastMonthStart = $today->copy()->subMonthNoOverflow()->startOfMonth();
+        $thisMonthStart = $today->copy()->startOfMonth();
+        // One window covering both the sparkline and the two month buckets.
+        $since = $trendStart->lt($lastMonthStart) ? $trendStart : $lastMonthStart;
+
+        $rows = \Illuminate\Support\Facades\DB::table('entries')
+            ->join('books', 'books.id', '=', 'entries.book_id')
+            ->whereIn('books.business_id', $businessIds)
+            ->where('entries.date', '>=', $since->toDateString())
+            ->groupBy('books.business_id', 'entries.date')
+            ->selectRaw('books.business_id AS business_id, entries.date AS d')
+            ->selectRaw("SUM(CASE WHEN entries.type = 'in' THEN entries.amount ELSE -entries.amount END) AS net")
+            ->get();
+
+        $out = array_fill_keys($businessIds, $empty);
+        $months = array_fill_keys($businessIds, ['this' => 0.0, 'last' => 0.0, 'lastSeen' => false]);
+
+        foreach ($rows as $row) {
+            $id = (string) $row->business_id;
+            if (! isset($out[$id])) {
+                continue;
+            }
+
+            $date = \Carbon\Carbon::parse($row->d)->startOfDay();
+            $net  = (float) $row->net;
+
+            $index = (int) $trendStart->diffInDays($date, absolute: false);
+            if ($index >= 0 && $index < self::TREND_DAYS) {
+                $out[$id]['trend'][$index] += $net;
+            }
+
+            if ($date->gte($thisMonthStart)) {
+                $months[$id]['this'] += $net;
+            } elseif ($date->gte($lastMonthStart)) {
+                $months[$id]['last']     += $net;
+                $months[$id]['lastSeen']  = true;
+            }
+        }
+
+        foreach ($months as $id => $m) {
+            // No activity at all last month → nothing honest to compare against.
+            if (! $m['lastSeen'] || abs($m['last']) < 0.005) {
+                continue;
+            }
+            $out[$id]['monthChangePct'] = round((($m['this'] - $m['last']) / abs($m['last'])) * 100, 1);
+        }
+
+        return $out;
+    }
+
+    /**
+     * The book a new book should carry its opening balance forward from:
+     * the business's book with the latest period_ends_at, falling back to the
+     * latest created_at when periods aren't set. Optionally excludes a book
+     * (used when offering a carry-forward while editing an existing one).
+     *
+     * Portable NULLS LAST — Postgres sorts NULLs first on DESC, SQLite last.
+     */
+    public function previousBookForCarryForward(?string $excludeBookId = null): ?Book
+    {
+        return $this->books()
+            ->when($excludeBookId, fn ($q) => $q->whereKeyNot($excludeBookId))
+            ->orderByRaw('CASE WHEN period_ends_at IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('period_ends_at')
+            ->orderByDesc('created_at')
+            ->first();
     }
 
     public function userRole(User $user): ?string

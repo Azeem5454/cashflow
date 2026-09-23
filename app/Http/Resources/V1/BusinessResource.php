@@ -18,6 +18,10 @@ class BusinessResource extends JsonResource
             'description'    => $this->description,
             'currency'       => $this->currency,
             'currencySymbol' => $this->currencySymbol(),
+            // Optional branding, printed on exports and email reports.
+            'logoUrl'        => $this->logoUrl(absolute: true),
+            'contactPhone'   => $this->contact_phone,
+            'contactEmail'   => $this->contact_email,
             'role'           => $this->whenPivotLoaded('business_user', fn () => $this->pivot->role),
             'isPro'          => $this->isPro(),
             // Same rule as the web free-plan gate (routes/web.php businesses.show).
@@ -33,6 +37,15 @@ class BusinessResource extends JsonResource
             'memberLimit'    => $this->memberLimit(),
             'pendingInvitesCount' => (int) ($this->pending_invitations_count
                 ?? $this->pendingInvitations()->count()),
+            // Business-row activity signal (list endpoint only — see Business::trends()).
+            'trend'          => $this->when(
+                isset($this->trend),
+                fn () => array_map(fn ($v) => round((float) $v, 2), (array) $this->trend)
+            ),
+            'monthChangePct' => $this->when(
+                isset($this->trend),
+                fn () => $this->month_change_pct === null ? null : (float) $this->month_change_pct
+            ),
             'createdAt'      => $this->created_at->toIso8601String(),
         ];
     }

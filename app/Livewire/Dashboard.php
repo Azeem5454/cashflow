@@ -98,7 +98,11 @@ class Dashboard extends Component
         $createBookBusiness = $unlocked
             ->first(fn ($b) => in_array($b->pivot?->role, ['owner', 'editor'], true));
 
+        // Sparkline + "vs last month" for the business rows — one query for all.
+        $trends = \App\Models\Business::trends($businesses->pluck('id')->all());
+
         return view('livewire.dashboard', [
+            'trends'             => $trends,
             'totals'             => $totals,
             'currentBook'        => $currentBook,
             'bookChoices'        => $bookChoices->take(self::PICKER_MAX)->values(),

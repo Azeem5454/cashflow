@@ -26,6 +26,14 @@ class Show extends Component
     public string  $bookPeriodStartsAt  = '';
     public string  $bookPeriodEndsAt    = '';
 
+    // ── Carry-forward opening balance (from the previous book's closing) ──
+    // Display-only; createBook() recomputes the amount from the DB.
+    #[Locked]
+    public ?string $carryForwardAmount   = null;
+    #[Locked]
+    public ?string $carryForwardBookName = null;
+    public bool    $carryForwardEnabled  = false;
+
     // ── Edit book modal ────────────────────────────────────────
     public bool    $showEditBook        = false;
     public string  $editingBookId       = '';
@@ -116,8 +124,29 @@ class Show extends Component
         $this->bookOpeningBalance  = '';
         $this->bookPeriodStartsAt  = '';
         $this->bookPeriodEndsAt    = '';
+
+        // Offer the previous book's closing balance, on by default.
+        $previous = $this->business->previousBookForCarryForward();
+        $this->carryForwardBookName = $previous?->name;
+        $this->carryForwardAmount   = $previous?->closingBalance();
+        $this->carryForwardEnabled  = $previous !== null;
+        if ($this->carryForwardEnabled) {
+            $this->bookOpeningBalance = $this->carryForwardAmount;
+        }
+
         $this->resetErrorBag();
         $this->showCreateBook      = true;
+    }
+
+    /** Checkbox toggled: fill the opening balance field, or clear it back to 0. */
+    public function updatedCarryForwardEnabled(bool $value): void
+    {
+        if ($this->carryForwardAmount === null) {
+            $this->carryForwardEnabled = false;
+            return;
+        }
+
+        $this->bookOpeningBalance = $value ? $this->carryForwardAmount : '';
     }
 
     public function createBook(string $periodStart = '', string $periodEnd = ''): void
@@ -127,8 +156,15 @@ class Show extends Component
         $this->validate([
             'bookName'           => 'required|string|max:100',
             'bookDescription'    => 'nullable|string|max:500',
-            'bookOpeningBalance' => 'nullable|numeric|min:0|max:999999999.99',
+            'bookOpeningBalance' => 'nullable|numeric|min:-999999999.99|max:999999999.99',
         ]);
+
+        // Carry-forward is re-read from the DB here; the number the browser
+        // holds is only ever a display value.
+        if ($this->carryForwardEnabled && $this->bookOpeningBalance === '') {
+            $this->bookOpeningBalance = $this->business
+                ->previousBookForCarryForward()?->closingBalance() ?? '';
+        }
 
         $book = $this->business->books()->create([
             'name'             => $this->bookName,
@@ -166,7 +202,7 @@ class Show extends Component
         $this->validate([
             'editBookName'           => 'required|string|max:100',
             'editBookDescription'    => 'nullable|string|max:500',
-            'editBookOpeningBalance' => 'nullable|numeric|min:0|max:999999999.99',
+            'editBookOpeningBalance' => 'nullable|numeric|min:-999999999.99|max:999999999.99',
         ]);
 
         $this->business->books()->where('id', $this->editingBookId)->update([
@@ -309,7 +345,12 @@ class Show extends Component
             ->withCount('entries')
             ->withSum(['entries as total_in'  => fn ($q) => $q->where('type', 'in')],  'amount')
             ->withSum(['entries as total_out' => fn ($q) => $q->where('type', 'out')], 'amount')
-            ->when($this->search, fn ($q) => $q->where('name', 'ilike', '%' . $this->search . '%'))
+            // LOWER(...) LIKE rather than Postgres-only ILIKE, with the user's
+            // % and _ escaped so a search term can't act as a wildcard.
+            ->when($this->search, function ($q) {
+                $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($this->search)) . '%';
+                $q->whereRaw("LOWER(name) LIKE ? ESCAPE '\\'", [$like]);
+            })
             ->orderBy($sortColumn[0], $sortColumn[1])
             ->get()
             ->map(function ($book) {
@@ -320,6 +361,59 @@ class Show extends Component
                 return $book;
             });
 
-        return view('livewire.business.show', compact('books'));
+        return view('livewire.business.show', [
+            'books'      => $books,
+            'bookGroups' => $this->groupByYear($books),
+        ]);
+    }
+
+    /**
+     * Books bucketed into collapsible year sections, newest year first.
+     *
+     * A book's year is the year of its period_starts_at, falling back to
+     * created_at when it has no period. While searching, grouping is skipped:
+     * results come back as one flat section (year => null) so a match in 2024
+     * isn't hidden inside a collapsed header.
+     *
+     * The current year's section opens expanded; older years start collapsed.
+     *
+     * @return array<int, array{key:string, year:?int, count:int, net:string, open:bool, books:\Illuminate\Support\Collection}>
+     */
+    private function groupByYear(\Illuminate\Support\Collection $books): array
+    {
+        if (trim($this->search) !== '') {
+            return $books->isEmpty() ? [] : [[
+                'key'   => 'search',
+                'year'  => null,
+                'count' => $books->count(),
+                'net'   => $books->reduce(fn ($c, $b) => bcadd($c, (string) $b->balance_calculated, 2), '0.00'),
+                'open'  => true,
+                'books' => $books,
+            ]];
+        }
+
+        $thisYear = (int) now()->format('Y');
+
+        $groups = $books
+            ->groupBy(fn ($book) => (int) ($book->period_starts_at ?? $book->created_at)->format('Y'))
+            ->sortKeysDesc()
+            ->map(fn ($group, $year) => [
+                'key'   => (string) $year,
+                'year'  => (int) $year,
+                'count' => $group->count(),
+                'net'   => $group->reduce(fn ($c, $b) => bcadd($c, (string) $b->balance_calculated, 2), '0.00'),
+                'open'  => (int) $year === $thisYear,
+                'books' => $group->values(),
+            ])
+            ->values()
+            ->all();
+
+        // Nothing from the current year? Open the newest section anyway, so the
+        // page never loads as a stack of closed headers.
+        if ($groups !== [] && ! collect($groups)->contains('open', true)) {
+            $groups[0]['open'] = true;
+        }
+
+        return $groups;
     }
 }

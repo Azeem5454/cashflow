@@ -12,12 +12,18 @@ use Livewire\Component;
 class Settings extends Component
 {
     use \App\Livewire\Concerns\RequiresVerifiedEmail;
+    use \Livewire\WithFileUploads;
 
     public Business $business;
 
     // General form
     public string $name        = '';
     public string $description = '';
+
+    // Branding shown on exports and email reports
+    public string $contactPhone = '';
+    public string $contactEmail = '';
+    public $logoUpload = null;
 
     // Invite form
     public string $inviteEmail = '';
@@ -36,9 +42,11 @@ class Settings extends Component
     {
         abort_unless($business->userRole(auth()->user()) === 'owner', 403);
 
-        $this->business    = $business;
-        $this->name        = $business->name;
-        $this->description = $business->description ?? '';
+        $this->business     = $business;
+        $this->name         = $business->name;
+        $this->description  = $business->description ?? '';
+        $this->contactPhone = $business->contact_phone ?? '';
+        $this->contactEmail = $business->contact_email ?? '';
     }
 
     /**
@@ -66,11 +74,53 @@ class Settings extends Component
         $this->guardOwner();
 
         $data = $this->validate([
-            'name'        => 'required|string|max:100',
-            'description' => 'nullable|string|max:500',
+            'name'         => 'required|string|max:100',
+            'description'  => 'nullable|string|max:500',
+            'contactPhone' => 'nullable|string|max:40',
+            'contactEmail' => 'nullable|email|max:255',
         ]);
 
-        $this->business->update($data);
+        $this->business->update([
+            'name'          => $data['name'],
+            'description'   => $data['description'] ?? null,
+            'contact_phone' => ($data['contactPhone'] ?? '') ?: null,
+            'contact_email' => ($data['contactEmail'] ?? '') ?: null,
+        ]);
+
+        $this->dispatch('general-saved');
+    }
+
+    /** Logo upload — validated on both extension and sniffed MIME. */
+    public function updatedLogoUpload(): void
+    {
+        $this->guardOwner();
+
+        $this->validate([
+            'logoUpload' => [
+                'required', 'image',
+                'mimes:png,jpg,jpeg',
+                'mimetypes:image/png,image/jpeg',
+                'max:1024', // KB
+            ],
+        ]);
+
+        $bytes = file_get_contents($this->logoUpload->getRealPath());
+        if ($bytes === false) {
+            $this->addError('logoUpload', 'That file could not be read. Try again.');
+            return;
+        }
+
+        $this->business->storeLogo($bytes);
+        $this->logoUpload = null;
+        $this->dispatch('general-saved');
+    }
+
+    public function removeLogo(): void
+    {
+        $this->guardOwner();
+
+        $this->business->removeLogo();
+        $this->logoUpload = null;
         $this->dispatch('general-saved');
     }
 

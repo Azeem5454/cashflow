@@ -25,8 +25,15 @@ class BusinessController extends Controller
             ->orderBy('name')
             ->get();
 
-        $balances = Business::netBalances($businesses->pluck('id')->all());
-        $businesses->each(fn ($b) => $b->net_balance = $balances[$b->id] ?? '0.00');
+        $ids      = $businesses->pluck('id')->all();
+        $balances = Business::netBalances($ids);
+        $trends   = Business::trends($ids);
+
+        $businesses->each(function ($b) use ($balances, $trends) {
+            $b->net_balance      = $balances[$b->id] ?? '0.00';
+            $b->trend            = $trends[$b->id]['trend'] ?? null;
+            $b->month_change_pct = $trends[$b->id]['monthChangePct'] ?? null;
+        });
 
         return BusinessResource::collection($businesses);
     }
@@ -83,15 +90,24 @@ class BusinessController extends Controller
         $validated = $request->validate([
             'name'           => ['required', 'string', 'max:255'],
             'description'    => ['nullable', 'string', 'max:1000'],
-            'openingBalance' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'openingBalance' => ['nullable', 'numeric', 'min:-999999999.99', 'max:999999999.99'],
             'periodStartsAt' => ['nullable', 'date'],
             'periodEndsAt'   => ['nullable', 'date', 'after_or_equal:periodStartsAt'],
+            'carryForward'   => ['nullable', 'boolean'],
         ]);
+
+        // Carry-forward is computed server-side from the previous book's closing
+        // balance — a client-sent figure is never trusted. An explicit
+        // openingBalance always wins (the user edited the prefilled number).
+        $opening = $validated['openingBalance'] ?? null;
+        if ($opening === null && $request->boolean('carryForward')) {
+            $opening = $business->previousBookForCarryForward()?->closingBalance() ?? '0';
+        }
 
         $book = $business->books()->create([
             'name'             => $validated['name'],
             'description'      => $validated['description'] ?? null,
-            'opening_balance'  => $validated['openingBalance'] ?? 0,
+            'opening_balance'  => $opening ?? 0,
             'period_starts_at' => $validated['periodStartsAt'] ?? null,
             'period_ends_at'   => $validated['periodEndsAt'] ?? null,
         ]);
@@ -100,6 +116,27 @@ class BusinessController extends Controller
             'id'   => $book->id,
             'name' => $book->name,
         ], 201);
+    }
+
+    /**
+     * GET /api/v1/businesses/{id}/suggested-opening
+     *
+     * What the create-book screen should offer as a carry-forward opening
+     * balance: the closing balance of the business's most recent book.
+     * Returns nulls when the business has no books yet (first book — no offer).
+     */
+    public function suggestedOpening(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $business = $this->findAuthorizedBusiness($request, $id);
+
+        $previous = $business->previousBookForCarryForward();
+
+        return response()->json([
+            'suggestedOpeningBalance' => $previous?->closingBalance(),
+            'previousBookId'          => $previous?->id,
+            'previousBookName'        => $previous?->name,
+            'currencySymbol'          => $business->currencySymbol(),
+        ]);
     }
 
     /**
@@ -167,14 +204,65 @@ class BusinessController extends Controller
         $this->ensureOwner($request, $business);
 
         $validated = $request->validate([
-            'name'        => ['sometimes', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:1000'],
-            'currency'    => ['sometimes', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
+            'name'         => ['sometimes', 'string', 'max:255'],
+            'description'  => ['nullable', 'string', 'max:1000'],
+            'currency'     => ['sometimes', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
+            'contactPhone' => ['nullable', 'string', 'max:40'],
+            'contactEmail' => ['nullable', 'email', 'max:255'],
         ]);
 
-        $business->update($validated);
+        $attrs = collect($validated)->only(['name', 'description', 'currency'])->all();
+        foreach (['contactPhone' => 'contact_phone', 'contactEmail' => 'contact_email'] as $in => $col) {
+            if ($request->has($in)) {
+                $attrs[$col] = ($validated[$in] ?? null) ?: null;
+            }
+        }
+
+        $business->update($attrs);
 
         return response()->json(['message' => 'Business updated.']);
+    }
+
+    /**
+     * POST /api/v1/businesses/{id}/logo — upload/replace the export logo (owner only).
+     * multipart/form-data, field `logo`.
+     */
+    public function uploadLogo(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $business = $this->findAuthorizedBusiness($request, $id);
+        $this->ensureOwner($request, $business);
+
+        $request->validate([
+            'logo' => [
+                'required', 'image',
+                'mimes:png,jpg,jpeg',
+                'mimetypes:image/png,image/jpeg',
+                'max:1024', // KB
+            ],
+        ]);
+
+        $bytes = file_get_contents($request->file('logo')->getRealPath());
+        abort_if($bytes === false, 422, 'That file could not be read.');
+
+        $business->storeLogo($bytes);
+
+        return response()->json([
+            'message' => 'Logo updated.',
+            'logoUrl' => $business->logoUrl(absolute: true),
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/businesses/{id}/logo — remove the export logo (owner only).
+     */
+    public function deleteLogo(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $business = $this->findAuthorizedBusiness($request, $id);
+        $this->ensureOwner($request, $business);
+
+        $business->removeLogo();
+
+        return response()->json(['message' => 'Logo removed.']);
     }
 
     /**

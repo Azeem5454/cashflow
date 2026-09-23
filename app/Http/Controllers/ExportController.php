@@ -24,6 +24,26 @@ class ExportController extends Controller
         abort_unless($book->business_id === $business->id, 404);
     }
 
+    /**
+     * The business logo as a `data:` URI for dompdf, or null when there is
+     * none (or the asset row vanished). Never fails an export.
+     */
+    private function logoDataUri(Business $business): ?string
+    {
+        if (! $business->hasLogo()) {
+            return null;
+        }
+
+        try {
+            $bytes = \App\Models\UploadedAsset::payload($business->logo_key);
+            $mime  = \App\Models\UploadedAsset::meta($business->logo_key)['mime'] ?? 'image/png';
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $bytes === null ? null : 'data:' . $mime . ';base64,' . base64_encode($bytes);
+    }
+
     private function entriesWithRunningBalance(Book $book)
     {
         $entries = $book->entries()
@@ -52,9 +72,11 @@ class ExportController extends Controller
         $totalIn  = $book->totalIn();
         $totalOut = $book->totalOut();
         $balance  = $book->balance();
+        // dompdf can't fetch remote images by default — embed the logo inline.
+        $logoDataUri = $this->logoDataUri($business);
 
         $pdf = Pdf::loadView('exports.book-pdf', compact(
-            'business', 'book', 'entries', 'totalIn', 'totalOut', 'balance'
+            'business', 'book', 'entries', 'totalIn', 'totalOut', 'balance', 'logoDataUri'
         ))->setPaper('a4', 'landscape');
 
         $filename = str()->slug($business->name) . '-' . str()->slug($book->name) . '.pdf';
@@ -70,11 +92,24 @@ class ExportController extends Controller
         $entries  = $this->entriesWithRunningBalance($book);
         $filename = str()->slug($business->name) . '-' . str()->slug($book->name) . '.csv';
 
-        return response()->streamDownload(function () use ($entries) {
+        return response()->streamDownload(function () use ($entries, $business, $book) {
             $handle = fopen('php://output', 'w');
 
             // UTF-8 BOM so Excel opens it correctly
             fputs($handle, "\xEF\xBB\xBF");
+
+            // Header rows: who this ledger belongs to and how to reach them.
+            fputcsv($handle, [$business->name]);
+            if ($business->contact_phone) {
+                fputcsv($handle, ['Phone', $business->contact_phone]);
+            }
+            if ($business->contact_email) {
+                fputcsv($handle, ['Email', $business->contact_email]);
+            }
+            fputcsv($handle, ['Book', $book->name]);
+            fputcsv($handle, ['Currency', $business->currency]);
+            fputcsv($handle, ['Exported', now()->format('Y-m-d H:i')]);
+            fputcsv($handle, []);
 
             fputcsv($handle, [
                 'Date', 'Description', 'Reference',

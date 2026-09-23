@@ -19,9 +19,13 @@ class BrandAssetController extends Controller
     /**
      * Allow-list regex for servable asset keys. Static keys cover brand assets;
      * the pattern also permits `blog-post-{uuid}-featured` so blog featured
-     * images work. Anything outside the pattern is treated as abuse (404).
+     * images work, and `business-{uuid}-logo` for per-business export logos.
+     * Anything outside the pattern is treated as abuse (404).
+     *
+     * A business logo is served to anyone holding the URL: it is printed on
+     * exports and embedded in report emails, so it cannot be auth-gated.
      */
-    private const KEY_PATTERN = '/^(logo-dark|logo-light|favicon|og-image|blog-post-[0-9a-f\-]{36}-featured)$/i';
+    private const KEY_PATTERN = '/^(logo-dark|logo-light|favicon|og-image|blog-post-[0-9a-f\-]{36}-featured|business-[0-9a-f\-]{36}-logo)$/i';
 
     public function show(string $key)
     {

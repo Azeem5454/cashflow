@@ -51,6 +51,11 @@ Route::get('/dashboard', \App\Livewire\Dashboard::class)
     ->middleware(['auth', 'redirect_admin'])
     ->name('dashboard');
 
+// Global search — every entry across every business/book the user can access.
+Route::get('/search', \App\Livewire\Search::class)
+    ->middleware(['auth', 'redirect_admin'])
+    ->name('search');
+
 Route::middleware(['auth', 'redirect_admin'])->group(function () {
     Route::get('/businesses/create', function () {
         return view('business.create');

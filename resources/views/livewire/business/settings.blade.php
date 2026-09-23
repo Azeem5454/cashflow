@@ -138,6 +138,86 @@
                         @enderror
                     </div>
 
+                    {{-- Logo + contact details, printed on exports & reports --}}
+                    <div class="pt-2 dark:border-t dark:border-slate-700 border-t border-gray-100 space-y-4">
+                        <div>
+                            <h3 class="font-heading font-bold text-sm dark:text-white text-gray-900">Export branding</h3>
+                            <p class="text-xs dark:text-slate-400 text-gray-500 mt-0.5">
+                                Optional. Shown on PDF/CSV exports and email reports.
+                            </p>
+                        </div>
+
+                        {{-- Logo --}}
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-400 text-gray-500 mb-2">
+                                Logo <span class="normal-case font-normal dark:text-slate-500 text-gray-400">(optional)</span>
+                            </label>
+                            <div class="flex items-center gap-4">
+                                <div class="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center
+                                            dark:bg-navy bg-gray-50 dark:border-slate-700 border-gray-200 border">
+                                    @if($business->hasLogo())
+                                        <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }} logo" class="w-full h-full object-contain">
+                                    @else
+                                        <span class="font-display font-extrabold text-xl dark:text-slate-600 text-gray-400">
+                                            {{ strtoupper(mb_substr($business->name, 0, 1)) }}
+                                        </span>
+                                    @endif
+                                </div>
+                                <div class="min-w-0 space-y-1.5">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <label class="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg cursor-pointer
+                                                      dark:bg-slate-800 bg-gray-100 dark:text-slate-200 text-gray-700
+                                                      dark:hover:bg-slate-700 hover:bg-gray-200 transition-all duration-150">
+                                            <input type="file" wire:model="logoUpload" accept="image/png,image/jpeg" class="sr-only">
+                                            <span wire:loading.remove wire:target="logoUpload">
+                                                {{ $business->hasLogo() ? 'Replace logo' : 'Upload logo' }}
+                                            </span>
+                                            <span wire:loading wire:target="logoUpload">Uploading…</span>
+                                        </label>
+                                        @if($business->hasLogo())
+                                            <button type="button" wire:click="removeLogo"
+                                                    class="px-3 py-2 text-xs font-semibold rounded-lg
+                                                           text-red-600 dark:text-red-400
+                                                           dark:hover:bg-red-950 hover:bg-red-50 transition-all duration-150">
+                                                Remove
+                                            </button>
+                                        @endif
+                                    </div>
+                                    <p class="text-xs dark:text-slate-500 text-gray-400">PNG or JPG, up to 1 MB. A square image looks best.</p>
+                                </div>
+                            </div>
+                            @error('logoUpload')
+                                <p class="mt-1.5 text-xs text-red-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Contact phone + email --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-400 text-gray-500 mb-2">
+                                    Phone <span class="normal-case font-normal dark:text-slate-500 text-gray-400">(optional)</span>
+                                </label>
+                                <input wire:model="contactPhone" type="text" placeholder="+1 555 0100"
+                                       class="w-full px-4 py-2.5 text-sm rounded-xl
+                                              dark:bg-navy bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                              dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
+                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                                @error('contactPhone') <p class="mt-1.5 text-xs text-red-500">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-400 text-gray-500 mb-2">
+                                    Email <span class="normal-case font-normal dark:text-slate-500 text-gray-400">(optional)</span>
+                                </label>
+                                <input wire:model="contactEmail" type="email" placeholder="billing@example.com"
+                                       class="w-full px-4 py-2.5 text-sm rounded-xl
+                                              dark:bg-navy bg-gray-50 dark:border-slate-700 border-gray-200 border
+                                              dark:text-white text-gray-900 dark:placeholder-slate-600 placeholder-gray-400
+                                              focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-150">
+                                @error('contactEmail') <p class="mt-1.5 text-xs text-red-500">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex justify-end pt-1">
                         <button wire:click="saveGeneral"
                                 wire:loading.attr="disabled"

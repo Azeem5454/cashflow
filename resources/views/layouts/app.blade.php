@@ -58,6 +58,19 @@
     @endif
     @livewireStyles
     <style>[x-cloak] { display: none !important; }</style>
+
+    {{-- "/" anywhere (outside a field) jumps to global search; on /search it just focuses the box. --}}
+    <script>
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+            var t = e.target;
+            if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+            var box = document.getElementById('global-search-input');
+            e.preventDefault();
+            if (box) { box.focus(); box.select(); return; }
+            window.location.href = @json(route('search'));
+        });
+    </script>
 </head>
 <body class="font-body antialiased dark:bg-navy bg-slate-50 dark:text-white text-gray-900 transition-colors duration-300">
 
@@ -279,6 +292,19 @@
         {{-- Navigation --}}
         <nav class="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
             <p class="text-[10px] font-bold uppercase tracking-widest dark:text-slate-400 text-gray-500 px-3 pb-2">Main</p>
+
+            <a href="{{ route('search') }}" wire:navigate
+               class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                      {{ request()->routeIs('search')
+                          ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-light'
+                          : 'dark:text-slate-400 text-gray-600 dark:hover:bg-slate-800/80 hover:bg-gray-100 dark:hover:text-white hover:text-gray-900' }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.85-4.65a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/>
+                </svg>
+                Search
+                <kbd class="ml-auto px-1.5 py-0.5 rounded border text-[10px] font-mono
+                            dark:border-slate-700 border-gray-300 dark:text-slate-500 text-gray-400">/</kbd>
+            </a>
 
             <a href="{{ route('dashboard') }}" wire:navigate
                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
