@@ -13,6 +13,10 @@ Route::get('/', function () {
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 
+// Public account-deletion instructions. Google Play requires this URL to be
+// reachable WITHOUT signing in — keep it outside every auth group.
+Route::view('/delete-account', 'legal.delete-account')->name('delete-account');
+
 // Dynamic sitemap — public pages, /blog, every published post + category.
 Route::get('/sitemap.xml', \App\Http\Controllers\SitemapController::class)->name('sitemap');
 

@@ -30,6 +30,7 @@ class SitemapController extends Controller
             ['loc' => $base . '/login',    'priority' => '0.5', 'changefreq' => 'yearly'],
             ['loc' => $base . '/terms',    'priority' => '0.3', 'changefreq' => 'yearly'],
             ['loc' => $base . '/privacy',  'priority' => '0.3', 'changefreq' => 'yearly'],
+            ['loc' => $base . '/delete-account', 'priority' => '0.3', 'changefreq' => 'yearly'],
         ];
 
         try {

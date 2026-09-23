@@ -16,7 +16,7 @@
         <li><strong>Account information</strong> — name, email address, and password (stored as a cryptographic hash, never in plain text). If you sign in with Google, we receive your name, email address, and Google account ID from Google.</li>
         <li><strong>Business and financial data</strong> — business names, book titles, entry amounts, categories, descriptions, receipts, comments, and attachments you upload</li>
         <li><strong>Team and collaboration data</strong> — invitations you send, team member emails, and role assignments</li>
-        <li><strong>Payment information</strong> — billing details are collected and stored directly by Stripe; we receive only a customer identifier and subscription status. <strong>We never see or store your card number.</strong></li>
+        <li><strong>Payment information</strong> — if you subscribe on our website, billing details are collected and stored directly by Stripe. If you subscribe inside our iOS or Android app, the purchase is handled by Apple or Google and we receive only an anonymous purchase identifier and your subscription status through RevenueCat, our subscription management provider. In every case we receive only a customer identifier and whether the subscription is active. <strong>We never see or store your card number.</strong></li>
         <li><strong>Support correspondence</strong> — messages you send us</li>
     </ul>
 
@@ -40,7 +40,7 @@
     <ul>
         <li>To provide, operate, and maintain the Service</li>
         <li>To authenticate you and protect your account</li>
-        <li>To process payments and manage subscriptions (via Stripe)</li>
+        <li>To process payments and manage subscriptions (via Stripe on the web, and Apple or Google with RevenueCat in the apps)</li>
         <li>To send transactional emails — account verification, password reset, team invitations, report emails you have opted into</li>
         <li>To improve the Service, fix bugs, and add features</li>
         <li>To detect and prevent fraud, abuse, and security incidents</li>
@@ -61,7 +61,7 @@
     <h2>4. Sharing and disclosure</h2>
     <p>We share your information only with:</p>
     <ul>
-        <li><strong>Service providers</strong> who help us operate {{ $app }} — hosting (Railway), payments (Stripe), email delivery (Resend), error monitoring (Sentry), AI processing (Anthropic), sign-in with Google and website analytics (Google), and bot protection on sign-up (Cloudflare Turnstile). Each is bound by contract to protect your data and use it only for the services they provide us.</li>
+        <li><strong>Service providers</strong> who help us operate {{ $app }} — hosting (Railway), payments (Stripe on the web; Apple and Google for in-app purchases, with RevenueCat managing subscription status), email delivery (Resend), error monitoring (Sentry), AI processing (Anthropic), sign-in with Google and website analytics (Google), and bot protection on sign-up (Cloudflare Turnstile). Each is bound by contract to protect your data and use it only for the services they provide us.</li>
         <li><strong>Team members you invite</strong> — if you invite another user to a business, they will see the business data you share access to, scoped by their role.</li>
         <li><strong>Legal requests</strong> — if required by valid law, court order, or subpoena, or to protect rights, property, or safety.</li>
         <li><strong>Successors</strong> — in a merger, acquisition, or sale of assets, your data may transfer to the successor entity, subject to this Policy.</li>
@@ -83,7 +83,7 @@
         <li>Object to or restrict certain processing</li>
         <li>Withdraw consent where processing is based on consent</li>
     </ul>
-    <p>You can update your profile and delete your account directly inside the Service, on the web and in the mobile app. Pro users can also export any book as PDF or CSV. For a full copy of your data, or anything else, email us.</p>
+    <p>You can update your profile and delete your account directly inside the Service, on the web and in the mobile app — see <a href="{{ route('delete-account') }}">how to delete your account</a> for the steps and for exactly what is removed and what we must keep. Pro users can also export any book as PDF or CSV. For a full copy of your data, or anything else, email us.</p>
 
     <h2>8. Children</h2>
     <p>{{ $app }} is not directed at children under 16 and we do not knowingly collect personal information from them. If you believe a child has given us information, contact us and we will delete it.</p>

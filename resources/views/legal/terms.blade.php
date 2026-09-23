@@ -27,20 +27,22 @@
     <p>You retain ownership of all financial records, receipts, team information, and other data you enter into the Service ("Your Data"). You grant {{ $app }} a limited licence to host, copy, process, and display Your Data solely to provide and improve the Service. We will not sell Your Data to third parties.</p>
 
     <h2>4. Plans, billing, and cancellation</h2>
-    <p>The Service is offered on a Free plan and paid Pro plan. Paid subscriptions are billed monthly in advance via our payment processor (Stripe). You may cancel at any time from your billing settings; cancellation takes effect at the end of the current billing period, and you retain access to Pro features until then. We do not offer refunds for partial billing periods except where required by law.</p>
-    <p>Prices and features may change; we will give reasonable notice before any change that affects active subscribers.</p>
+    <p>The Service is offered on a Free plan and a paid Pro plan. Pro is billed monthly in advance and renews automatically until cancelled.</p>
+    <p><strong>Subscribing on our website.</strong> Payment is taken by our payment processor, Stripe. You may cancel at any time from your billing settings; cancellation takes effect at the end of the current billing period and you keep Pro features until then. We do not offer refunds for partial billing periods except where required by law.</p>
+    <p><strong>Subscribing inside the iOS or Android app.</strong> The purchase is made through Apple or Google, who take the payment and hold the subscription. It renews automatically unless you turn off auto-renewal at least 24 hours before the period ends, and you must cancel it in your Apple or Google account settings — we cannot cancel or refund it for you. Refunds for these purchases are governed by Apple's and Google's own policies. Deleting your {{ $app }} account does not cancel a store subscription.</p>
+    <p>Prices and features may change; we will give reasonable notice before any change that affects active subscribers. Prices shown in the apps are set per country by the store and may differ from the price on our website.</p>
 
     <h2>5. AI features</h2>
     <p>The Service includes AI-assisted features (receipt scanning, auto-categorization, cash flow insights). AI outputs may contain errors and should be reviewed before relying on them for financial, tax, or legal decisions. {{ $app }} does not guarantee the accuracy of AI-generated content and is not responsible for decisions made based on it.</p>
 
     <h2>6. Third-party services</h2>
-    <p>The Service integrates with third-party providers including Stripe (payments) and Anthropic (AI). Your use of those integrations is also subject to the respective provider's terms and privacy policies.</p>
+    <p>The Service integrates with third-party providers including Stripe (payments on the web), Apple and Google (in-app purchases) with RevenueCat (subscription management), and Anthropic (AI). Your use of those integrations is also subject to the respective provider's terms and privacy policies.</p>
 
     <h2>7. Availability and changes</h2>
     <p>We aim to keep the Service available but do not guarantee uninterrupted access. We may modify, suspend, or discontinue any part of the Service at any time. We will give reasonable notice for material changes that reduce functionality available to paying customers.</p>
 
     <h2>8. Termination</h2>
-    <p>You may close your account at any time from your profile settings. We may suspend or terminate your account for violation of these Terms, fraudulent activity, abusive behaviour, or non-payment. On termination, access to the Service and Your Data through the Service will end; export your data before closing if you wish to retain it.</p>
+    <p>You may close your account at any time from your profile settings — see <a href="{{ route('delete-account') }}">how to delete your account</a>. We may suspend or terminate your account for violation of these Terms, fraudulent activity, abusive behaviour, or non-payment. On termination, access to the Service and Your Data through the Service will end; export your data before closing if you wish to retain it.</p>
 
     <h2>9. Disclaimer of warranties</h2>
     <p>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. {{ $app }} IS NOT A SUBSTITUTE FOR PROFESSIONAL ACCOUNTING, TAX, OR LEGAL ADVICE.</p>

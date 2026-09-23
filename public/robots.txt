@@ -4,6 +4,7 @@ Allow: /login
 Allow: /register
 Allow: /terms
 Allow: /privacy
+Allow: /delete-account
 Allow: /blog
 Allow: /blog/
 Disallow: /admin

@@ -110,7 +110,8 @@
             <a href="{{ url('/') }}">Home</a> &nbsp;·&nbsp;
             <a href="{{ route('blog.index') }}">Blog</a> &nbsp;·&nbsp;
             <a href="{{ route('terms') }}">Terms</a> &nbsp;·&nbsp;
-            <a href="{{ route('privacy') }}">Privacy</a>
+            <a href="{{ route('privacy') }}">Privacy</a> &nbsp;·&nbsp;
+            <a href="{{ route('delete-account') }}">Delete account</a>
         </span>
     </div>
 </body>
