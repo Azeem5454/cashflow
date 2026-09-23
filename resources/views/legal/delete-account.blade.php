@@ -34,6 +34,17 @@
     <h2>Request deletion by email</h2>
     <p>If you cannot sign in, email <a href="mailto:{{ $support }}">{{ $support }}</a> from the address on the account and ask us to delete it. We will verify that you own the address and complete the deletion within 30 days, usually much sooner.</p>
 
+    <h2>Deleting some of your data without closing your account</h2>
+    <p>You don't have to delete your whole account to remove data. Signed in, on the phone or the web, you can:</p>
+    <ul>
+        <li><strong>Delete a single entry</strong> — open it and choose Delete. Its receipt attachment and comments go with it.</li>
+        <li><strong>Remove a receipt</strong> — edit the entry and remove the attachment; the file is deleted from storage.</li>
+        <li><strong>Delete a book</strong> — it moves to a recycle bin for 30 days so a mistake can be undone, then it and its entries are permanently erased. You can also delete it from the bin immediately.</li>
+        <li><strong>Delete a whole business</strong> — this permanently removes its books, entries, attachments and team access.</li>
+        <li><strong>Remove a team member</strong> — they lose all access to that business straight away.</li>
+    </ul>
+    <p>If you would rather we did any of this for you, email <a href="mailto:{{ $support }}">{{ $support }}</a> from the address on your account.</p>
+
     <h2>What is deleted</h2>
     <p>Deleting your account immediately and permanently removes:</p>
     <ul>

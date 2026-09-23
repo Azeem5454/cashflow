@@ -20,7 +20,9 @@ class PublicLegalPagesTest extends TestCase
             ->assertSee('Delete Your Account')
             ->assertSee('Delete from the mobile app')
             ->assertSee('What is deleted')
-            ->assertSee('What is kept, and why');
+            ->assertSee('What is kept, and why')
+            // Play asks separately whether partial deletion is offered.
+            ->assertSee('Deleting some of your data without closing your account');
     }
 
     public function test_delete_account_page_is_indexable(): void
