@@ -120,6 +120,7 @@
                     $balances = \App\Models\Entry::query()
                         ->selectRaw('books.business_id, SUM(CASE WHEN entries.type = \'in\' THEN entries.amount ELSE -entries.amount END) as net')
                         ->join('books', 'entries.book_id', '=', 'books.id')
+                        ->whereNull('books.deleted_at')
                         ->whereIn('books.business_id', $list->pluck('id'))
                         ->groupBy('books.business_id')
                         ->pluck('net', 'business_id');

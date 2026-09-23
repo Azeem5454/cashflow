@@ -7,10 +7,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Book extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, SoftDeletes;
+
+    /**
+     * How long a deleted book stays restorable in the recycle bin.
+     * `books:purge-deleted` force-deletes anything older than this.
+     */
+    public const BIN_DAYS = 30;
 
     protected $fillable = [
         'business_id',
@@ -30,7 +37,61 @@ class Book extends Model
             'period_starts_at'         => 'date',
             'period_ends_at'           => 'date',
             'ai_insights_generated_at' => 'datetime',
+            'deleted_at'               => 'datetime',
         ];
+    }
+
+    // ── Recycle bin ──────────────────────────────────────────────────────
+
+    /** When this binned book is purged for good. null when it isn't binned. */
+    public function binPurgesAt(): ?\Carbon\Carbon
+    {
+        return $this->deleted_at?->copy()->addDays(self::BIN_DAYS);
+    }
+
+    /**
+     * Whole days left before this binned book is purged (0 once it's due).
+     * null when the book isn't in the bin.
+     */
+    public function binDaysLeft(): ?int
+    {
+        $purgesAt = $this->binPurgesAt();
+
+        if ($purgesAt === null) {
+            return null;
+        }
+
+        return max(0, (int) ceil(now()->diffInDays($purgesAt, absolute: false)));
+    }
+
+    /**
+     * Permanently remove this book: its attachment files leave storage first,
+     * then the row goes and the ON DELETE CASCADE foreign keys take the
+     * entries, categories, payment modes, recurring rules, comments, activity
+     * log and report schedule with it.
+     *
+     * Idempotent — safe to call on an already-purged or never-binned book, and
+     * a missing file on disk never fails the purge.
+     */
+    public function purge(): void
+    {
+        $paths = Entry::withoutGlobalScopes()
+            ->where('book_id', $this->id)
+            ->whereNotNull('attachment_path')
+            ->pluck('attachment_path');
+
+        foreach ($paths as $path) {
+            try {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($path);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Book purge: could not delete attachment', [
+                    'book_id' => $this->id,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $this->forceDelete();
     }
 
     public function business(): BelongsTo

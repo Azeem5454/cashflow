@@ -23,6 +23,13 @@ class GenerateRecurringEntries extends Command
         $count = 0;
 
         foreach ($recurring as $rec) {
+            // Book is in the recycle bin (relation resolves to null while it is
+            // soft-deleted) — generate nothing, and don't advance next_run_at,
+            // so restoring the book simply resumes the schedule.
+            if (! $rec->book || ! $rec->book->business) {
+                continue;
+            }
+
             // Skip if the book's business owner is no longer Pro
             if (! $rec->book->business->isPro()) {
                 continue;

@@ -147,12 +147,12 @@ class UserDetail extends Component
 
         // Cascade delete owned businesses
         foreach ($this->user->ownedBusinesses as $business) {
-            foreach ($business->books as $book) {
-                $book->entries()->delete();
-                $book->categories()->delete();
-                $book->paymentModes()->delete();
+            // withTrashed(): books sitting in the 30-day recycle bin go too.
+            // purge() removes attachment files, then the cascade FKs clear
+            // entries, categories, payment modes, recurring rules and logs.
+            foreach ($business->books()->withTrashed()->get() as $book) {
+                $book->purge();
             }
-            $business->books()->delete();
             $business->invitations()->delete();
             $business->members()->detach();
             $business->delete();

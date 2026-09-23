@@ -81,7 +81,13 @@
                             @endif
                         </td>
                         <td class="px-5 py-3.5 font-mono dark:text-slate-400 text-gray-500">{{ $biz->members_count }}</td>
-                        <td class="px-5 py-3.5 font-mono dark:text-slate-400 text-gray-500">{{ $biz->books_count }}</td>
+                        <td class="px-5 py-3.5 font-mono dark:text-slate-400 text-gray-500">
+                            {{ $biz->books_count }}
+                            @if($biz->books_in_bin_count)
+                                <span class="text-amber-600 dark:text-amber-400"
+                                      title="{{ $biz->books_in_bin_count }} in the recycle bin">(+{{ $biz->books_in_bin_count }} in bin)</span>
+                            @endif
+                        </td>
                         <td class="px-5 py-3.5 font-mono dark:text-slate-400 text-gray-500">{{ number_format($biz->entries_count) }}</td>
                         <td class="px-5 py-3.5 font-mono text-xs dark:text-slate-500 text-gray-400">{{ $biz->created_at->format('d M Y') }}</td>
                     </tr>

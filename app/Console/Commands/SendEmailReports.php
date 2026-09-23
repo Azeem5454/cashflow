@@ -26,6 +26,13 @@ class SendEmailReports extends Command
                 continue;
             }
 
+            // Book is in the recycle bin (the relation resolves to null for a
+            // soft-deleted book) — the schedule stays, but nothing is sent and
+            // last_sent_at isn't touched, so it simply resumes on restore.
+            if (! $schedule->book || ! $schedule->book->business) {
+                continue;
+            }
+
             // Skip if the business owner is no longer Pro
             if (! $schedule->book->business->isPro()) {
                 continue;

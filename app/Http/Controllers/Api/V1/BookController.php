@@ -672,10 +672,77 @@ class BookController extends Controller
             'Only the business owner can delete a book.'
         );
 
-        $book->reportSchedule()->delete();
+        // Soft delete: entries, categories, payment modes, recurring rules,
+        // comments, activity log and the report schedule all stay put. The
+        // owner can restore the book for Book::BIN_DAYS days; after that
+        // `books:purge-deleted` clears it out for good.
         $book->delete();
 
-        return response()->json(['message' => 'Book deleted.']);
+        return response()->json([
+            'message'    => 'Book moved to the bin. You can restore it for ' . \App\Models\Book::BIN_DAYS . ' days.',
+            'restorable' => true,
+            'binDays'    => \App\Models\Book::BIN_DAYS,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/books/{id}/restore
+     *
+     * Brings a binned book (and everything still attached to it) back.
+     * Owner only. 404 for non-members and for ids that aren't in the bin.
+     */
+    public function restore(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findTrashedBookForOwner($request, $id);
+
+        $book->restore();
+
+        $fresh = $book->fresh()->loadCount('entries');
+        // BookResource reads these as dynamic attributes (see BusinessController@books).
+        $fresh->total_in  = BookLedger::money($fresh->totalIn());
+        $fresh->total_out = BookLedger::money($fresh->totalOut());
+        $fresh->balance   = $fresh->balance();
+
+        return response()->json([
+            'message' => 'Book restored.',
+            'data'    => new BookResource($fresh),
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/books/{id}/force
+     *
+     * Permanent, irreversible deletion of a binned book: attachment files leave
+     * storage, then the row and everything cascading off it goes. Owner only.
+     */
+    public function forceDestroy(Request $request, string $id): JsonResponse
+    {
+        $book = $this->findTrashedBookForOwner($request, $id);
+
+        $book->purge();
+
+        return response()->json(['message' => 'Book permanently deleted.']);
+    }
+
+    /**
+     * A book that is currently in the recycle bin, in a business the caller
+     * owns and that isn't Free-plan locked. Anything else is a 404/403 — same
+     * shape as findAuthorizedBook(), which can't see trashed rows.
+     */
+    private function findTrashedBookForOwner(Request $request, string $id): \App\Models\Book
+    {
+        $this->abortUnlessUuid($id);
+
+        $user = $request->user();
+        $book = \App\Models\Book::onlyTrashed()->findOrFail($id);
+        $role = $this->memberRole($user, $book->business_id);
+
+        abort_unless($role !== null, 404);
+
+        $this->ensureNotLocked($user, $book->business_id, $role);
+        $this->ensureOwnerRole($role, 'Only the business owner can do that.');
+
+        return $book;
     }
 
     /**

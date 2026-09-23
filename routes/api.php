@@ -79,6 +79,9 @@ Route::prefix('v1')->group(function () {
         Route::put   ('businesses/{id}',             [BusinessController::class, 'update']);
         Route::delete('businesses/{id}',             [BusinessController::class, 'destroy']);
         Route::get   ('businesses/{id}/books',       [BusinessController::class, 'books']);
+        // Recycle bin (owner only) — must be declared before the {id} book routes below.
+        Route::get   ('businesses/{id}/books/deleted', [BusinessController::class, 'deletedBooks'])
+            ->middleware('throttle:60,1');
         Route::post  ('businesses/{id}/books',       [BusinessController::class, 'createBook']);
         Route::get   ('businesses/{id}/suggested-opening', [BusinessController::class, 'suggestedOpening']);
         Route::post  ('businesses/{id}/logo',        [BusinessController::class, 'uploadLogo'])->middleware('throttle:20,1');
@@ -95,6 +98,9 @@ Route::prefix('v1')->group(function () {
         Route::get   ('books/{id}',            [BookController::class, 'show']);
         Route::put   ('books/{id}',            [BookController::class, 'update']);
         Route::delete('books/{id}',            [BookController::class, 'destroy']);
+        // Recycle bin: restore / permanent delete (owner only, throttled).
+        Route::post  ('books/{id}/restore',    [BookController::class, 'restore'])->middleware('throttle:30,1');
+        Route::delete('books/{id}/force',      [BookController::class, 'forceDestroy'])->middleware('throttle:30,1');
         Route::post  ('books/{id}/duplicate',  [BookController::class, 'duplicate']);
         Route::get   ('books/{id}/entries',    [BookController::class, 'entries']);
         Route::get   ('books/{id}/summary',    [BookController::class, 'summary']);

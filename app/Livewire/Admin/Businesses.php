@@ -38,7 +38,14 @@ class Businesses extends Component
     {
         $businesses = Business::query()
             ->with('owner')
-            ->withCount(['members', 'books', 'entries'])
+            // books/entries counts exclude recycle-bin books (SoftDeletes
+            // scope); books_in_bin_count surfaces them separately.
+            ->withCount([
+                'members',
+                'books',
+                'entries',
+                'books as books_in_bin_count' => fn ($q) => $q->onlyTrashed(),
+            ])
             ->when($this->search, fn ($q) =>
                 $q->where(fn ($q2) =>
                     $q2->where('name', 'ilike', '%' . $this->search . '%')

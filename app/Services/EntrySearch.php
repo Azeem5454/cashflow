@@ -120,6 +120,8 @@ class EntrySearch
         $query = Entry::query()
             ->join('books', 'books.id', '=', 'entries.book_id')
             ->whereIn('books.business_id', $businesses->keys()->all())
+            // Books in the recycle bin are invisible until restored.
+            ->whereNull('books.deleted_at')
             ->select('entries.*')
             // Stable, deterministic ordering: newest date first, then the row's
             // own creation order, then the UUID as the final tiebreaker.

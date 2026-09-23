@@ -73,6 +73,37 @@ class BusinessController extends Controller
     }
 
     /**
+     * GET /api/v1/businesses/{id}/books/deleted
+     *
+     * The recycle bin: books deleted within the last Book::BIN_DAYS days,
+     * most recently deleted first. Owner only — 403 for editors/viewers,
+     * 404 for non-members.
+     */
+    public function deletedBooks(Request $request, string $id): AnonymousResourceCollection
+    {
+        $business = $this->findAuthorizedBusiness($request, $id);
+
+        $this->ensureOwnerRole(
+            $this->memberRole($request->user(), $business->id),
+            'Only the business owner can see deleted books.'
+        );
+
+        $books = $business->books()
+            ->onlyTrashed()
+            ->where('deleted_at', '>', now()->subDays(\App\Models\Book::BIN_DAYS))
+            ->withCount('entries')
+            ->orderByDesc('deleted_at')
+            ->get()
+            ->each(function ($book) {
+                $book->total_in  = \App\Services\BookLedger::money($book->totalIn());
+                $book->total_out = \App\Services\BookLedger::money($book->totalOut());
+                $book->balance   = $book->balance();
+            });
+
+        return BookResource::collection($books);
+    }
+
+    /**
      * POST /api/v1/businesses/{id}/books
      */
     public function createBook(Request $request, string $id): \Illuminate\Http\JsonResponse

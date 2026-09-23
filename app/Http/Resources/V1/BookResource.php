@@ -23,6 +23,12 @@ class BookResource extends JsonResource
             'totalOut'       => isset($this->total_out) ? (string) $this->total_out : null,
             'balance'        => isset($this->balance)   ? (string) $this->balance   : null,
             'entriesCount'   => $this->whenCounted('entries'),
+            // Recycle bin — present only for books returned by
+            // GET /businesses/{id}/books/deleted.
+            $this->mergeWhen($this->deleted_at !== null, fn () => [
+                'deletedAt'   => $this->deleted_at->toIso8601String(),
+                'binDaysLeft' => $this->resource->binDaysLeft(),
+            ]),
             'createdAt'      => $this->created_at->toIso8601String(),
             'updatedAt'      => $this->updated_at?->toIso8601String(),
         ];

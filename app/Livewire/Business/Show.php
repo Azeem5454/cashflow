@@ -49,6 +49,13 @@ class Show extends Component
     public string $deletingBookName  = '';
     public string $deleteConfirmName = '';
 
+    // ── Recycle bin (owner only) ───────────────────────────────
+    public bool   $showBin              = false;
+    public bool   $showPurgeBook        = false;
+    public string $purgingBookId        = '';
+    public string $purgingBookName      = '';
+    public string $purgeConfirmName     = '';
+
     // ── Duplicate book modal ───────────────────────────────────
     public bool    $showDuplicateBook        = false;
     public string  $duplicatingBookId        = '';
@@ -63,6 +70,12 @@ class Show extends Component
     {
         $this->business = $business;
         $this->userRole = $business->userRole(auth()->user()) ?? 'viewer';
+
+        // Arrived here from deleting a book on the ledger page — show the bin
+        // straight away so "restorable for 30 days" isn't just a claim.
+        if (session()->has('book-deleted')) {
+            $this->showBin = true;
+        }
     }
 
     // ── Authorization ──────────────────────────────────────────
@@ -316,10 +329,67 @@ class Show extends Component
             ],
         ]);
 
+        // Soft delete: the book drops out of every list, summary, report and
+        // export immediately, but its entries stay put and the owner can bring
+        // it back from "Recently deleted" for 30 days.
         $this->business->books()->where('id', $this->deletingBookId)->delete();
 
         $this->showDeleteBook = false;
-        $this->dispatch('book-saved', message: 'Book deleted.');
+        $this->showBin        = true;
+        $this->dispatch('book-saved', message: 'Book moved to the bin. You can restore it for ' . Book::BIN_DAYS . ' days.');
+    }
+
+    // ── Recycle bin ────────────────────────────────────────────
+
+    public function toggleBin(): void
+    {
+        if (! $this->isOwner()) return;
+
+        $this->showBin = ! $this->showBin;
+    }
+
+    public function restoreBook(string $bookId): void
+    {
+        $this->guardOwner();
+
+        $book = $this->business->books()->onlyTrashed()->findOrFail($bookId);
+        $book->restore();
+
+        $this->dispatch('book-saved', message: '"' . $book->name . '" restored.');
+    }
+
+    public function openPurgeBook(string $bookId): void
+    {
+        if (! $this->isOwner()) return;
+
+        $book = $this->business->books()->onlyTrashed()->findOrFail($bookId);
+
+        $this->purgingBookId    = $bookId;
+        $this->purgingBookName  = $book->name;
+        $this->purgeConfirmName = '';
+        $this->resetErrorBag();
+        $this->showPurgeBook    = true;
+    }
+
+    public function purgeBook(): void
+    {
+        $this->guardOwner();
+
+        $this->validate([
+            'purgeConfirmName' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    if (trim($value) !== trim($this->purgingBookName)) {
+                        $fail('Book name does not match.');
+                    }
+                },
+            ],
+        ]);
+
+        $this->business->books()->onlyTrashed()->findOrFail($this->purgingBookId)->purge();
+
+        $this->showPurgeBook = false;
+        $this->dispatch('book-saved', message: 'Book permanently deleted.');
     }
 
     // ── Kept for backward compat (inline rename, if still used) ─
@@ -362,9 +432,31 @@ class Show extends Component
             });
 
         return view('livewire.business.show', [
-            'books'      => $books,
-            'bookGroups' => $this->groupByYear($books),
+            'books'        => $books,
+            'bookGroups'   => $this->groupByYear($books),
+            'deletedBooks' => $this->deletedBooks(),
         ]);
+    }
+
+    /**
+     * Books in the recycle bin — owner only, and only while they're still
+     * inside the restore window (anything past it is already due for purge and
+     * shouldn't be advertised as restorable).
+     *
+     * @return \Illuminate\Support\Collection<int, Book>
+     */
+    private function deletedBooks(): \Illuminate\Support\Collection
+    {
+        if (! $this->isOwner()) {
+            return collect();
+        }
+
+        return $this->business->books()
+            ->onlyTrashed()
+            ->where('deleted_at', '>', now()->subDays(Book::BIN_DAYS))
+            ->withCount('entries')
+            ->orderByDesc('deleted_at')
+            ->get();
     }
 
     /**

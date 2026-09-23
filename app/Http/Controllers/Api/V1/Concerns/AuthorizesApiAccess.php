@@ -96,6 +96,11 @@ trait AuthorizesApiAccess
 
         $user  = $request->user();
         $entry = Entry::with('book')->findOrFail($entryId);
+
+        // Book is in the recycle bin (the relation resolves to null while it is
+        // soft-deleted) — its entries are as gone as the book, so 404.
+        abort_unless($entry->book !== null, 404);
+
         $role  = $this->memberRole($user, $entry->book->business_id);
 
         abort_unless($role !== null, 404);

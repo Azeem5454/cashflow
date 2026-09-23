@@ -29,6 +29,11 @@
         <span x-text="message"></span>
     </div>
 
+    {{-- Redirected here after deleting a book from the ledger page. --}}
+    @if(session('book-deleted'))
+        <div x-data x-init="$nextTick(() => $dispatch('book-saved', { message: @js(session('book-deleted')) }))"></div>
+    @endif
+
     {{-- ===== PAGE HEADER ===== --}}
     <div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-5
                 dark:bg-navy/80 bg-white/90
@@ -661,6 +666,67 @@
 
         @endif
 
+        {{-- ===== RECENTLY DELETED (owner only) ===== --}}
+        @if($deletedBooks->isNotEmpty())
+            <div class="mt-8 dark:bg-dark bg-white rounded-2xl dark:border dark:border-slate-700 border border-gray-200 overflow-hidden">
+                <button type="button" wire:click="toggleBin"
+                        class="w-full flex items-center gap-3 px-5 py-4 text-left
+                               dark:hover:bg-slate-800/50 hover:bg-gray-50 transition-colors">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+                        </svg>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="font-heading font-bold text-sm dark:text-white text-gray-900">Recently deleted</p>
+                        <p class="text-xs dark:text-slate-400 text-gray-500 font-body">
+                            {{ $deletedBooks->count() }} {{ \Illuminate\Support\Str::plural('book', $deletedBooks->count()) }}
+                            · restorable for {{ \App\Models\Book::BIN_DAYS }} days
+                        </p>
+                    </div>
+                    <svg class="w-4 h-4 dark:text-slate-500 text-gray-400 flex-shrink-0 transition-transform {{ $showBin ? 'rotate-180' : '' }}"
+                         fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                    </svg>
+                </button>
+
+                @if($showBin)
+                    <div class="dark:border-t dark:border-slate-800 border-t border-gray-100">
+                        @foreach($deletedBooks as $binned)
+                            @php $daysLeft = $binned->binDaysLeft(); @endphp
+                            <div wire:key="bin-{{ $binned->id }}"
+                                 class="flex flex-wrap items-center gap-3 px-5 py-4
+                                        dark:border-b dark:border-slate-800 border-b border-gray-100 last:border-b-0">
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-body font-semibold text-sm dark:text-white text-gray-900 truncate">{{ $binned->name }}</p>
+                                    <p class="text-xs dark:text-slate-400 text-gray-500 font-body mt-0.5">
+                                        Deleted {{ $binned->deleted_at->diffForHumans() }}
+                                        · {{ $binned->entries_count }} {{ \Illuminate\Support\Str::plural('entry', $binned->entries_count) }}
+                                        · <span class="text-amber-600 dark:text-amber-400">
+                                            deletes permanently in {{ $daysLeft }} {{ \Illuminate\Support\Str::plural('day', $daysLeft) }}
+                                          </span>
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <button type="button" wire:click="restoreBook('{{ $binned->id }}')"
+                                            class="px-3 py-2 text-xs font-semibold font-body rounded-lg
+                                                   bg-primary text-white hover:bg-accent transition-colors">
+                                        Restore
+                                    </button>
+                                    <button type="button" wire:click="openPurgeBook('{{ $binned->id }}')"
+                                            class="px-3 py-2 text-xs font-semibold font-body rounded-lg
+                                                   dark:text-red-400 text-red-600
+                                                   dark:hover:bg-red-500/10 hover:bg-red-50 transition-colors">
+                                        Delete permanently
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        @endif
+
     </div>
 
     {{-- ===== TABLE GRID STYLES ===== --}}
@@ -694,8 +760,10 @@
                 </div>
                 <h3 class="font-heading font-bold text-lg dark:text-white text-gray-900 text-center mb-1">Delete Book</h3>
                 <p class="text-sm dark:text-slate-400 text-gray-500 font-body text-center mb-4">
-                    This will permanently delete <strong class="dark:text-white text-gray-900">{{ $deletingBookName }}</strong>
-                    and all its entries. This action cannot be undone.
+                    <strong class="dark:text-white text-gray-900">{{ $deletingBookName }}</strong>
+                    will be moved to the bin and hidden everywhere. Its entries are kept — you can
+                    restore it from <strong class="dark:text-slate-300 text-gray-700">Recently deleted</strong>
+                    for {{ \App\Models\Book::BIN_DAYS }} days.
                 </p>
                 <div class="mb-4">
                     <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">
@@ -723,6 +791,59 @@
                         Cancel
                     </button>
                     <button wire:click="deleteBook"
+                            class="flex-1 py-2.5 text-sm font-semibold font-body
+                                   bg-red-500 text-white hover:bg-red-400
+                                   rounded-xl transition-all duration-200 shadow-lg shadow-red-500/20">
+                        Move to Bin
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ===== PERMANENTLY DELETE BOOK MODAL ===== --}}
+    @if($showPurgeBook)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="fixed inset-0 bg-navy/70 backdrop-blur-sm" wire:click="$set('showPurgeBook', false)"></div>
+            <div class="relative w-full max-w-md dark:bg-dark bg-white rounded-2xl shadow-2xl
+                        dark:border dark:border-slate-700 border border-gray-200 p-6">
+                <div class="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                    </svg>
+                </div>
+                <h3 class="font-heading font-bold text-lg dark:text-white text-gray-900 text-center mb-1">Delete permanently</h3>
+                <p class="text-sm dark:text-slate-400 text-gray-500 font-body text-center mb-4">
+                    <strong class="dark:text-white text-gray-900">{{ $purgingBookName }}</strong>,
+                    all its entries, attachments, comments and history will be erased.
+                    <strong class="dark:text-red-400 text-red-500">This cannot be undone.</strong>
+                </p>
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">
+                        Type <span class="dark:text-red-400 text-red-500 normal-case tracking-normal">{{ $purgingBookName }}</span> to confirm
+                    </label>
+                    <input type="text"
+                           wire:model="purgeConfirmName"
+                           wire:keydown.enter="purgeBook"
+                           placeholder="{{ $purgingBookName }}"
+                           class="w-full px-4 py-2.5 text-sm font-body
+                                  dark:bg-slate-800 bg-white
+                                  dark:border dark:border-slate-700 border border-gray-300
+                                  dark:text-white text-gray-900 rounded-xl
+                                  placeholder:dark:text-slate-600 placeholder:text-gray-400
+                                  focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500/50
+                                  transition-all duration-150">
+                    @error('purgeConfirmName') <p class="text-xs text-red-400 mt-1 font-body">{{ $message }}</p> @enderror
+                </div>
+                <div class="flex gap-2">
+                    <button wire:click="$set('showPurgeBook', false)"
+                            class="flex-1 py-2.5 text-sm font-semibold font-body
+                                   dark:bg-slate-800 bg-gray-100 dark:text-slate-300 text-gray-700
+                                   dark:hover:bg-slate-700 hover:bg-gray-200
+                                   rounded-xl transition-all duration-200">
+                        Cancel
+                    </button>
+                    <button wire:click="purgeBook"
                             class="flex-1 py-2.5 text-sm font-semibold font-body
                                    bg-red-500 text-white hover:bg-red-400
                                    rounded-xl transition-all duration-200 shadow-lg shadow-red-500/20">

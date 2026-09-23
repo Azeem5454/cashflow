@@ -486,8 +486,10 @@
                 </div>
                 <h3 class="font-heading font-bold text-lg dark:text-white text-gray-900 text-center mb-1">Delete Book</h3>
                 <p class="text-sm dark:text-slate-400 text-gray-500 font-body text-center mb-4">
-                    This will permanently delete <strong class="dark:text-white text-gray-900">{{ $book->name }}</strong>
-                    and all its entries. This action cannot be undone.
+                    <strong class="dark:text-white text-gray-900">{{ $book->name }}</strong>
+                    will be moved to the bin and hidden everywhere. Its entries are kept — you can
+                    restore it from <strong class="dark:text-slate-300 text-gray-700">Recently deleted</strong>
+                    on the business page for {{ \App\Models\Book::BIN_DAYS }} days.
                 </p>
                 <div class="mb-4">
                     <label class="block text-xs font-semibold uppercase tracking-wider dark:text-slate-500 text-gray-500 font-body mb-1.5">
@@ -518,7 +520,7 @@
                             class="flex-1 py-2.5 text-sm font-semibold font-body
                                    bg-red-500 text-white hover:bg-red-400
                                    rounded-lg transition-all duration-200 shadow-lg shadow-red-500/20">
-                        Delete Permanently
+                        Move to Bin
                     </button>
                 </div>
             </div>

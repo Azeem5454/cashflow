@@ -244,7 +244,9 @@ class PlanService
             return [];
         }
 
-        return Book::whereIn('business_id', $businessIds)->pluck('id')->all();
+        // withTrashed: a book in the recycle bin can still be restored, so its
+        // recurring rules / report schedule must follow the plan change too.
+        return Book::withTrashed()->whereIn('business_id', $businessIds)->pluck('id')->all();
     }
 
     private function apply(User $user, bool $stripe, ?string $reason, bool $keepLegacy, bool $sideEffects = true): User

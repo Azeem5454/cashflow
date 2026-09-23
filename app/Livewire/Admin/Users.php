@@ -66,12 +66,10 @@ class Users extends Component
 
         // Cascade: delete owned businesses + their books, entries, members, invitations
         foreach ($user->ownedBusinesses as $business) {
-            foreach ($business->books as $book) {
-                $book->entries()->delete();
-                $book->categories()->delete();
-                $book->paymentModes()->delete();
+            // withTrashed(): books sitting in the 30-day recycle bin go too.
+            foreach ($business->books()->withTrashed()->get() as $book) {
+                $book->purge();
             }
-            $business->books()->delete();
             $business->invitations()->delete();
             $business->members()->detach();
             $business->delete();

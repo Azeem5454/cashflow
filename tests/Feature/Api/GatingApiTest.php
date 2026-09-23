@@ -33,8 +33,10 @@ class GatingApiTest extends ApiTestCase
         $this->postJson("/api/v1/books/{$book->id}/duplicate", ['name' => 'Copy'])->assertCreated();
 
         $this->actingAsUser($owner);
+        // Deleting now bins the book for 30 days rather than erasing it.
         $this->deleteJson("/api/v1/books/{$book->id}")->assertOk();
-        $this->assertNull($book->fresh());
+        $this->assertSoftDeleted('books', ['id' => $book->id]);
+        $this->assertNull(\App\Models\Book::find($book->id));
     }
 
     public function test_free_cannot_resume_a_paused_recurring_rule(): void

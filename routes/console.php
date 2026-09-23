@@ -14,3 +14,5 @@ Schedule::command('reports:send')->dailyAt('09:00');
 // services share the Redis lock store, so only one of them ever runs it.
 Schedule::command('blog:generate')->dailyAt('09:00')->withoutOverlapping()->onOneServer();
 Schedule::command('billing:expire-store')->hourly()->withoutOverlapping();
+// Empties the books recycle bin: force-deletes anything binned > 30 days ago.
+Schedule::command('books:purge-deleted')->dailyAt('03:30')->withoutOverlapping()->onOneServer();

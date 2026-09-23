@@ -241,7 +241,9 @@ class WebGatingSecurityTest extends ApiTestCase
             ->set('deleteConfirmName', $book->name)
             ->call('deleteBook')
             ->assertRedirect(route('businesses.show', $business->id));
-        $this->assertNull($book->fresh());
+        // Deleting now bins the book for 30 days rather than erasing it.
+        $this->assertSoftDeleted('books', ['id' => $book->id]);
+        $this->assertNull(\App\Models\Book::find($book->id));
     }
 
     public function test_duplicate_book_keeps_opening_balance_on_the_web(): void

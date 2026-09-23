@@ -1345,11 +1345,15 @@ class Show extends Component
         }
 
         $businessId = $this->business->id;
-        $this->book->entries()->delete();
-        $this->book->categories()->delete();
-        $this->book->paymentModes()->delete();
-        $this->book->reportSchedule?->delete();
+
+        // Soft delete only. Entries, categories, payment modes, recurring
+        // rules, comments, activity log and the report schedule all stay in
+        // place — the owner has 30 days to restore the book from "Recently
+        // deleted" on the business page. Permanent deletion (there, or via
+        // `books:purge-deleted`) is what cleans them up.
         $this->book->delete();
+
+        session()->flash('book-deleted', 'Book moved to the bin. You can restore it for ' . \App\Models\Book::BIN_DAYS . ' days.');
 
         $this->redirect(route('businesses.show', $businessId));
     }

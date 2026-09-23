@@ -92,6 +92,12 @@ class Business extends Model
         return $this->hasMany(Book::class);
     }
 
+    /** Books in the 30-day recycle bin, most recently deleted first. */
+    public function trashedBooks(): HasMany
+    {
+        return $this->hasMany(Book::class)->onlyTrashed()->orderByDesc('deleted_at');
+    }
+
     public function entries(): HasManyThrough
     {
         return $this->hasManyThrough(Entry::class, Book::class);
@@ -185,6 +191,8 @@ class Business extends Model
 
         $openings = \Illuminate\Support\Facades\DB::table('books')
             ->whereIn('business_id', $businessIds)
+            // Binned books are invisible everywhere until they're restored.
+            ->whereNull('deleted_at')
             ->groupBy('business_id')
             ->selectRaw('business_id, COALESCE(SUM(opening_balance), 0) AS total')
             ->pluck('total', 'business_id');
@@ -192,6 +200,7 @@ class Business extends Model
         $movements = \Illuminate\Support\Facades\DB::table('entries')
             ->join('books', 'books.id', '=', 'entries.book_id')
             ->whereIn('books.business_id', $businessIds)
+            ->whereNull('books.deleted_at')
             ->groupBy('books.business_id')
             ->selectRaw("books.business_id, COALESCE(SUM(CASE WHEN entries.type = 'in' THEN entries.amount ELSE -entries.amount END), 0) AS total")
             ->pluck('total', 'business_id');
@@ -249,6 +258,7 @@ class Business extends Model
         $rows = \Illuminate\Support\Facades\DB::table('entries')
             ->join('books', 'books.id', '=', 'entries.book_id')
             ->whereIn('books.business_id', $businessIds)
+            ->whereNull('books.deleted_at')
             ->where('entries.date', '>=', $since->toDateString())
             ->groupBy('books.business_id', 'entries.date')
             ->selectRaw('books.business_id AS business_id, entries.date AS d')
