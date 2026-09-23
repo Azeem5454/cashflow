@@ -135,8 +135,20 @@ class BlogPublicTest extends BlogTestCase
         $this->assertStringContainsString('href="' . route('register') . '"', $html);
 
         preg_match_all('#<script type="application/ld\+json">(.*?)</script>#s', $html, $m);
-        $this->assertCount(1, $m[1]);
-        $schema = json_decode($m[1][0], true);
+        $this->assertCount(2, $m[1], 'Post pages carry BlogPosting + BreadcrumbList');
+
+        $blocks = array_map(fn ($json) => json_decode($json, true), $m[1]);
+        foreach ($blocks as $i => $block) {
+            $this->assertIsArray($block, "JSON-LD block {$i} must be valid JSON");
+        }
+
+        $byType = collect($blocks)->keyBy('@type');
+        $this->assertTrue($byType->has('BreadcrumbList'));
+        $crumbs = $byType['BreadcrumbList']['itemListElement'];
+        $this->assertSame(1, $crumbs[0]['position']);
+        $this->assertSame(count($crumbs), end($crumbs)['position'], 'positions must run 1..n');
+
+        $schema = $byType['BlogPosting'];
         $this->assertIsArray($schema, 'JSON-LD must be valid JSON');
         $this->assertSame('BlogPosting', $schema['@type']);
         $this->assertSame('https://schema.org', $schema['@context']);

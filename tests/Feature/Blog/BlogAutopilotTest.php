@@ -23,6 +23,7 @@ class BlogAutopilotTest extends BlogTestCase
 
         $this->mock(BlogImageRenderer::class, function ($m) {
             $m->shouldReceive('renderForPost')->andReturnUsing(fn ($id) => "blog-post-{$id}-featured");
+            $m->shouldReceive('lastPhotoCredit')->andReturn(null);
         });
 
         Setting::set('blog_autopilot.enabled', '1');

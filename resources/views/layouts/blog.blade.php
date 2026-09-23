@@ -36,7 +36,46 @@
         $logoUrl = $appUrl . '/brand/cashflow_logo.png';
     }
 
-    $fullTitle = str_contains($pageTitle, $appName) ? $pageTitle : ($pageTitle . ' — ' . $appName);
+    // Google truncates around 60 characters. seo_title is authored to that
+    // budget, so only append the brand when the result still fits — otherwise
+    // the suffix pushes the keyword out of the visible part of the result.
+    $suffixed = $pageTitle . ' — ' . $appName;
+    $fullTitle = (str_contains($pageTitle, $appName) || mb_strlen($suffixed) > 60)
+        ? $pageTitle
+        : $suffixed;
+
+    // Breadcrumbs: [['name' => ..., 'url' => ...], ...] — pages pass their own.
+    $breadcrumbs = $breadcrumbs ?? null;
+    $breadcrumbJson = null;
+    if (is_array($breadcrumbs) && count($breadcrumbs) > 1) {
+        $breadcrumbJson = json_encode([
+            '@context'        => 'https://schema.org',
+            '@type'           => 'BreadcrumbList',
+            'itemListElement' => array_values(array_map(fn ($c, $i) => [
+                '@type'    => 'ListItem',
+                'position' => $i + 1,
+                'name'     => $c['name'],
+                'item'     => $c['url'],
+            ], $breadcrumbs, array_keys($breadcrumbs))),
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+    }
+
+    // WebSite + Organization on listing pages, where there is no BlogPosting.
+    $siteJson = null;
+    if (! $postForSchema) {
+        $siteJson = json_encode([
+            '@context' => 'https://schema.org',
+            '@type'    => 'WebSite',
+            'name'     => $appName,
+            'url'      => $appUrl . '/',
+            'publisher' => [
+                '@type' => 'Organization',
+                'name'  => $appName,
+                'url'   => $appUrl . '/',
+                'logo'  => ['@type' => 'ImageObject', 'url' => $logoUrl],
+            ],
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+    }
     $faviconSrc = \App\Models\UploadedAsset::has('favicon')
         ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon')
         : asset('favicon.png');
@@ -51,7 +90,7 @@
     <title>{{ $fullTitle }}</title>
     <meta name="description" content="{{ $pageDescription }}">
     <meta name="theme-color" content="#0a0f1e">
-    <meta name="author" content="{{ $appName }}">
+    <meta name="author" content="{{ $articleMeta['author'] ?? $appName }}">
     <meta name="format-detection" content="telephone=no">
     <meta name="robots" content="{{ $robots }}">
     <link rel="canonical" href="{{ $canonical }}">
@@ -92,6 +131,14 @@
          BlogPost::articleSchema() so the output is always valid JSON. --}}
     @if($postForSchema)
         <script type="application/ld+json">{!! $postForSchema->articleSchemaJson($ogImage, $logoUrl) !!}</script>
+    @endif
+
+    @if($breadcrumbJson)
+        <script type="application/ld+json">{!! $breadcrumbJson !!}</script>
+    @endif
+
+    @if($siteJson)
+        <script type="application/ld+json">{!! $siteJson !!}</script>
     @endif
 
     {{-- Feed discovery --}}

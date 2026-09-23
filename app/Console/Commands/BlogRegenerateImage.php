@@ -61,8 +61,11 @@ class BlogRegenerateImage extends Command
 
         foreach ($posts as $post) {
             try {
-                $key = $renderer->renderForPost($post->id, $post->title, $post->category);
-                $post->update(['featured_image_key' => $key]);
+                $key = $renderer->renderForPost($post->id, $post->title, $post->category, $post->image_query);
+                $post->update([
+                    'featured_image_key'    => $key,
+                    'featured_image_credit' => $renderer->lastPhotoCredit(),
+                ]);
                 $this->info('✓ ' . $post->slug);
                 $ok++;
             } catch (\Throwable $e) {

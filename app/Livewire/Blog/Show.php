@@ -80,6 +80,13 @@ class Show extends Component
                 'section'        => $this->post->category?->name,
             ],
             'postForSchema'   => $this->post,
+            'breadcrumbs'     => array_values(array_filter([
+                ['name' => 'Blog', 'url' => route('blog.index')],
+                $this->post->category
+                    ? ['name' => $this->post->category->name, 'url' => route('blog.category', $this->post->category->slug)]
+                    : null,
+                ['name' => $this->post->title, 'url' => $this->post->url()],
+            ])),
         ]);
     }
 }

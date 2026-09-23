@@ -138,9 +138,12 @@ class Edit extends Component
         }
 
         try {
-            $key = app(\App\Services\BlogImageRenderer::class)
-                ->renderForPost($this->post->id, $this->post->title, $this->post->category);
-            $this->post->update(['featured_image_key' => $key]);
+            $renderer = app(\App\Services\BlogImageRenderer::class);
+            $key = $renderer->renderForPost($this->post->id, $this->post->title, $this->post->category, $this->post->image_query);
+            $this->post->update([
+                'featured_image_key'    => $key,
+                'featured_image_credit' => $renderer->lastPhotoCredit(),
+            ]);
             $this->post->refresh();
             $this->removeFeaturedImage = false;
             $this->dispatch('blog-toast', message: 'Image regenerated.');

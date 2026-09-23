@@ -42,12 +42,27 @@ class BlogImageRenderer
     private string $fontSemi;
     private string $fontRegular;
 
-    public function __construct()
+    /** Photographer credit for the photo used by the last render, if any. */
+    private ?string $lastCredit = null;
+
+    public function __construct(private ?StockPhotoFinder $photos = null)
     {
         $base = storage_path('fonts');
         $this->fontBold    = $base . '/BricolageGrotesque-Bold.ttf';
         $this->fontSemi    = $base . '/Outfit-SemiBold.ttf';
         $this->fontRegular = $base . '/Outfit-Regular.ttf';
+
+        $this->photos ??= app(StockPhotoFinder::class);
+    }
+
+    /**
+     * Photographer behind the last rendered image, or null when the render
+     * fell back to the typographic design. Callers persist this so the post
+     * can credit them.
+     */
+    public function lastPhotoCredit(): ?string
+    {
+        return $this->lastCredit;
     }
 
     /**
@@ -56,15 +71,27 @@ class BlogImageRenderer
      *
      * @throws \RuntimeException if GD is unavailable or fonts are missing
      */
-    public function renderForPost(string $postId, string $title, ?BlogCategory $category = null): string
-    {
+    public function renderForPost(
+        string $postId,
+        string $title,
+        ?BlogCategory $category = null,
+        ?string $imageQuery = null
+    ): string {
         $this->assertReady();
+
+        $this->lastCredit = null;
 
         $img = imagecreatetruecolor(self::WIDTH, self::HEIGHT);
         imagesavealpha($img, true);
 
-        $this->drawGradientBackground($img);
-        $this->drawGlow($img, $category);
+        // A real photograph when we can find one for the topic; the
+        // typographic design when we can't. Text treatment is identical
+        // either way, so the set stays visually coherent.
+        if (! $this->drawPhotoBackground($img, $imageQuery, $category)) {
+            $this->drawGradientBackground($img);
+            $this->drawGlow($img, $category);
+        }
+
         $this->drawGrain($img);
         $this->drawCategoryPill($img, $category);
         $this->drawTitle($img, $title);
@@ -82,6 +109,92 @@ class BlogImageRenderer
     }
 
     // ─── Template pieces ───────────────────────────────────────────────
+
+    /**
+     * Photo background: cover-fit, blurred, then pushed back under a navy
+     * scrim so the white title keeps its contrast whatever the photo is.
+     * Returns false when there's no usable photo, so the caller falls back.
+     */
+    private function drawPhotoBackground($img, ?string $query, ?BlogCategory $category): bool
+    {
+        if ($query === null || trim($query) === '') {
+            return false;
+        }
+
+        $photo = $this->photos->find($query);
+        if ($photo === null) {
+            return false;
+        }
+
+        $src = @imagecreatefromstring($photo['bytes']);
+        if ($src === false) {
+            return false;
+        }
+
+        $this->copyCover($img, $src);
+        imagedestroy($src);
+
+        // Soften detail: the image is background, not subject matter. Several
+        // light passes read better than one heavy one.
+        for ($i = 0; $i < 3; $i++) {
+            imagefilter($img, IMG_FILTER_GAUSSIAN_BLUR);
+        }
+
+        // Flat navy wash for brand consistency and baseline contrast.
+        $wash = imagecolorallocatealpha($img, self::NAVY_DEEP[0], self::NAVY_DEEP[1], self::NAVY_DEEP[2], 40);
+        imagefilledrectangle($img, 0, 0, self::WIDTH, self::HEIGHT, $wash);
+
+        // Darker towards the centre, where the title sits.
+        $this->drawCentreScrim($img);
+
+        // A trace of the category accent keeps the series recognisable.
+        [$r, $g, $b] = $this->hexToRgb($category?->color ?? '#1a56db');
+        $tint = imagecolorallocatealpha($img, $r, $g, $b, 112);
+        imagefilledrectangle($img, 0, 0, self::WIDTH, self::HEIGHT, $tint);
+
+        $this->lastCredit = $photo['credit'];
+
+        return true;
+    }
+
+    /** Scale-and-crop $src to fill the canvas without distorting it. */
+    private function copyCover($img, $src): void
+    {
+        $sw = imagesx($src);
+        $sh = imagesy($src);
+
+        $scale = max(self::WIDTH / $sw, self::HEIGHT / $sh);
+        $cropW = (int) round(self::WIDTH / $scale);
+        $cropH = (int) round(self::HEIGHT / $scale);
+
+        imagecopyresampled(
+            $img, $src,
+            0, 0,
+            (int) round(($sw - $cropW) / 2),
+            (int) round(($sh - $cropH) / 2),
+            self::WIDTH, self::HEIGHT,
+            $cropW, $cropH
+        );
+    }
+
+    /**
+     * Elliptical darkening centred on the title block. Built from concentric
+     * rings like drawGlow(), so the falloff is smooth and cheap.
+     */
+    private function drawCentreScrim($img): void
+    {
+        $cx = self::SAFE_CENTER;
+        $cy = (int) (self::HEIGHT * 0.5);
+
+        for ($i = 14; $i >= 1; $i--) {
+            $w = (int) (self::WIDTH  * (0.42 + ($i * 0.062)));
+            $h = (int) (self::HEIGHT * (0.34 + ($i * 0.062)));
+            $alpha = 118 - (int) (104 * (($i - 1) / 13));
+            if ($alpha >= 127 || $alpha < 0) continue;
+            $color = imagecolorallocatealpha($img, 4, 7, 16, $alpha);
+            imagefilledellipse($img, $cx, $cy, $w, $h, $color);
+        }
+    }
 
     /** Subtle diagonal gradient: lighter top-right → darker bottom-left. */
     private function drawGradientBackground($img): void

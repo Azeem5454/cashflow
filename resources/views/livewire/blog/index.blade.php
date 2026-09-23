@@ -61,6 +61,7 @@
                     @if($featured->featuredImageUrl())
                         <img src="{{ $featured->featuredImageUrl() }}"
                              alt="{{ $featured->featured_image_alt ?: $featured->title }}"
+                             width="1200" height="630" loading="eager" fetchpriority="high" decoding="async"
                              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]">
                     @else
                         <div class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,rgba(26,86,219,0.25),rgba(59,130,246,0.08))">
@@ -128,6 +129,7 @@
                             @if($post->featuredImageUrl())
                                 <img src="{{ $post->featuredImageUrl() }}"
                                      alt="{{ $post->featured_image_alt ?: $post->title }}"
+                                     width="1200" height="630" loading="lazy" decoding="async"
                                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]">
                             @else
                                 <div class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,rgba(26,86,219,0.22),rgba(59,130,246,0.04))">
@@ -188,7 +190,7 @@
         {{-- Pagination --}}
         @if($posts->hasPages())
             <div class="mt-14">
-                {{ $posts->withQueryString()->onEachSide(1)->links() }}
+                {{ $posts->withQueryString()->onEachSide(1)->links('vendor.pagination.blog') }}
             </div>
         @endif
     </div>

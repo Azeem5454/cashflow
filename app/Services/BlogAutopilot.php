@@ -269,7 +269,8 @@ BRIEF;
             'body_markdown'      => $clean['body_markdown'],
             'seo_title'          => $clean['seo_title'],
             'seo_description'    => $clean['seo_description'],
-            'featured_image_alt' => $clean['title'],
+            'featured_image_alt' => $clean['image_alt'] ?? $clean['title'],
+            'image_query'        => $clean['image_query'] ?? null,
             'category_id'        => $category->id,
             'author_id'          => null,
             'status'             => 'published',
@@ -282,10 +283,16 @@ BRIEF;
         // the Setting record lets the admin UI surface "last image error" on
         // the autopilot page without a separate log dive.
         try {
-            $key = $this->renderer->renderForPost($post->id, $post->title, $category);
+            $key = $this->renderer->renderForPost(
+                $post->id,
+                $post->title,
+                $category,
+                $clean['image_query'] ?? null
+            );
             // Quiet save: attaching the image right after creation isn't an
             // edit worth a second updated_at.
             $post->featured_image_key = $key;
+            $post->featured_image_credit = $this->renderer->lastPhotoCredit();
             $post->saveQuietly();
             Setting::forget('blog_autopilot.last_image_error');
         } catch (\Throwable $e) {
@@ -376,6 +383,19 @@ BRIEF;
         // JSON-encode user-controlled strings to neutralise prompt injection
         $titleJson = json_encode($titleSeed, JSON_UNESCAPED_UNICODE);
 
+        // Real published posts, so Claude links to URLs that exist instead of
+        // inventing slugs. Invented blog links are 404s and cost more in SEO
+        // than the internal link would ever earn.
+        $existing = BlogPost::published()
+            ->latestFirst()
+            ->limit(12)
+            ->get(['title', 'slug']);
+
+        $linkBlock = $existing->isEmpty()
+            ? "   (No earlier posts exist yet — skip post-to-post linking this time.)"
+            : $existing->map(fn ($p) => '   * ' . json_encode($p->title, JSON_UNESCAPED_UNICODE)
+                . ' → ' . $appUrl . '/blog/' . $p->slug)->implode("\n");
+
         if ($preselected) {
             $categoryBlock = '- Category (fixed, do not change): ' .
                 json_encode($preselected->name, JSON_UNESCAPED_UNICODE);
@@ -433,9 +453,11 @@ Rules:
    - When referenced, use concrete details from PRODUCT FACTS (e.g. "200 scans a month on Pro", not "some scans").
    - NEVER invent features, numbers, integrations or capabilities not in PRODUCT FACTS. Never say the mobile apps are available.
    - For purely educational topics (e.g. "What is cash flow?"), you may write the post without any product mentions at all — a single CTA at the end is enough.
-7. Include 1–3 internal links to {$appUrl} where natural, using markdown link syntax. Examples:
-   * [sign up free]({$appUrl}/register)
-   * [our blog]({$appUrl}/blog)
+7. Internal links, markdown syntax, where they genuinely help the reader:
+   - 1–2 links to the product, e.g. [sign up free]({$appUrl}/register)
+   - 1–2 links to EARLIER POSTS from this exact list, using the exact URL shown. Link only where the topic really connects, and use descriptive anchor text (never "click here" or "this post"):
+{$linkBlock}
+   - NEVER invent a blog URL. If nothing on the list fits, link none.
 8. Global audience: no country-specific currencies (show amounts as plain numbers or USD), no region-specific framing.
 9. Do NOT mention you are an AI. Do NOT use: "in today's fast-paced world", "in conclusion", "unlock", "leverage", "delve", "elevate", "synergy", "harness", "embark", "journey", "game-changer".
 10. Do NOT include an H1 (#) — the title is rendered separately.
@@ -443,6 +465,7 @@ Rules:
 12. No emojis. No table of contents.
 13. Slug: lowercase, hyphenated, 3–6 words, must contain the primary keyword from the title.
 14. SEO title may differ slightly from display title if it improves keyword density — both ≤ 60 chars.
+15. image_query: a concrete scene a stock photographer would shoot, e.g. "small business owner desk", "coffee shop counter receipts", "warehouse inventory clipboard". NOT abstract nouns ("growth", "success"), NOT brand names, NOT text or UI. Plain words only.
 {$categoryPickRule}
 Return ONLY this JSON object (no markdown fences, no prose outside JSON):
 
@@ -452,7 +475,9 @@ Return ONLY this JSON object (no markdown fences, no prose outside JSON):
   "excerpt":         "≤ 220 chars hook",
   "body_markdown":   "full markdown body",
   "seo_title":       "≤ 60 chars",
-  "seo_description": "≤ 155 chars meta description"
+  "seo_description": "≤ 155 chars meta description",
+  "image_query":     "2–4 plain words naming a PHOTOGRAPHABLE scene for the header image",
+  "image_alt":       "≤ 120 chars describing that scene for screen readers — describe the PICTURE, never repeat the title"
 }
 PROMPT;
     }
@@ -581,6 +606,27 @@ PROMPT;
             throw new \RuntimeException("Body too long ({$wc} > " . self::MAX_WORDS . ' words).');
         }
 
+        // Optional image_query — a photo search phrase for the header image.
+        // Optional because an older prompt or a stubborn model may omit it;
+        // the renderer just falls back to its typographic design.
+        $imageQuery = null;
+        if (isset($data['image_query']) && is_string($data['image_query'])) {
+            $iq = trim(preg_replace('/\s+/', ' ', $data['image_query']) ?? '');
+            if ($iq !== '') {
+                $imageQuery = mb_substr($iq, 0, 120);
+            }
+        }
+
+        // Optional image_alt — describes the photo, not the post. Falls back
+        // to the title so the attribute is never empty.
+        $imageAlt = null;
+        if (isset($data['image_alt']) && is_string($data['image_alt'])) {
+            $ia = trim(preg_replace('/\s+/', ' ', $data['image_alt']) ?? '');
+            if ($ia !== '') {
+                $imageAlt = mb_substr($ia, 0, 120);
+            }
+        }
+
         // Optional category_slug — only present when admin didn't pre-select.
         $categorySlug = null;
         if (isset($data['category_slug']) && is_string($data['category_slug'])) {
@@ -598,6 +644,8 @@ PROMPT;
             'seo_title'       => $seoTitle,
             'seo_description' => $seoDescription,
             'category_slug'   => $categorySlug,
+            'image_query'     => $imageQuery,
+            'image_alt'       => $imageAlt,
         ];
     }
 

@@ -27,6 +27,7 @@ class BlogPost extends Model
     protected $fillable = [
         'slug', 'title', 'excerpt', 'body_markdown', 'body_html',
         'featured_image_key', 'featured_image_alt',
+        'image_query', 'featured_image_credit',
         'category_id', 'author_id',
         'status', 'is_featured', 'featured_at', 'published_at',
         'seo_title', 'seo_description', 'auto_topic_key',

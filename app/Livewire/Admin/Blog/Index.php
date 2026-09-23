@@ -81,9 +81,12 @@ class Index extends Component
         $post = BlogPost::with('category')->findOrFail($id);
 
         try {
-            $key = app(\App\Services\BlogImageRenderer::class)
-                ->renderForPost($post->id, $post->title, $post->category);
-            $post->update(['featured_image_key' => $key]);
+            $renderer = app(\App\Services\BlogImageRenderer::class);
+            $key = $renderer->renderForPost($post->id, $post->title, $post->category, $post->image_query);
+            $post->update([
+                'featured_image_key'    => $key,
+                'featured_image_credit' => $renderer->lastPhotoCredit(),
+            ]);
             $this->dispatch('blog-toast', message: 'Image regenerated.');
         } catch (\Throwable $e) {
             report($e);

@@ -49,6 +49,7 @@
                 <div class="aspect-[16/9] overflow-hidden sm:rounded-2xl" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)">
                     <img src="{{ $post->featuredImageUrl() }}"
                          alt="{{ $post->featured_image_alt ?: $post->title }}"
+                         width="1200" height="630" loading="eager" fetchpriority="high" decoding="async"
                          class="w-full h-full object-cover">
                 </div>
             </figure>
@@ -113,6 +114,7 @@
                         <div class="aspect-[16/10] overflow-hidden" style="background:rgba(255,255,255,0.02)">
                             @if($r->featuredImageUrl())
                                 <img src="{{ $r->featuredImageUrl() }}" alt="{{ $r->featured_image_alt ?: $r->title }}"
+                                     width="1200" height="630" loading="lazy" decoding="async"
                                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]">
                             @else
                                 <div class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,rgba(26,86,219,0.18),rgba(59,130,246,0.04))"></div>

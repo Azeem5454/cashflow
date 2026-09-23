@@ -81,6 +81,10 @@ class Index extends Component
             'canonical'       => $canonical,
             // Search result pages are thin/duplicate content — keep them out of the index.
             'robots'          => $this->search !== '' ? 'noindex,follow' : 'index,follow',
+            'breadcrumbs'     => array_values(array_filter([
+                ['name' => 'Blog', 'url' => route('blog.index')],
+                $category ? ['name' => $category->name, 'url' => route('blog.category', $category->slug)] : null,
+            ])),
         ]);
     }
 }

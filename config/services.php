@@ -45,6 +45,12 @@ return [
         'key' => env('ANTHROPIC_API_KEY', ''),
     ],
 
+    // Stock photography for blog featured images. Optional — without a key
+    // the renderer falls back to its typographic design.
+    'pexels' => [
+        'key' => env('PEXELS_API_KEY', ''),
+    ],
+
     'google' => [
         'client_id'     => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
