@@ -588,6 +588,34 @@ PROMPT;
     }
 
     /**
+     * Human-readable exchange rate line, e.g. "1 PKR = 0.0036 USD".
+     *
+     * Fixed 2-decimal formatting reads "0.00" for any currency weaker than
+     * the book's — PKR, IDR, VND and plenty of others — which looks broken
+     * and tells the user nothing. Scale the precision to the rate instead,
+     * then drop trailing zeros so strong currencies stay tidy.
+     */
+    public static function rateNote(float $rate, string $from, string $to): string
+    {
+        $decimals = match (true) {
+            $rate >= 100   => 2,
+            $rate >= 1     => 4,
+            $rate >= 0.01  => 4,
+            $rate >= 0.001 => 5,
+            default        => 6,
+        };
+
+        $formatted = rtrim(rtrim(number_format($rate, $decimals, '.', ''), '0'), '.');
+
+        // A rate small enough to vanish entirely is better shown inverted.
+        if ($formatted === '' || (float) $formatted === 0.0) {
+            $formatted = '0';
+        }
+
+        return '1 ' . $from . ' = ' . $formatted . ' ' . $to;
+    }
+
+    /**
      * Convert an amount from one currency to another using open.er-api.com (free, 1500 req/month).
      * Returns ['converted_amount' => float, 'rate' => float] or null on failure.
      */

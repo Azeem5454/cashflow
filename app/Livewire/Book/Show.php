@@ -730,7 +730,7 @@ class Show extends Component
                         $conversion = $ai->convertCurrency($rawAmount, $receiptCurrency, $bookCurrency);
                         if ($conversion) {
                             $this->ocrOriginalAmount = $receiptCurrency . ' ' . number_format($rawAmount, 2);
-                            $this->ocrConvertedAt    = '1 ' . $receiptCurrency . ' = ' . number_format($conversion['rate'], 2) . ' ' . $bookCurrency;
+                            $this->ocrConvertedAt    = \App\Services\AiService::rateNote($conversion['rate'], $receiptCurrency, $bookCurrency);
                             $this->entryAmount = (string) $conversion['converted_amount'];
                         } else {
                             // Conversion failed — use original amount

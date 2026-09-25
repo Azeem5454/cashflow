@@ -286,7 +286,7 @@ class EntryController extends Controller
                 if ($conversion) {
                     $result['amount']  = (string) $conversion['converted_amount'];
                     $ocrOriginalAmount = $receiptCurrency . ' ' . number_format($rawAmount, 2);
-                    $ocrConvertedAt    = '1 ' . $receiptCurrency . ' = ' . number_format($conversion['rate'], 2) . ' ' . $bookCurrency;
+                    $ocrConvertedAt    = \App\Services\AiService::rateNote($conversion['rate'], $receiptCurrency, $bookCurrency);
                 }
             }
 

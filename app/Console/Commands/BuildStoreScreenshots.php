@@ -31,14 +31,14 @@ class BuildStoreScreenshots extends Command
 
     /** @var array<int, array{0:string,1:string,2:bool}> headline, subline, isPro */
     private const SHOTS = [
-        1 => ["Snap it. It's logged.",      'AI reads your receipt and fills in the entry.',        false],
-        2 => ['Type it. Done.',             '"Paid $120 for fuel today" becomes a full entry.',     false],
-        3 => ['Your balance, always live',  'Cash in, cash out and net, updated instantly.',        false],
-        4 => ['Any currency, converted',    'Foreign receipts land in your business currency.',     false],
-        5 => ['See where money goes',       'Charts by category, payment method and time.',         true],
-        6 => ['Insights in plain English',  'AI explains what changed this month.',                 true],
-        7 => ['Your whole team, one book',  'Owner, Editor and Viewer roles, plus an activity log.', false],
-        8 => ['Free to start',              'Unlimited books and entries. Go Pro when you grow.',   false],
+        1 => ["Snap it. It's logged.",     'AI reads your receipt and fills in the entry.',          false],
+        2 => ['Type it. Done.',            'Describe a transaction and the form fills itself.',      false],
+        3 => ['Your balance, always live', 'Cash in, cash out and net, updated instantly.',          false],
+        4 => ['See where money goes',      'Charts by category, payment method and time.',           true],
+        5 => ['Insights in plain English', 'AI explains what changed this month.',                   true],
+        6 => ['Your whole team, one book', 'Owner, Editor and Viewer roles, with the right access.', false],
+        7 => ['Free to start',             'Unlimited books and entries. Go Pro when you grow.',     false],
+        8 => ['Nothing gets lost',         'Every change is logged, with who made it.',              false],
     ];
 
     private const NAVY  = [10, 15, 30];
