@@ -48,9 +48,9 @@ class SocialAuthController extends Controller
             ], 422);
         }
 
-        $onboarding = ($payload['new_user'] && ! $user->is_admin)
-            ? $starter->provision($user, $validated['currency'] ?? null)
-            : null;
+        // See AuthController::register — the first business is created by the
+        // user, with a currency they chose.
+        $onboarding = null;
 
         return $this->issueToken($user, $onboarding);
     }
@@ -108,9 +108,7 @@ class SocialAuthController extends Controller
             ], 422);
         }
 
-        $onboarding = ($user->wasRecentlyCreated && ! $user->is_admin)
-            ? $starter->provision($user, $validated['currency'] ?? null)
-            : null;
+        $onboarding = null;
 
         return $this->issueToken($user, $onboarding);
     }

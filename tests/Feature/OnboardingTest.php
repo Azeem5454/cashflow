@@ -27,42 +27,34 @@ class OnboardingTest extends ApiTestCase
 
     // ── API register ────────────────────────────────────────────────
 
-    public function test_api_register_creates_one_business_and_current_month_book_with_currency(): void
+    public function test_api_register_creates_no_business_so_the_user_picks_the_currency(): void
     {
-        $response = $this->postJson('/api/v1/auth/register', [
+        $this->postJson('/api/v1/auth/register', [
             'name'     => 'Sara Khan',
             'email'    => 'sara@example.com',
             'password' => 'Secret-pass-1',
             'currency' => 'PKR',
         ])->assertCreated()
-            ->assertJsonStructure(['user' => ['id', 'emailVerified'], 'token', 'onboarding' => ['businessId', 'bookId']])
+            ->assertJsonStructure(['user' => ['id', 'emailVerified'], 'token'])
+            ->assertJsonMissingPath('onboarding')
             ->assertJsonPath('user.emailVerified', false);
 
         $user = User::where('email', 'sara@example.com')->firstOrFail();
-        $this->assertSame(1, $user->businesses()->count());
 
-        $business = $user->businesses()->first();
-        $this->assertSame('My Business', $business->name);
-        $this->assertSame('PKR', $business->currency);
-        $this->assertSame($user->id, $business->owner_id);
-        $this->assertSame('owner', $business->pivot->role);
-        $this->assertSame($business->id, $response->json('onboarding.businessId'));
-
-        $book = $business->books()->sole();
-        $this->assertSame($book->id, $response->json('onboarding.bookId'));
-        $this->assertSame('September 2026', $book->name);
-        $this->assertSame('2026-09-01', $book->period_starts_at->toDateString());
-        $this->assertSame('2026-09-30', $book->period_ends_at->toDateString());
-        $this->assertSame('0.00', (string) $book->opening_balance);
+        // Currency is a per-business decision and cannot be guessed: a device
+        // locale of en-GB on a phone in Pakistan reports GBP, and entries
+        // recorded in the wrong currency can't be converted afterwards.
+        $this->assertSame(0, $user->businesses()->count());
+        $this->assertSame(0, Business::count());
     }
 
-    public function test_api_register_defaults_to_usd_and_needs_no_confirmation(): void
+    public function test_api_register_still_accepts_a_currency_without_creating_anything(): void
     {
         $this->postJson('/api/v1/auth/register', [
             'name' => 'No Currency', 'email' => 'nc@example.com', 'password' => 'Secret-pass-1',
         ])->assertCreated();
 
-        $this->assertSame('USD', User::where('email', 'nc@example.com')->first()->businesses()->first()->currency);
+        $this->assertSame(0, User::where('email', 'nc@example.com')->firstOrFail()->businesses()->count());
     }
 
     public function test_api_register_still_checks_confirmation_when_sent_and_validates_currency(): void
@@ -82,7 +74,7 @@ class OnboardingTest extends ApiTestCase
         $this->assertSame(0, User::count());
     }
 
-    public function test_invited_signup_skips_starter_workspace(): void
+    public function test_invited_signup_creates_no_business_either(): void
     {
         $owner    = $this->makeUser();
         $business = $this->makeBusiness($owner);
@@ -95,33 +87,34 @@ class OnboardingTest extends ApiTestCase
         $this->assertSame(0, User::where('email', 'Invitee@Example.com')->first()->businesses()->count());
     }
 
-    public function test_second_login_and_repeat_provisioning_do_not_duplicate(): void
+    public function test_neither_register_nor_login_returns_an_onboarding_target(): void
     {
         $this->postJson('/api/v1/auth/register', [
             'name' => 'Once', 'email' => 'once@example.com', 'password' => 'Secret-pass-1',
-        ])->assertCreated();
+        ])->assertCreated()->assertJsonMissingPath('onboarding');
 
         $this->postJson('/api/v1/auth/login', ['email' => 'once@example.com', 'password' => 'Secret-pass-1'])
             ->assertOk()->assertJsonMissingPath('onboarding');
 
-        $user = User::where('email', 'once@example.com')->first();
-        $this->assertNull(app(StarterWorkspace::class)->provision($user, 'EUR'));
-
-        $this->assertSame(1, Business::where('owner_id', $user->id)->count());
+        $this->assertSame(0, Business::count());
     }
 
-    public function test_starter_business_is_the_free_plan_business(): void
+    public function test_a_new_free_user_can_create_their_first_business_but_not_a_second(): void
     {
         $token = $this->postJson('/api/v1/auth/register', [
             'name' => 'Free', 'email' => 'free@example.com', 'password' => 'Secret-pass-1',
         ])->json('token');
 
+        // The first one is theirs to create, with a currency they chose.
+        $this->withToken($token)
+            ->postJson('/api/v1/businesses', ['name' => 'Mine', 'currency' => 'PKR'])
+            ->assertCreated();
+
+        $this->assertSame('PKR', Business::where('name', 'Mine')->firstOrFail()->currency);
+
+        // The Free plan still allows only one.
         $this->withToken($token)->postJson('/api/v1/businesses', ['name' => 'Second', 'currency' => 'USD'])
             ->assertForbidden();
-
-        // …and the starter business is not locked.
-        $bookId = Business::where('name', 'My Business')->first()->books()->first()->id;
-        $this->withToken($token)->getJson("/api/v1/books/{$bookId}")->assertOk();
     }
 
     // ── check-email ─────────────────────────────────────────────────
@@ -194,16 +187,14 @@ class OnboardingTest extends ApiTestCase
 
     // ── Web ─────────────────────────────────────────────────────────
 
-    public function test_web_register_needs_no_confirmation_and_creates_usd_workspace(): void
+    public function test_web_register_signs_in_without_creating_a_business(): void
     {
         $this->post('/register', [
             'name' => 'Web User', 'email' => 'web@example.com', 'password' => 'password',
         ])->assertRedirect(route('dashboard', absolute: false));
 
         $this->assertAuthenticated();
-        $business = User::where('email', 'web@example.com')->first()->businesses()->sole();
-        $this->assertSame('USD', $business->currency);
-        $this->assertSame('September 2026', $business->books()->sole()->name);
+        $this->assertSame(0, User::where('email', 'web@example.com')->firstOrFail()->businesses()->count());
     }
 
     public function test_web_register_from_invitation_skips_workspace_and_returns_to_invite(): void
@@ -230,7 +221,7 @@ class OnboardingTest extends ApiTestCase
             'name' => 'Evil', 'email' => 'evil@example.com', 'password' => 'password', 'redirect' => 'https://evil.example.com/invitations/abcdefabcdefabcdef/accept',
         ])->assertRedirect(route('dashboard', absolute: false));
 
-        $this->assertSame(1, User::where('email', 'evil@example.com')->first()->businesses()->count());
+        $this->assertSame(0, User::where('email', 'evil@example.com')->firstOrFail()->businesses()->count());
     }
 
     public function test_unverified_web_user_can_use_app_and_sees_banner(): void

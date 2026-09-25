@@ -327,7 +327,7 @@ class SocialAuthTest extends ApiTestCase
 
     // ── Starter workspace on social sign-up ─────────────────────────
 
-    public function test_mobile_google_new_user_gets_starter_workspace_with_app_currency_on_exchange(): void
+    public function test_mobile_google_new_user_gets_no_business_so_they_choose_the_currency(): void
     {
         $this->mockGoogleUser('g-777', 'fresh@example.com', 'Fresh User');
 
@@ -336,17 +336,14 @@ class SocialAuthTest extends ApiTestCase
         ]])->get('/auth/google/callback?code=x&state=y')->headers->get('Location');
         parse_str(parse_url($location, PHP_URL_QUERY), $query);
 
-        $user = User::where('email', 'fresh@example.com')->firstOrFail();
-        $this->assertSame(0, $user->businesses()->count(), 'created on exchange, not callback');
-
-        $response = $this->postJson('/api/v1/auth/social/exchange', ['code' => $query['code'], 'currency' => 'PKR'])
+        $this->postJson('/api/v1/auth/social/exchange', ['code' => $query['code'], 'currency' => 'PKR'])
             ->assertOk()
-            ->assertJsonStructure(['user', 'token', 'onboarding' => ['businessId', 'bookId']]);
+            ->assertJsonStructure(['user', 'token'])
+            ->assertJsonMissingPath('onboarding');
 
-        $business = $user->businesses()->firstOrFail();
-        $this->assertSame('PKR', $business->currency);
-        $this->assertSame($business->id, $response->json('onboarding.businessId'));
-        $this->assertSame(1, $business->books()->count());
+        // The device currency is not trusted: an en-GB locale on a phone in
+        // Pakistan reports GBP, and entries can't be reinterpreted later.
+        $this->assertSame(0, User::where('email', 'fresh@example.com')->firstOrFail()->businesses()->count());
     }
 
     public function test_mobile_google_existing_user_gets_no_workspace(): void
@@ -366,38 +363,33 @@ class SocialAuthTest extends ApiTestCase
         $this->assertSame(0, $existing->businesses()->count());
     }
 
-    public function test_web_google_new_user_gets_usd_starter_workspace(): void
+    public function test_web_google_new_user_gets_no_starter_business(): void
     {
         $this->mockGoogleUser('g-779', 'webnew@example.com', 'Web New');
 
         $this->get('/auth/google/callback?code=x&state=y')->assertRedirect(route('dashboard'));
 
-        $business = User::where('email', 'webnew@example.com')->firstOrFail()->businesses()->firstOrFail();
-        $this->assertSame('USD', $business->currency);
-        $this->assertSame('My Business', $business->name);
+        $this->assertSame(0, User::where('email', 'webnew@example.com')->firstOrFail()->businesses()->count());
     }
 
-    public function test_apple_new_user_gets_workspace_once_with_currency(): void
+    public function test_apple_new_user_gets_no_business(): void
     {
         $this->fakeAppleKeys();
 
         $this->postJson('/api/v1/auth/apple', [
             'identityToken' => $this->appleToken(['email' => 'apple.new@example.com']),
             'currency'      => 'EUR',
-        ])->assertOk()->assertJsonStructure(['onboarding' => ['businessId', 'bookId']]);
+        ])->assertOk()->assertJsonMissingPath('onboarding');
 
-        // Second sign-in: not a new account → no onboarding, no duplicate.
         $this->postJson('/api/v1/auth/apple', [
             'identityToken' => $this->appleToken(['email' => null]),
             'currency'      => 'EUR',
         ])->assertOk()->assertJsonMissingPath('onboarding');
 
-        $user = User::where('email', 'apple.new@example.com')->firstOrFail();
-        $this->assertSame(1, $user->businesses()->count());
-        $this->assertSame('EUR', $user->businesses()->first()->currency);
+        $this->assertSame(0, User::where('email', 'apple.new@example.com')->firstOrFail()->businesses()->count());
     }
 
-    public function test_apple_invalid_currency_falls_back_to_usd(): void
+    public function test_apple_accepts_an_invalid_currency_without_creating_anything(): void
     {
         $this->fakeAppleKeys();
 
@@ -406,7 +398,7 @@ class SocialAuthTest extends ApiTestCase
             'currency'      => 'eu',
         ])->assertOk();
 
-        $this->assertSame('USD', User::where('email', 'apple.usd@example.com')->firstOrFail()->businesses()->first()->currency);
+        $this->assertSame(0, User::where('email', 'apple.usd@example.com')->firstOrFail()->businesses()->count());
     }
 
     private function mockGoogleRedirect(): void

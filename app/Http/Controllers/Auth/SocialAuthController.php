@@ -177,7 +177,7 @@ class SocialAuthController extends Controller
         }
 
         if ($user->wasRecentlyCreated) {
-            app(StarterWorkspace::class)->provision($user, StarterWorkspace::DEFAULT_CURRENCY);
+            // Intentionally no starter workspace — see Api\V1\AuthController::register.
         }
 
         Auth::login($user, remember: true);

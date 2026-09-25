@@ -45,7 +45,12 @@ class AuthController extends Controller
 
         $user->sendEmailVerificationNotification();
 
-        $onboarding = $starter->provision($user, $validated['currency'] ?? null);
+        // No starter workspace: currency is a per-business decision we must
+        // not guess. A device locale of en-GB on a phone in Pakistan reported
+        // GBP, and entries recorded in the wrong currency can't be converted
+        // afterwards. The app guides the user through creating the first
+        // business, where they choose it explicitly.
+        $onboarding = null;
 
         $token = $user->createToken('mobile')->plainTextToken;
 

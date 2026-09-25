@@ -87,7 +87,7 @@ class RegisteredUserController extends Controller
         // First-run: a starter business + this month's book, unless they're
         // signing up to join someone else's business via an invitation.
         if (! $invitationPath) {
-            $starter->provision($user, StarterWorkspace::DEFAULT_CURRENCY);
+            // Intentionally no starter workspace — see AuthController::register.
         }
 
         Auth::login($user);
