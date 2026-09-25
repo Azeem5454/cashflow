@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\Entry;
 use App\Models\User;
+use App\Support\LikeSearch;
 use App\Support\BusinessLock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -164,17 +165,18 @@ class EntrySearch
      */
     private static function applyText(Builder $query, string $term): void
     {
-        $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($term)) . '%';
+        $like = LikeSearch::contains($term);
+        $esc  = LikeSearch::CLAUSE;
 
-        $query->where(function ($q) use ($like, $term) {
+        $query->where(function ($q) use ($like, $term, $esc) {
             foreach (['description', 'category', 'payment_mode', 'reference'] as $column) {
-                $q->orWhereRaw("LOWER(COALESCE(entries.{$column}, '')) LIKE ? ESCAPE '\\'", [$like]);
+                $q->orWhereRaw("LOWER(COALESCE(entries.{$column}, '')) LIKE ? {$esc}", [$like]);
             }
 
             // "450" should find 450.00. CAST-to-text handles partials on
             // Postgres ('450.00'); the numeric equality covers SQLite, where
             // the same value may come back as '450'.
-            $q->orWhereRaw("CAST(entries.amount AS TEXT) LIKE ? ESCAPE '\\'", [$like]);
+            $q->orWhereRaw("CAST(entries.amount AS TEXT) LIKE ? {$esc}", [$like]);
 
             if (is_numeric($term)) {
                 $q->orWhere('entries.amount', '=', $term);

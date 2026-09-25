@@ -1,6 +1,23 @@
 {
     "php": {
         "version": "8.3",
-        "extensions": ["bcmath", "ctype", "curl", "dom", "fileinfo", "gd", "mbstring", "openssl", "pcre", "pdo", "pdo_pgsql", "pgsql", "session", "tokenizer", "xml"]
+        "extensions": [
+            "opcache",
+            "bcmath",
+            "ctype",
+            "curl",
+            "dom",
+            "fileinfo",
+            "gd",
+            "mbstring",
+            "openssl",
+            "pcre",
+            "pdo",
+            "pdo_pgsql",
+            "pgsql",
+            "session",
+            "tokenizer",
+            "xml"
+        ]
     }
 }

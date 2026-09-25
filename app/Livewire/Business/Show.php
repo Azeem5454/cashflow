@@ -4,6 +4,7 @@ namespace App\Livewire\Business;
 
 use App\Models\Book;
 use App\Models\Business;
+use App\Support\LikeSearch;
 use App\Support\BusinessLock;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Locked;
@@ -418,8 +419,8 @@ class Show extends Component
             // LOWER(...) LIKE rather than Postgres-only ILIKE, with the user's
             // % and _ escaped so a search term can't act as a wildcard.
             ->when($this->search, function ($q) {
-                $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($this->search)) . '%';
-                $q->whereRaw("LOWER(name) LIKE ? ESCAPE '\\'", [$like]);
+                $like = LikeSearch::contains($this->search);
+                $q->whereRaw("LOWER(name) LIKE ? " . LikeSearch::CLAUSE, [$like]);
             })
             ->orderBy($sortColumn[0], $sortColumn[1])
             ->get()

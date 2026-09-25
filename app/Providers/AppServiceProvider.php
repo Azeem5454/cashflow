@@ -31,40 +31,21 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Override app name and mail config from settings table.
-        // Wrapped in try-catch: during Railway build, the DB isn't reachable yet
-        // (postgres.railway.internal only resolves at runtime, not build time).
-        // Keys preloaded here can then be read via config() in views — avoids
-        // hitting the DB on every public request (including the / healthcheck).
+        // Brand + mail overrides from the settings table.
+        //
+        // This used to run Schema::hasTable() plus five Setting::get() calls on
+        // EVERY request. With the database cache driver that is six round trips
+        // before routing even starts, on the landing page and every API call
+        // alike. They are now one cached array, refreshed when an admin saves.
+        //
+        // Wrapped in try/catch: during a Railway build the DB isn't reachable
+        // (postgres.railway.internal only resolves at runtime).
         try {
-            if (Schema::hasTable('settings')) {
-                $appName = Setting::get('app.name');
-                if ($appName) {
-                    Config::set('app.name', $appName);
-                }
-
-                $appTagline = Setting::get('app.tagline');
-                if ($appTagline) {
-                    Config::set('app.tagline', $appTagline);
-                }
-
-                $appSupportEmail = Setting::get('app.support_email');
-                if ($appSupportEmail) {
-                    Config::set('app.support_email', $appSupportEmail);
-                }
-
-                $mailName = Setting::get('mail.from_name');
-                if ($mailName) {
-                    Config::set('mail.from.name', $mailName);
-                }
-
-                $mailAddress = Setting::get('mail.from_address');
-                if ($mailAddress) {
-                    Config::set('mail.from.address', $mailAddress);
-                }
+            foreach (Setting::branding() as $key => $value) {
+                Config::set($key, $value);
             }
-        } catch (\Exception $e) {
-            // DB unavailable during build — skip silently, defaults apply
+        } catch (\Throwable $e) {
+            // DB unavailable (build step) — defaults apply.
         }
 
         // Sync user.plan when Stripe subscription status changes

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\LikeSearch;
+
 use App\Models\Book;
 use App\Models\Entry;
 use Illuminate\Database\Eloquent\Builder;
@@ -198,12 +200,13 @@ class BookLedger
 
         $search = isset($filters['search']) ? trim((string) $filters['search']) : '';
         if ($search !== '') {
-            $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($search)) . '%';
-            $query->where(function ($q) use ($like) {
-                $q->whereRaw("LOWER(COALESCE(entries.description, '')) LIKE ? ESCAPE '\\'", [$like])
-                  ->orWhereRaw("LOWER(COALESCE(entries.reference, '')) LIKE ? ESCAPE '\\'", [$like])
-                  ->orWhereRaw("LOWER(COALESCE(entries.category, '')) LIKE ? ESCAPE '\\'", [$like])
-                  ->orWhereRaw("CAST(entries.amount AS TEXT) LIKE ? ESCAPE '\\'", [$like]);
+            $like = LikeSearch::contains($search);
+            $esc  = LikeSearch::CLAUSE;
+            $query->where(function ($q) use ($like, $esc) {
+                $q->whereRaw("LOWER(COALESCE(entries.description, '')) LIKE ? {$esc}", [$like])
+                  ->orWhereRaw("LOWER(COALESCE(entries.reference, '')) LIKE ? {$esc}", [$like])
+                  ->orWhereRaw("LOWER(COALESCE(entries.category, '')) LIKE ? {$esc}", [$like])
+                  ->orWhereRaw("CAST(entries.amount AS TEXT) LIKE ? {$esc}", [$like]);
             });
         }
 
