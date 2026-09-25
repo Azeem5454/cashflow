@@ -189,14 +189,15 @@ class BuildStoreScreenshots extends Command
         $white = imagecolorallocate($img, ...self::WHITE);
         $light = imagecolorallocate($img, ...self::LIGHT);
 
-        $margin  = (int) round(72 * $this->k);
-        $maxW    = $this->w - ($margin * 2);
-        $headPx  = (int) round(64 * $this->k);
-        $subPx   = (int) round(30 * $this->k);
+        $margin = (int) round(72 * $this->k);
+        $maxW   = $this->w - ($margin * 2);
 
-        // Shrink the headline until it fits two lines.
-        $lines = [];
-        foreach ([$headPx, (int) ($headPx * 0.86), (int) ($headPx * 0.74)] as $size) {
+        // Headline sized per the screenshot plan: Bricolage 800 at ~88px on
+        // the 1080 canvas, stepping down only if it will not fit two lines.
+        $headPx = (int) round(88 * $this->k);
+        $lines  = [];
+
+        foreach ([$headPx, (int) round(78 * $this->k), (int) round(68 * $this->k)] as $size) {
             $lines = $this->wrap($headline, $size, $this->fontDisplay, $maxW, 2);
             if ($this->joinedWordCount($lines) >= str_word_count($headline)) {
                 $headPx = $size;
@@ -204,42 +205,69 @@ class BuildStoreScreenshots extends Command
             }
         }
 
-        $y = (int) round(150 * $this->k);
+        $y = (int) round(200 * $this->k);
 
         foreach ($lines as $line) {
             imagettftext($img, $headPx, 0, $margin, $y, $white, $this->fontDisplay, $line);
-            $y += (int) ($headPx * 1.24);
+            $y += (int) round($headPx * 1.22);
         }
 
         if ($isPro) {
-            $this->drawProPill($img, $margin, $y);
-            $y += (int) round(28 * $this->k);
+            $y += (int) round(14 * $this->k);
+            $y = $this->drawProPill($img, $margin, $y);
         }
 
-        $y += (int) round(18 * $this->k);
+        $y += (int) round(26 * $this->k);
+
+        $subPx = (int) round(40 * $this->k);
 
         foreach ($this->wrap($subline, $subPx, $this->fontBody, $maxW, 2) as $line) {
             imagettftext($img, $subPx, 0, $margin, $y, $light, $this->fontBody, $line);
-            $y += (int) ($subPx * 1.42);
+            $y += (int) round($subPx * 1.45);
         }
 
-        return $y + (int) round(56 * $this->k);
+        return $y + (int) round(70 * $this->k);
     }
 
-    private function drawProPill($img, int $x, int $y): void
+    /**
+     * Solid amber chip so paid features are never mistaken for free ones.
+     * Returns the y baseline below it.
+     */
+    private function drawProPill($img, int $x, int $y): int
     {
-        $size  = (int) round(20 * $this->k);
-        $padX  = (int) round(18 * $this->k);
-        $padY  = (int) round(10 * $this->k);
+        $size = (int) round(30 * $this->k);
+        $padX = (int) round(26 * $this->k);
+        $padY = (int) round(16 * $this->k);
 
         $bbox  = imagettfbbox($size, 0, $this->fontBody, 'PRO');
         $textW = $bbox[2] - $bbox[0];
+        $textH = $bbox[1] - $bbox[7];
 
         $x2 = $x + $textW + ($padX * 2);
-        $y2 = $y + $size + ($padY * 2);
+        $y2 = $y + $textH + ($padY * 2);
 
-        imagefilledrectangle($img, $x, $y, $x2, $y2, imagecolorallocatealpha($img, ...self::AMBER, ...[100]));
-        imagettftext($img, $size, 0, $x + $padX, $y2 - $padY - 2, imagecolorallocate($img, ...self::AMBER), $this->fontBody, 'PRO');
+        $amber = imagecolorallocate($img, ...self::AMBER);
+        $this->filledRoundedRect($img, $x, $y, $x2, $y2, (int) round(($y2 - $y) / 2), $amber);
+
+        // Dark text on solid amber — the contrast is the point.
+        $ink = imagecolorallocate($img, 17, 24, 39);
+        imagettftext($img, $size, 0, $x + $padX, $y2 - $padY - 2, $ink, $this->fontBody, 'PRO');
+
+        return $y2;
+    }
+
+    /** Rounded rectangle — GD has no primitive for it. */
+    private function filledRoundedRect($img, int $x1, int $y1, int $x2, int $y2, int $r, int $color): void
+    {
+        $r = max(1, min($r, (int) (($x2 - $x1) / 2), (int) (($y2 - $y1) / 2)));
+
+        imagefilledrectangle($img, $x1 + $r, $y1, $x2 - $r, $y2, $color);
+        imagefilledrectangle($img, $x1, $y1 + $r, $x2, $y2 - $r, $color);
+
+        imagefilledellipse($img, $x1 + $r, $y1 + $r, $r * 2, $r * 2, $color);
+        imagefilledellipse($img, $x2 - $r, $y1 + $r, $r * 2, $r * 2, $color);
+        imagefilledellipse($img, $x1 + $r, $y2 - $r, $r * 2, $r * 2, $color);
+        imagefilledellipse($img, $x2 - $r, $y2 - $r, $r * 2, $r * 2, $color);
     }
 
     /**
@@ -258,17 +286,13 @@ class BuildStoreScreenshots extends Command
         $sw = imagesx($src);
         $sh = imagesy($src);
 
-        $targetW = (int) round($this->w * 0.82);
+        $targetW = (int) round($this->w * 0.86);
         $targetH = (int) round($sh * ($targetW / $sw));
 
         $x = (int) round(($this->w - $targetW) / 2);
 
         // Bleed off the bottom rather than shrinking the UI to fit.
         $visibleH = min($targetH, $this->h - $top);
-
-        $frame = imagecolorallocatealpha($img, 255, 255, 255, 108);
-        imagesetthickness($img, max(2, (int) round(3 * $this->k)));
-        imagerectangle($img, $x - 2, $top - 2, $x + $targetW + 2, $this->h, $frame);
 
         imagecopyresampled(
             $img, $src,
