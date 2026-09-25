@@ -135,7 +135,6 @@ class BuildStoreScreenshots extends Command
         $img = imagecreatetruecolor($this->w, $this->h);
 
         $this->drawBackground($img);
-        $this->drawGlow($img);
 
         $y = $this->drawCaption($img, $headline, $subline, $isPro);
         $this->drawDevice($img, $capturePath, $y);
@@ -144,42 +143,21 @@ class BuildStoreScreenshots extends Command
         imagedestroy($img);
     }
 
+    /**
+     * Flat brand background with a barely-there vertical lift.
+     *
+     * The premium references are flat: no texture, no glow. Decoration behind
+     * a full-bleed capture reads as filler, so the only gradient here is a
+     * slight lightening towards the caption.
+     */
     private function drawBackground($img): void
     {
-        imagefilledrectangle($img, 0, 0, $this->w, $this->h, imagecolorallocate($img, ...self::NAVY));
-
-        // Faint dot grid, 24px pitch on the reference canvas.
-        $dot   = imagecolorallocatealpha($img, 255, 255, 255, 120);
-        $pitch = (int) round(24 * $this->k);
-        for ($x = 0; $x < $this->w; $x += $pitch) {
-            for ($y = 0; $y < $this->h; $y += $pitch) {
-                imagesetpixel($img, $x, $y, $dot);
-            }
-        }
-    }
-
-    /**
-     * One soft blue glow behind where the device sits.
-     *
-     * Rings are drawn largest first and must get MORE opaque as they shrink —
-     * invert that and the outermost ring floods the whole canvas, burying the
-     * navy under flat blue.
-     */
-    private function drawGlow($img): void
-    {
-        $cx = (int) ($this->w / 2);
-        $cy = (int) ($this->h * 0.56);
-
-        $rings = 16;
-
-        for ($i = $rings; $i >= 1; $i--) {
-            $r = (int) ($this->w * 0.095 * $i);
-
-            // 126 (invisible) at the outer edge → 96 (a soft wash) at the core.
-            $alpha = 126 - (int) round(30 * (($rings - $i) / ($rings - 1)));
-            if ($alpha >= 127) continue;
-
-            imagefilledellipse($img, $cx, $cy, $r, $r, imagecolorallocatealpha($img, ...self::BLUE, ...[$alpha]));
+        for ($y = 0; $y < $this->h; $y++) {
+            $t = 1 - ($y / $this->h);                    // 1 at top, 0 at bottom
+            $r = (int) round(self::NAVY[0] + ($t * 8));
+            $g = (int) round(self::NAVY[1] + ($t * 11));
+            $b = (int) round(self::NAVY[2] + ($t * 20));
+            imagefilledrectangle($img, 0, $y, $this->w, $y, imagecolorallocate($img, $r, $g, $b));
         }
     }
 
@@ -205,7 +183,7 @@ class BuildStoreScreenshots extends Command
             }
         }
 
-        $y = (int) round(200 * $this->k);
+        $y = (int) round(400 * $this->k);
 
         foreach ($lines as $line) {
             imagettftext($img, $headPx, 0, $margin, $y, $white, $this->fontDisplay, $line);
@@ -226,7 +204,11 @@ class BuildStoreScreenshots extends Command
             $y += (int) round($subPx * 1.45);
         }
 
-        return $y + (int) round(70 * $this->k);
+        // Every sheet starts its capture on the same line, so the eight read as
+        // a series rather than eight separate images. The floor is set above
+        // the tallest caption (two headline lines + PRO chip + two subline
+        // lines), so a short caption simply gets more air.
+        return max($y + (int) round(40 * $this->k), (int) round($this->h * 0.46));
     }
 
     /**
@@ -271,9 +253,12 @@ class BuildStoreScreenshots extends Command
     }
 
     /**
-     * The capture, scaled to 82% of the canvas width and bled off the bottom
-     * edge. Only scaled — never recomposed — so the UI stays exactly as the
-     * app rendered it.
+     * The capture, scaled to the FULL canvas width and bled off the bottom.
+     *
+     * Edge-to-edge is what separates a premium store sheet from a screenshot
+     * pasted on a background: there is no device frame and no margin, so the
+     * UI reads as the product rather than as an image of the product. The
+     * capture is only scaled — never redrawn — so what ships is the real app.
      */
     private function drawDevice($img, string $capturePath, int $top): void
     {
@@ -286,27 +271,16 @@ class BuildStoreScreenshots extends Command
         $sw = imagesx($src);
         $sh = imagesy($src);
 
-        $targetW = (int) round($this->w * 0.86);
+        $targetW = $this->w;
         $targetH = (int) round($sh * ($targetW / $sw));
 
-        $x = (int) round(($this->w - $targetW) / 2);
-
-        // Bleed off the bottom rather than shrinking the UI to fit.
-        $visibleH = min($targetH, $this->h - $top);
-
-        imagecopyresampled(
-            $img, $src,
-            $x, $top,
-            0, 0,
-            $targetW, $targetH,
-            $sw, $sh
-        );
-
-        // Re-clip: anything drawn past the canvas is discarded by GD anyway,
-        // but keep the visible height honest for callers reading this code.
-        unset($visibleH);
-
+        imagecopyresampled($img, $src, 0, $top, 0, 0, $targetW, $targetH, $sw, $sh);
         imagedestroy($src);
+
+        // Hairline where the capture meets the background — separates the two
+        // planes without drawing a box around the screenshot.
+        $line = imagecolorallocatealpha($img, 255, 255, 255, 112);
+        imagefilledrectangle($img, 0, $top, $this->w, $top, $line);
     }
 
     /** @return array<int, string> */
