@@ -158,16 +158,27 @@ class BuildStoreScreenshots extends Command
         }
     }
 
-    /** One soft blue glow behind where the device sits. */
+    /**
+     * One soft blue glow behind where the device sits.
+     *
+     * Rings are drawn largest first and must get MORE opaque as they shrink —
+     * invert that and the outermost ring floods the whole canvas, burying the
+     * navy under flat blue.
+     */
     private function drawGlow($img): void
     {
         $cx = (int) ($this->w / 2);
-        $cy = (int) ($this->h * 0.52);
+        $cy = (int) ($this->h * 0.56);
 
-        for ($i = 16; $i >= 1; $i--) {
-            $r     = (int) ($this->w * 0.14 * $i);
-            $alpha = 122 - (int) (108 * (($i - 1) / 15));
-            if ($alpha >= 127 || $alpha < 0) continue;
+        $rings = 16;
+
+        for ($i = $rings; $i >= 1; $i--) {
+            $r = (int) ($this->w * 0.095 * $i);
+
+            // 126 (invisible) at the outer edge → 96 (a soft wash) at the core.
+            $alpha = 126 - (int) round(30 * (($rings - $i) / ($rings - 1)));
+            if ($alpha >= 127) continue;
+
             imagefilledellipse($img, $cx, $cy, $r, $r, imagecolorallocatealpha($img, ...self::BLUE, ...[$alpha]));
         }
     }
