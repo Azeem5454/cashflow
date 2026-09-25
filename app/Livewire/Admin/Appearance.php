@@ -281,12 +281,12 @@ class Appearance extends Component
         $css .= "  --font-mono: '{$this->fontMono}';\n";
         $css .= "}\n";
 
-        $brandDir = public_path('brand');
-        if (! is_dir($brandDir)) {
-            mkdir($brandDir, 0755, true);
-        }
-
-        file_put_contents($brandDir . '/theme.css', $css);
+        // Stored in the database, not on disk: Railway's filesystem is
+        // ephemeral, so a file written here vanishes on the next redeploy and
+        // the admin's colours silently revert. Same reason the logos moved to
+        // uploaded_assets. Served by ThemeCssController.
+        Setting::set('theme.css', $css);
+        Setting::set('theme.version', (string) now()->getTimestamp());
     }
 
     protected function hexToRgbChannels(string $hex): string

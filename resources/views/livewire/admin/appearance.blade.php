@@ -231,7 +231,7 @@
                             Reset to Defaults
                         </button>
                     </div>
-                    <p class="text-xs text-slate-500 font-body mb-6">Changes are written to <code class="text-slate-400">theme.css</code>. Save and reload to see the effect.</p>
+                    <p class="text-xs text-slate-500 font-body mb-6">Saved to the database and served as <code class="text-slate-400">/brand-theme.css</code>. Save and reload to see the effect.</p>
 
                     <div class="grid grid-cols-2 gap-4">
                         @foreach([
@@ -294,7 +294,7 @@
             <form wire:submit="saveTypography">
                 <div class="dark:bg-slate-900 bg-white border border-gray-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
                     <h2 class="font-heading font-bold text-sm dark:text-white text-gray-900 mb-1">Typography</h2>
-                    <p class="text-xs text-slate-500 font-body mb-4">Choose a font for each typographic role. Changes are written to <code class="text-slate-400">theme.css</code>.</p>
+                    <p class="text-xs text-slate-500 font-body mb-4">Choose a font for each typographic role. Saved to the database, so they survive redeploys.</p>
 
                     @foreach([
                         ['fontDisplay', 'Display / Headings', 'Hero text, page titles, wordmark'],

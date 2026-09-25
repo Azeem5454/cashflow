@@ -20,6 +20,10 @@ Route::view('/delete-account', 'legal.delete-account')->name('delete-account');
 // Dynamic sitemap — public pages, /blog, every published post + category.
 Route::get('/sitemap.xml', \App\Http\Controllers\SitemapController::class)->name('sitemap');
 
+// Admin-authored colours + fonts, served from the DB for the same reason as
+// the brand assets below: Railway wipes the filesystem on every redeploy.
+Route::get('/brand-theme.css', \App\Http\Controllers\ThemeCssController::class)->name('brand-theme');
+
 // Admin-uploaded brand assets — served from DB so they survive redeploys.
 Route::get('/brand-asset/{key}', [\App\Http\Controllers\BrandAssetController::class, 'show'])
     ->where('key', '[a-z0-9_-]+')

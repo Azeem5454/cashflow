@@ -53,8 +53,8 @@
         </script>
     @endif
 
-    @if(file_exists(public_path('brand/theme.css')))
-        <link rel="stylesheet" href="{{ asset('brand/theme.css') }}?v={{ filemtime(public_path('brand/theme.css')) }}">
+    @if(\App\Helpers\Setting::get('theme.css'))
+        <link rel="stylesheet" href="{{ route('brand-theme') }}?v={{ \App\Helpers\Setting::get('theme.version', '0') }}">
     @endif
     @livewireStyles
     <style>[x-cloak] { display: none !important; }</style>

@@ -78,8 +78,8 @@
     <link href="{{ \App\Helpers\Setting::get('google_fonts_url', 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;500;700&display=swap') }}" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @if(file_exists(public_path('brand/theme.css')))
-        <link rel="stylesheet" href="{{ asset('brand/theme.css') }}?v={{ filemtime(public_path('brand/theme.css')) }}">
+    @if(\App\Helpers\Setting::get('theme.css'))
+        <link rel="stylesheet" href="{{ route('brand-theme') }}?v={{ \App\Helpers\Setting::get('theme.version', '0') }}">
     @endif
 
     {{-- Alpine.js — guest pages have no Livewire, so Alpine must be loaded standalone for password toggles etc. --}}
