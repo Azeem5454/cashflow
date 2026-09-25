@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\Entry;
 use App\Models\User;
 use App\Support\LikeSearch;
+use Illuminate\Support\Facades\DB;
 use App\Support\BusinessLock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -209,7 +210,12 @@ class EntrySearch
         $rows = (clone $query)->reorder()->toBase()
             ->join('businesses', 'businesses.id', '=', 'books.business_id')
             ->groupBy('businesses.currency')
-            ->selectRaw('businesses.currency AS currency')
+            // select() REPLACES the inherited 'entries.*'. selectRaw() only
+            // appends, which left entries.* in a grouped query — PostgreSQL
+            // rejects that ("entries.id must appear in the GROUP BY clause")
+            // while SQLite quietly allows it, so it passed every test and
+            // 500'd in production.
+            ->select(DB::raw('businesses.currency AS currency'))
             ->selectRaw("COALESCE(SUM(CASE WHEN entries.type = 'in' THEN entries.amount ELSE 0 END), 0) AS total_in")
             ->selectRaw("COALESCE(SUM(CASE WHEN entries.type = 'out' THEN entries.amount ELSE 0 END), 0) AS total_out")
             ->selectRaw('COUNT(*) AS row_count')
