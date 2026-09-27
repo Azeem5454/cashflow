@@ -121,7 +121,7 @@
         html { scroll-behavior: smooth; scroll-padding-top: 90px; }
         :root {
             --dark:    #0a0f1e;
-            --dark2:   #111827;
+            --dark2:   #111a2c;
             --light:   #eef2fa;
             --primary: #1a56db;
             --accent:  #3b82f6;

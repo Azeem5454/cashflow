@@ -114,7 +114,9 @@ html:not(.dark) .flatpickr-monthDropdown-months option { background: #fff; }
     :root {
         /* RGB channels — used by Tailwind for opacity modifiers (bg-navy/80, etc.) */
         --color-navy: 10 15 30;
-        --color-dark: 17 24 39;
+        /* Surface #111a2c from the brand kit — a touch bluer than the old
+           #111827, so cards sit in the same family as the navy page. */
+        --color-dark: 17 26 44;
         --color-primary: 26 86 219;
         --color-accent: 59 130 246;
         --color-blue-light: 147 197 253;
