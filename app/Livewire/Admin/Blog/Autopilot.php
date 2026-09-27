@@ -18,6 +18,8 @@ class Autopilot extends Component
 {
     public bool   $enabled         = false;
     public string $bulkTitles      = '';
+    /** Search query the next single-added post should target. */
+    public string $newKeyword      = '';
     public string $newTitle        = '';
     public ?string $newCategoryId  = null;
     public bool   $generating      = false;
@@ -94,9 +96,11 @@ class Autopilot extends Component
     {
         $this->validate([
             'newTitle'       => ['required', 'string', 'min:8', 'max:255'],
+            'newKeyword'     => ['nullable', 'string', 'max:120'],
             'newCategoryId'  => ['nullable', 'uuid', 'exists:blog_categories,id'],
         ], [], [
             'newTitle'      => 'title',
+            'newKeyword'    => 'primary keyword',
             'newCategoryId' => 'category',
         ]);
 
@@ -113,12 +117,14 @@ class Autopilot extends Component
         $nextPos = ((int) BlogAutopilotQueueItem::max('position')) + 10;
 
         BlogAutopilotQueueItem::create([
-            'title'       => $title,
-            'category_id' => $this->newCategoryId ?: null,
-            'position'    => $nextPos,
+            'title'           => $title,
+            'primary_keyword' => trim($this->newKeyword) ?: null,
+            'category_id'     => $this->newCategoryId ?: null,
+            'position'        => $nextPos,
         ]);
 
         $this->newTitle = '';
+        $this->newKeyword = '';
         $this->newCategoryId = null;
         $this->dispatch('autopilot-toast', message: 'Added to queue.');
     }

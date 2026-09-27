@@ -240,7 +240,7 @@ BRIEF;
             ? $allCategories->firstWhere('id', $item->category_id)
             : null;
 
-        $clean = $this->generateValidated($item->title, $allCategories, $preselected);
+        $clean = $this->generateValidated($item->title, $allCategories, $preselected, $item->primary_keyword);
 
         // Same-title guard (case-insensitive). If Claude's refined title
         // collides with an existing post, fall back to the seed title (already
@@ -269,6 +269,7 @@ BRIEF;
             'body_markdown'      => $clean['body_markdown'],
             'seo_title'          => $clean['seo_title'],
             'seo_description'    => $clean['seo_description'],
+            'primary_keyword'    => $item->primary_keyword,
             'featured_image_alt' => $clean['image_alt'] ?? $clean['title'],
             'image_query'        => $clean['image_query'] ?? null,
             'category_id'        => $category->id,
@@ -347,9 +348,9 @@ BRIEF;
      * Generate + validate, with one follow-up request if the body comes back
      * under MIN_WORDS.
      */
-    private function generateValidated(string $titleSeed, Collection $allCategories, ?BlogCategory $preselected): array
+    private function generateValidated(string $titleSeed, Collection $allCategories, ?BlogCategory $preselected, ?string $keyword = null): array
     {
-        $prompt   = $this->buildPrompt($titleSeed, $allCategories, $preselected);
+        $prompt   = $this->buildPrompt($titleSeed, $allCategories, $preselected, $keyword);
         $messages = [['role' => 'user', 'content' => [['type' => 'text', 'text' => $prompt]]]];
 
         [$data, $rawText] = $this->callClaude($messages);
@@ -372,7 +373,7 @@ BRIEF;
         return $this->validate($data, $titleSeed);
     }
 
-    private function buildPrompt(string $titleSeed, Collection $allCategories, ?BlogCategory $preselected): string
+    private function buildPrompt(string $titleSeed, Collection $allCategories, ?BlogCategory $preselected, ?string $keyword = null): string
     {
         $appName = config('app.name', 'TheCashFox');
         $appUrl  = rtrim(config('app.url', 'https://thecashfox.com'), '/');
@@ -382,6 +383,11 @@ BRIEF;
 
         // JSON-encode user-controlled strings to neutralise prompt injection
         $titleJson = json_encode($titleSeed, JSON_UNESCAPED_UNICODE);
+
+        $keywordBlock = $keyword
+            ? '- PRIMARY KEYWORD (the search query this post must target): '
+                . json_encode($keyword, JSON_UNESCAPED_UNICODE)
+            : '- PRIMARY KEYWORD: none given — use the clearest search phrase inside the seed title.';
 
         // Real published posts, so Claude links to URLs that exist instead of
         // inventing slugs. Invented blog links are 404s and cost more in SEO
@@ -432,10 +438,20 @@ Always true (these override anything above if they conflict):
 Post brief:
 - Seed title (you may refine for SEO, keep the same topic): {$titleJson}
 {$categoryBlock}
+{$keywordBlock}
 
 Rules:
-1. Final display title ≤ 60 chars. Preserve the seed title's subject and primary keyword.
+1. Final display title ≤ 60 chars. Preserve the seed title's subject, and include the PRIMARY KEYWORD.
 2. Meta description ≤ 155 chars. Include the primary keyword naturally.
+2b. PRIMARY KEYWORD placement — exactly these five places, and nowhere forced:
+   - the display title
+   - the slug
+   - the first 100 words of the body, in a sentence that reads naturally
+   - the meta description
+   - ONE H2 heading
+   Do NOT repeat it beyond that. Write for a person, not a crawler: keyword
+   stuffing is a Google spam-policy violation and gets a new site demoted, not
+   ranked. Use ordinary synonyms and related phrases everywhere else.
 3. Excerpt ≤ 220 chars. Must hook the reader — a concrete promise, not a generic summary.
 4. Body: 1200–1800 words of plain markdown (hard minimum {$minWords} words — shorter posts are rejected). Structure:
    - Short intro (2–3 sentences, NO greeting, NO "in this post we'll cover").

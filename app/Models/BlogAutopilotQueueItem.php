@@ -18,6 +18,7 @@ class BlogAutopilotQueueItem extends Model
 
     protected $fillable = [
         'title',
+        'primary_keyword',
         'category_id',
         'position',
     ];

@@ -30,7 +30,7 @@ class BlogPost extends Model
         'image_query', 'featured_image_credit',
         'category_id', 'author_id',
         'status', 'is_featured', 'featured_at', 'published_at',
-        'seo_title', 'seo_description', 'auto_topic_key',
+        'seo_title', 'seo_description', 'primary_keyword', 'auto_topic_key',
         'reading_time', 'view_count',
     ];
 

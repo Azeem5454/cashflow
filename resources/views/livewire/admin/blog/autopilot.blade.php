@@ -242,6 +242,22 @@
                     @error('newTitle') <p class="mt-1.5 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
                 </div>
 
+                <div>
+                    <input type="text" wire:model.defer="newKeyword"
+                           placeholder="Primary keyword — e.g. petty cash book format"
+                           class="w-full px-3 py-2.5 text-sm rounded-lg font-body
+                                  dark:bg-slate-800 bg-white
+                                  dark:border-slate-700 border border-gray-200
+                                  dark:text-white text-gray-900
+                                  dark:placeholder-slate-500 placeholder-gray-400
+                                  focus:outline-none focus:border-primary/60 dark:focus:border-primary/60">
+                    <p class="mt-1.5 text-xs dark:text-slate-500 text-gray-400 font-body">
+                        The exact search query this post targets. It goes in the title, slug, first paragraph,
+                        meta description and one heading — and nowhere else. Leave blank to let the writer infer it.
+                    </p>
+                    @error('newKeyword') <p class="mt-1.5 text-xs text-red-500 font-body">{{ $message }}</p> @enderror
+                </div>
+
                 <select wire:model.defer="newCategoryId"
                         class="w-full px-3 py-2.5 text-sm rounded-lg font-body
                                dark:bg-slate-800 bg-white
