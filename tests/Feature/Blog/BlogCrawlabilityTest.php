@@ -84,6 +84,23 @@ class BlogCrawlabilityTest extends BlogTestCase
         $this->assertLessThanOrEqual(60, mb_strlen(html_entity_decode($m[1])));
     }
 
+    public function test_no_em_dashes_reach_the_rendered_page(): void
+    {
+        $post = $this->makePost([
+            'title'         => 'Cash Book Basics',
+            'slug'          => 'cash-book-basics',
+            'body_markdown' => str_repeat('Keep the book daily and the balance stays honest. ', 30),
+        ]);
+
+        $html = $this->get($post->url())->assertOk()->getContent();
+
+        // Strip <style> and <script>: a CSS comment is not copy anyone reads.
+        $copy = preg_replace('#<(style|script)\\b[^>]*>.*?</\\1>#is', '', $html) ?? $html;
+
+        $this->assertStringNotContainsString('—', $copy, 'Em dashes read as machine-written.');
+        $this->assertStringNotContainsString('–', $copy);
+    }
+
     public function test_short_titles_still_get_the_brand_suffix(): void
     {
         $post = $this->makePost(['title' => 'Cash Flow Basics', 'slug' => 'cash-flow-basics', 'seo_title' => 'Cash Flow Basics']);

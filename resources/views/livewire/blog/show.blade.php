@@ -152,7 +152,7 @@
     <section class="max-w-3xl mx-auto px-4 sm:px-6 mt-20 mb-8">
         <div class="rounded-2xl p-8 sm:p-10 text-center" style="background:linear-gradient(135deg,rgba(26,86,219,0.08),rgba(59,130,246,0.03));border:1px solid rgba(59,130,246,0.18)">
             <h3 class="fd font-bold text-xl sm:text-2xl mb-2" style="color:#f8fafc;letter-spacing:-0.01em">Ready to track your numbers?</h3>
-            <p class="text-sm sm:text-base mb-6" style="color:rgba(226,232,240,0.65)">Setup takes 2 minutes. Free forever — no credit card required.</p>
+            <p class="text-sm sm:text-base mb-6" style="color:rgba(226,232,240,0.65)">Setup takes 2 minutes. Free forever, no credit card required.</p>
             <a href="{{ route('register') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold transition-all"
                style="background:#1a56db;color:#fff;box-shadow:0 6px 22px rgba(26,86,219,0.35)"
                onmouseover="this.style.background='#3b82f6'" onmouseout="this.style.background='#1a56db'">

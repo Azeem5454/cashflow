@@ -476,6 +476,16 @@ Rules:
    - NEVER invent a blog URL. If nothing on the list fits, link none.
 8. Global audience: no country-specific currencies (show amounts as plain numbers or USD), no region-specific framing.
 9. Do NOT mention you are an AI. Do NOT use: "in today's fast-paced world", "in conclusion", "unlock", "leverage", "delve", "elevate", "synergy", "harness", "embark", "journey", "game-changer".
+9b. Punctuation and rhythm, so it reads like a person wrote it:
+   - NEVER use an em dash (—) or an en dash (–). Not once. Use a comma, a full
+     stop, brackets or a colon instead. Rewrite the sentence if you have to.
+   - Do not open consecutive sentences with the same word, and do not start a
+     sentence with "And" or "But" more than once in the whole post.
+   - Vary sentence length. Some short. Some longer with a subordinate clause.
+     A page of same-length sentences reads like it was generated.
+   - Avoid the "It's not X, it's Y" construction and the rule-of-three list
+     ("faster, simpler and cheaper"). Both are tells.
+   - No rhetorical questions as section openers.
 10. Do NOT include an H1 (#) — the title is rendered separately.
 11. Do NOT wrap body in code fences.
 12. No emojis. No table of contents.
@@ -580,6 +590,15 @@ PROMPT;
             }
         }
 
+        // Dashes are stripped before the length caps, so a substitution can't
+        // push a field over its limit.
+        foreach (['title', 'excerpt', 'body_markdown', 'seo_title', 'seo_description'] as $field) {
+            if (isset($data[$field]) && is_string($data[$field]) && preg_match('/[—–]/u', $data[$field])) {
+                Log::info('BlogAutopilot: stripped dashes the prompt forbids', ['field' => $field]);
+                $data[$field] = self::deDash($data[$field]);
+            }
+        }
+
         $title          = trim($data['title']);
         $slug           = Str::slug(trim($data['slug']));
         $excerpt        = trim($data['excerpt']);
@@ -663,6 +682,29 @@ PROMPT;
             'image_query'     => $imageQuery,
             'image_alt'       => $imageAlt,
         ];
+    }
+
+
+    /**
+     * Strip em and en dashes from generated copy.
+     *
+     * The prompt forbids them, but models reach for an em dash constantly and
+     * it is one of the clearest tells that a human did not write the sentence.
+     * A comma is always grammatical in the parenthetical position they are
+     * used for, so substituting is safe; the alternative (asking Claude again)
+     * costs a second call and still is not reliable.
+     */
+    public static function deDash(string $text): string
+    {
+        // Spaced dash acting as a parenthetical or appositive: "books — kept daily".
+        $out = preg_replace('/\s*[—–]\s*/u', ', ', $text) ?? $text;
+
+        // A comma immediately after existing punctuation reads wrong.
+        $out = preg_replace('/([,;:])\s*,\s*/u', '$1 ', $out) ?? $out;
+        $out = preg_replace('/\s+,/u', ',', $out) ?? $out;
+        $out = preg_replace('/,\s*\./u', '.', $out) ?? $out;
+
+        return $out;
     }
 
     private function uniqueSlug(string $slug): string

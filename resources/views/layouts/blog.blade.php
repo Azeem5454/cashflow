@@ -39,7 +39,7 @@
     // Google truncates around 60 characters. seo_title is authored to that
     // budget, so only append the brand when the result still fits — otherwise
     // the suffix pushes the keyword out of the visible part of the result.
-    $suffixed = $pageTitle . ' — ' . $appName;
+    $suffixed = $pageTitle . ' | ' . $appName;
     $fullTitle = (str_contains($pageTitle, $appName) || mb_strlen($suffixed) > 60)
         ? $pageTitle
         : $suffixed;

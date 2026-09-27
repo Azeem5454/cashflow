@@ -129,7 +129,7 @@ class BlogPublicTest extends BlogTestCase
 
         $html = $this->get('/blog/cash-flow-basics')->assertOk()->getContent();
 
-        $this->assertStringContainsString('<title>Cash flow basics for owners — ', $html);
+        $this->assertStringContainsString('<title>Cash flow basics for owners | ', $html);
         $this->assertStringContainsString('<meta name="description" content="A short hook about cash flow.">', $html);
         $this->assertStringContainsString('<link rel="canonical" href="' . $post->url() . '">', $html);
         $this->assertStringContainsString('href="' . route('register') . '"', $html);
