@@ -134,14 +134,12 @@ class BlogImageRenderer
         $this->copyCover($img, $src);
         imagedestroy($src);
 
-        // Soften detail: the image is background, not subject matter. Several
-        // light passes read better than one heavy one.
-        for ($i = 0; $i < 3; $i++) {
-            imagefilter($img, IMG_FILTER_GAUSSIAN_BLUR);
-        }
+        // One light pass only. The photo has to stay recognisable: three
+        // passes plus the overlays turned every picture into dark texture.
+        imagefilter($img, IMG_FILTER_GAUSSIAN_BLUR);
 
         // Flat navy wash for brand consistency and baseline contrast.
-        $wash = imagecolorallocatealpha($img, self::NAVY_DEEP[0], self::NAVY_DEEP[1], self::NAVY_DEEP[2], 40);
+        $wash = imagecolorallocatealpha($img, self::NAVY_DEEP[0], self::NAVY_DEEP[1], self::NAVY_DEEP[2], 95);
         imagefilledrectangle($img, 0, 0, self::WIDTH, self::HEIGHT, $wash);
 
         // Darker towards the centre, where the title sits.
@@ -149,7 +147,7 @@ class BlogImageRenderer
 
         // A trace of the category accent keeps the series recognisable.
         [$r, $g, $b] = $this->hexToRgb($category?->color ?? '#1a56db');
-        $tint = imagecolorallocatealpha($img, $r, $g, $b, 112);
+        $tint = imagecolorallocatealpha($img, $r, $g, $b, 123);
         imagefilledrectangle($img, 0, 0, self::WIDTH, self::HEIGHT, $tint);
 
         $this->lastCredit = $photo['credit'];
@@ -186,13 +184,21 @@ class BlogImageRenderer
         $cx = self::SAFE_CENTER;
         $cy = (int) (self::HEIGHT * 0.5);
 
-        for ($i = 14; $i >= 1; $i--) {
-            $w = (int) (self::WIDTH  * (0.42 + ($i * 0.062)));
-            $h = (int) (self::HEIGHT * (0.34 + ($i * 0.062)));
-            $alpha = 118 - (int) (104 * (($i - 1) / 13));
-            if ($alpha >= 127 || $alpha < 0) continue;
-            $color = imagecolorallocatealpha($img, 4, 7, 16, $alpha);
-            imagefilledellipse($img, $cx, $cy, $w, $h, $color);
+        $rings = 16;
+
+        // Rings are drawn largest first, so alpha must move from invisible at
+        // the outside to a light wash at the centre. Inverted, the outermost
+        // ring lands nearly opaque and the photo disappears behind one big
+        // dark oval — which is exactly what shipped.
+        for ($i = $rings; $i >= 1; $i--) {
+            $w = (int) (self::WIDTH  * (0.30 + ($i * 0.058)));
+            $h = (int) (self::HEIGHT * (0.24 + ($i * 0.058)));
+
+            // 126 = invisible, 96 = a soft darkening behind the title only.
+            $alpha = 126 - (int) round(22 * (($rings - $i) / ($rings - 1)));
+            if ($alpha >= 127) continue;
+
+            imagefilledellipse($img, $cx, $cy, $w, $h, imagecolorallocatealpha($img, 4, 7, 16, $alpha));
         }
     }
 
