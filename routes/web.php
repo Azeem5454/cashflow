@@ -7,7 +7,22 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('landing-v3');
+    // Newest three posts for the "From the blog" strip. The homepage carries
+    // the most weight on the domain, so this is the cheapest way to get new
+    // posts crawled and indexed. Never let a blog problem 500 the landing
+    // page — an empty list just hides the section.
+    try {
+        $latestPosts = \App\Models\BlogPost::published()
+            ->with('category:id,name,color')
+            ->latestFirst()
+            ->limit(3)
+            ->get();
+    } catch (\Throwable $e) {
+        report($e);
+        $latestPosts = collect();
+    }
+
+    return view('landing-v3', ['latestPosts' => $latestPosts]);
 })->name('home');
 
 // The front controller answers on its own path too, so the homepage is

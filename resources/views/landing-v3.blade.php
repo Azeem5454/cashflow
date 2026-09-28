@@ -82,15 +82,25 @@
         ]
     }@endverbatim
     </script>
-    <script type="application/ld+json">
-    @verbatim{
-        "@context": "https://schema.org",
-        "@type": "Organization",@endverbatim
-        "name": @json($appName),
-        "url": @json($appUrl . '/'),
-        "logo": @json($ogImage)@verbatim
-    }@endverbatim
-    </script>
+    {{-- Organization. Built with json_encode rather than a verbatim block so
+         the at-prefixed keys never meet Blade's directive scanner.
+
+         "CashFox" is a crowded name — a rewards app, a budgeting app and an
+         AI tool all share it. The extra fields exist so Google has enough to
+         tell this entity apart from those, instead of treating every mention
+         of the name as one thing. --}}
+    <script type="application/ld+json">{!! json_encode([
+        '@context'      => 'https://schema.org',
+        '@type'         => 'Organization',
+        'name'          => $appName,
+        'alternateName' => 'CashFox',
+        'url'           => $appUrl . '/',
+        'logo'          => $ogImage,
+        'description'   => 'Cash book and expense tracking software for small business owners, '
+                         . 'freelancers and their finance teams. Track cash in and cash out, '
+                         . 'scan receipts, and share books with a team.',
+        'applicationCategory' => 'BusinessApplication',
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
     <script type="application/ld+json">{!! json_encode([
         '@context'   => 'https://schema.org',
         '@type'      => 'FAQPage',
@@ -826,6 +836,57 @@
         </div>
     </div>
 </section>
+
+
+{{-- ══ FROM THE BLOG ════════════════════════════════════════════════════
+     The homepage is the strongest page on the domain and the blog is where
+     organic traffic lands, so it needs a real path from one to the other.
+     A single footer link gave new posts almost nothing to inherit and no
+     reason for a crawler to come back daily.                            --}}
+@if(!empty($latestPosts) && count($latestPosts))
+<section style="background:var(--black);border-top:1px solid rgba(255,255,255,0.05)" class="relative overflow-hidden px-6 py-20 md:py-24">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex flex-wrap items-end justify-between gap-4 mb-10">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.2em] mb-3" style="color:rgba(59,130,246,0.9)">From the blog</p>
+                <h2 class="fd font-black leading-tight" style="color:#f8fafc;font-size:clamp(1.75rem,4vw,2.5rem);letter-spacing:-0.02em">
+                    Running the money side, explained
+                </h2>
+            </div>
+            <a href="{{ route('blog.index') }}" class="text-sm font-semibold transition-colors whitespace-nowrap"
+               style="color:rgba(59,130,246,0.95)">Read all posts &rarr;</a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            @foreach($latestPosts as $post)
+                <a href="{{ route('blog.show', $post->slug) }}"
+                   class="group flex flex-col rounded-2xl overflow-hidden transition-all duration-300"
+                   style="background:#0d1526;border:1px solid rgba(255,255,255,0.07)">
+                    @if($post->featuredImageUrl())
+                        <div class="aspect-[16/10] overflow-hidden" style="background:rgba(255,255,255,0.02)">
+                            <img src="{{ $post->featuredImageUrl() }}"
+                                 alt="{{ $post->featured_image_alt ?: $post->title }}"
+                                 width="1200" height="630" loading="lazy" decoding="async"
+                                 class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]">
+                        </div>
+                    @endif
+                    <div class="p-5 sm:p-6 flex-1 flex flex-col">
+                        @if($post->category)
+                            <span class="inline-flex self-start items-center text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full mb-3"
+                                  style="background:{{ $post->category->color }}22;color:{{ $post->category->color }};border:1px solid {{ $post->category->color }}33">
+                                {{ $post->category->name }}
+                            </span>
+                        @endif
+                        <h3 class="fd font-bold text-lg leading-snug mb-2" style="color:#f8fafc">{{ $post->title }}</h3>
+                        <p class="text-sm flex-1" style="color:rgba(248,250,252,0.55);line-height:1.6">{{ $post->excerpt }}</p>
+                        <p class="mt-4 text-xs" style="color:rgba(248,250,252,0.35)">{{ $post->reading_time }} min read</p>
+                    </div>
+                </a>
+            @endforeach
+        </div>
+    </div>
+</section>
+@endif
 
 
 {{-- ══ FINAL CTA ════════════════════════════════════════════════════════ --}}

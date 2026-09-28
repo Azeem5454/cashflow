@@ -465,6 +465,13 @@ Rules:
    Do NOT repeat it beyond that. Write for a person, not a crawler: keyword
    stuffing is a Google spam-policy violation and gets a new site demoted, not
    ranked. Use ordinary synonyms and related phrases everywhere else.
+2c. ANSWER FIRST. If the primary keyword is a question, the opening 2–3
+   sentences must answer it outright — the actual answer, specific enough to
+   stand alone if someone read nothing else. No throat-clearing, no "there
+   are several factors to consider", no restating the question. This is the
+   single thing that earns a featured snippet, and a snippet is how a site
+   with no authority outranks sites that have plenty. Then spend the rest of
+   the post earning that answer.
 3. Excerpt ≤ 220 chars. Must hook the reader — a concrete promise, not a generic summary.
 4. Body: 1200–1800 words of plain markdown (hard minimum {$minWords} words — shorter posts are rejected). Structure:
    - Short intro (2–3 sentences, NO greeting, NO "in this post we'll cover").
