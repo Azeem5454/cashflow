@@ -178,6 +178,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 Route::get('/blog',                     \App\Livewire\Blog\Index::class)->name('blog.index');
 Route::get('/blog/feed.xml',            [\App\Http\Controllers\BlogFeedController::class, 'rss'])->name('blog.feed');
 Route::get('/blog/category/{categorySlug}', \App\Livewire\Blog\Index::class)->name('blog.category');
+
+// Public author profile — the E-E-A-T signal every post's byline links to.
+Route::get('/blog/author/{authorSlug}', \App\Livewire\Blog\Author::class)->name('blog.author');
 Route::get('/blog/{slug}',              \App\Livewire\Blog\Show::class)
     ->where('slug', '[a-z0-9]+(?:-[a-z0-9]+)*')
     ->name('blog.show');

@@ -33,6 +33,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'last_login_at',
+        'author_slug',
+        'author_bio',
+        'author_role',
     ];
 
     protected $hidden = [
@@ -59,6 +62,17 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $attributes = [
         'has_password' => true,
     ];
+
+    /** Does this user have a public author profile worth linking to? */
+    public function isPublicAuthor(): bool
+    {
+        return filled($this->author_slug) && filled($this->author_bio);
+    }
+
+    public function authorUrl(): ?string
+    {
+        return $this->isPublicAuthor() ? route('blog.author', $this->author_slug) : null;
+    }
 
     protected static function booted(): void
     {

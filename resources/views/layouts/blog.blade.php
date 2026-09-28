@@ -60,9 +60,27 @@
         ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
     }
 
+    // Person + ProfilePage on an author page.
+    $personForSchema = $personForSchema ?? null;
+    $personJson = null;
+    if ($personForSchema) {
+        $personJson = json_encode([
+            '@context'      => 'https://schema.org',
+            '@type'         => 'ProfilePage',
+            'mainEntity'    => array_filter([
+                '@type'       => 'Person',
+                'name'        => $personForSchema->name,
+                'description' => $personForSchema->author_bio,
+                'jobTitle'    => $personForSchema->author_role,
+                'url'         => route('blog.author', $personForSchema->author_slug),
+                'worksFor'    => ['@type' => 'Organization', 'name' => $appName, 'url' => $appUrl . '/'],
+            ]),
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+    }
+
     // WebSite + Organization on listing pages, where there is no BlogPosting.
     $siteJson = null;
-    if (! $postForSchema) {
+    if (! $postForSchema && ! $personForSchema) {
         $siteJson = json_encode([
             '@context' => 'https://schema.org',
             '@type'    => 'WebSite',
@@ -135,6 +153,10 @@
 
     @if($breadcrumbJson)
         <script type="application/ld+json">{!! $breadcrumbJson !!}</script>
+    @endif
+
+    @if($personJson)
+        <script type="application/ld+json">{!! $personJson !!}</script>
     @endif
 
     @if($siteJson)

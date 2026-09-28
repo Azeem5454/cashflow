@@ -200,8 +200,15 @@ class BlogPost extends Model
             'dateModified'     => ($this->updated_at ?? $this->published_at)?->toIso8601String(),
             // Autopilot posts have no human author — attribute them to the
             // organisation rather than inventing a person.
+            // A bare name gives Google nothing to assess. When the author has
+            // a public profile, point at it so the byline resolves to a real
+            // entity with a stated background.
             'author'           => $this->author
-                ? ['@type' => 'Person', 'name' => $this->author->name]
+                ? array_filter([
+                    '@type' => 'Person',
+                    'name'  => $this->author->name,
+                    'url'   => $this->author->authorUrl(),
+                ])
                 : ['@type' => 'Organization', 'name' => $appName, 'url' => $appUrl],
             'publisher'        => $publisher,
             'inLanguage'       => 'en',

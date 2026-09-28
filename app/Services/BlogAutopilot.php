@@ -273,7 +273,9 @@ BRIEF;
             'featured_image_alt' => $clean['image_alt'] ?? $clean['title'],
             'image_query'        => $clean['image_query'] ?? null,
             'category_id'        => $category->id,
-            'author_id'          => null,
+            // Named byline rather than the organisation: Google's
+            // helpful-content guidance weighs who wrote something.
+            'author_id'          => self::defaultAuthorId(),
             'status'             => 'published',
             'is_featured'        => false,
             'auto_topic_key'     => 'q-' . $item->id,
@@ -337,6 +339,17 @@ BRIEF;
     }
 
     /** Case-insensitive "is there already a post with this title?" */
+    /**
+     * The user new posts are attributed to. Set by Setting `blog.author_id`;
+     * null leaves posts attributed to the organisation, as before.
+     */
+    public static function defaultAuthorId(): ?string
+    {
+        $id = Setting::get('blog.author_id');
+
+        return (is_string($id) && $id !== '' && User::whereKey($id)->exists()) ? $id : null;
+    }
+
     public static function titleExists(string $title): bool
     {
         return BlogPost::whereRaw('LOWER(title) = ?', [mb_strtolower(trim($title))])->exists();

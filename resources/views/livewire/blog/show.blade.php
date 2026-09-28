@@ -29,12 +29,13 @@
 
             <div class="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm pt-5" style="color:rgba(255,255,255,0.45);border-top:1px solid rgba(255,255,255,0.08)">
                 @if($post->author)
-                    <div class="flex items-center gap-2">
+                    @php $authorUrl = $post->author->authorUrl(); @endphp
+                    <{{ $authorUrl ? 'a' : 'div' }} @if($authorUrl) href="{{ $authorUrl }}" rel="author" @endif class="flex items-center gap-2 {{ $authorUrl ? 'hover:underline' : '' }}">
                         <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:linear-gradient(135deg,#1a56db,#3b82f6);color:#fff">
                             {{ strtoupper(substr($post->author->name, 0, 1)) }}
                         </div>
                         <span style="color:rgba(248,250,252,0.8)">{{ $post->author->name }}</span>
-                    </div>
+                    </{{ $authorUrl ? 'a' : 'div' }}>
                     <span>·</span>
                 @endif
                 <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ $post->published_at?->format('M j, Y') }}</time>

@@ -38,7 +38,7 @@ class SitemapController extends Controller
                 ->with('category:id,slug')
                 ->latestFirst()
                 ->limit(5000)
-                ->get(['id', 'slug', 'category_id', 'published_at', 'updated_at']);
+                ->get(['id', 'slug', 'category_id', 'author_id', 'published_at', 'updated_at']);
 
             $lastmodOf = fn (BlogPost $p): ?CarbonInterface => $p->updated_at ?? $p->published_at;
 
@@ -57,6 +57,23 @@ class SitemapController extends Controller
                     'changefreq' => 'monthly',
                 ];
             }
+
+            // Public author profiles that actually have posts.
+            \App\Models\User::whereNotNull('author_slug')
+                ->whereNotNull('author_bio')
+                ->get(['id', 'author_slug'])
+                ->each(function ($author) use (&$urls, $base, $posts, $lastmodOf) {
+                    $theirs = $posts->where('author_id', $author->id);
+                    if ($theirs->isEmpty()) {
+                        return;
+                    }
+                    $urls[] = [
+                        'loc'        => $base . '/blog/author/' . $author->author_slug,
+                        'lastmod'    => $theirs->map($lastmodOf)->filter()->max(),
+                        'priority'   => '0.4',
+                        'changefreq' => 'weekly',
+                    ];
+                });
 
             // Categories derived from the published posts themselves (not the
             // denormalised post_count), so the list can never drift.
