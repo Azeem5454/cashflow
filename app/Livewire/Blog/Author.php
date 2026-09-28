@@ -40,14 +40,24 @@ class Author extends Component
             ->latestFirst()
             ->paginate(12);
 
-        $appName = config('app.name', 'TheCashFox');
+        // See Blog\Index: an out-of-range ?page= must 404, not serve an
+        // empty 200 that Google files as a soft 404.
+        abort_if($posts->currentPage() > 1 && $posts->isEmpty(), 404);
+
+        // Page 2+ canonicals to itself. Pointing it back at page 1 tells
+        // Google the deeper pages are duplicates, and the posts only
+        // reachable from them stop being crawled.
+        $canonical = route('blog.author', $this->author->author_slug);
+        if ($posts->currentPage() > 1) {
+            $canonical .= '?page=' . $posts->currentPage();
+        }
 
         return view('livewire.blog.author', [
             'posts' => $posts,
         ])->layout('layouts.blog', [
             'pageTitle'       => $this->author->name,
             'pageDescription' => \Illuminate\Support\Str::limit($this->author->author_bio, 155),
-            'canonical'       => route('blog.author', $this->author->author_slug),
+            'canonical'       => $canonical,
             'breadcrumbs'     => [
                 ['name' => 'Blog', 'url' => route('blog.index')],
                 ['name' => $this->author->name, 'url' => route('blog.author', $this->author->author_slug)],

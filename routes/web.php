@@ -10,6 +10,11 @@ Route::get('/', function () {
     return view('landing-v3');
 })->name('home');
 
+// The front controller answers on its own path too, so the homepage is
+// reachable at two URLs. The canonical tag already points both at "/", but a
+// 301 costs nothing and keeps the duplicate out of Search Console entirely.
+Route::get('/index.php', fn () => redirect('/', 301));
+
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 

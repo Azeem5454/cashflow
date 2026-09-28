@@ -60,6 +60,12 @@ class Index extends Component
         $posts = $query->paginate(12);
         $page  = $posts->currentPage();
 
+        // ?page= past the last page returns an empty 200 by default, which
+        // Google reads as a soft 404 and counts against the whole section.
+        // Page 1 stays a 200 even when empty — that is the real "no posts
+        // yet" state, not a broken URL.
+        abort_if($page > 1 && $posts->isEmpty(), 404);
+
         $canonical = $category
             ? route('blog.category', $category->slug)
             : route('blog.index');
