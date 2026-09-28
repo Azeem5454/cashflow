@@ -35,6 +35,17 @@
                 ['How does the photo receipt feature work?','Take a photo of any receipt inside the app, or upload one from your phone. The app reads the amount, what it was for, and the date — then fills the entry form for you automatically. You just check it and tap Save. No typing needed.'],
                 ['Is the AI free to use?','Yes. Every free account gets ' . \App\Services\AiQuota::FREE_MONTHLY_LIMIT . ' AI entries a month — scan a receipt, or just type or say "Paid 120 for fuel today" and the entry fills itself. AI category suggestions are free and unlimited. Pro gives you ' . \App\Services\AiQuota::PRO_MONTHLY_SCANS . ' receipt scans a month plus AI cash flow insights.'],
             ];
+
+        // Schema.org nodes are assembled in PHP, never as literals in this
+        // file — see App\Support\JsonLd for why that matters.
+        $jsonLd = \App\Support\JsonLd::forLanding(
+            appName:     $appName,
+            appUrl:      $appUrl,
+            description: $ogDesc,
+            image:       $ogImage,
+            proPrice:    (string) \App\Support\Pricing::proMonthlyAmount(),
+            faqs:        $faqs,
+        );
 @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -63,53 +74,16 @@
     <meta name="twitter:description" content="{{ $ogDesc }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
 
-    {{-- Schema.org JSON-LD. The "at-context" / "at-type" keys collide with Blade directives in Laravel 11+; verbatim blocks below escape them. --}}
-    <script type="application/ld+json">
-    @verbatim{
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",@endverbatim
-        "name": @json($appName),
-        "description": @json($ogDesc),
-        "url": @json($appUrl . '/'),
-        "image": @json($ogImage),
-        @verbatim"applicationCategory": "BusinessApplication",
-        "operatingSystem": "Web",
-        "offers": [
-            {"@type": "Offer", "price": "0", "priceCurrency": "USD", "name": "Free"},
-            {"@type": "Offer", "price": @endverbatim
-@json((string) \App\Support\Pricing::proMonthlyAmount())
-@verbatim, "priceCurrency": "USD", "name": "Pro (monthly)"}
-        ]
-    }@endverbatim
-    </script>
-    {{-- Organization. Built with json_encode rather than a verbatim block so
-         the at-prefixed keys never meet Blade's directive scanner.
+    {{-- Schema.org JSON-LD.
 
-         "CashFox" is a crowded name — a rewards app, a budgeting app and an
-         AI tool all share it. The extra fields exist so Google has enough to
-         tell this entity apart from those, instead of treating every mention
-         of the name as one thing. --}}
-    <script type="application/ld+json">{!! json_encode([
-        '@context'      => 'https://schema.org',
-        '@type'         => 'Organization',
-        'name'          => $appName,
-        'alternateName' => 'CashFox',
-        'url'           => $appUrl . '/',
-        'logo'          => $ogImage,
-        'description'   => 'Cash book and expense tracking software for small business owners, '
-                         . 'freelancers and their finance teams. Track cash in and cash out, '
-                         . 'scan receipts, and share books with a team.',
-        'applicationCategory' => 'BusinessApplication',
-    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
-    <script type="application/ld+json">{!! json_encode([
-        '@context'   => 'https://schema.org',
-        '@type'      => 'FAQPage',
-        'mainEntity' => collect($faqs)->map(fn ($f) => [
-            '@type'          => 'Question',
-            'name'           => $f[0],
-            'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f[1]],
-        ])->values()->all(),
-    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}</script>
+         Built in App\Support\JsonLd, NOT here. Laravel 11 added a "@ context"
+         Blade directive (written with a space so this comment cannot trip it),
+         and Blade compiles directive tokens before PHP runs — so that key,
+         written literally in a template, becomes a block of compiled PHP and
+         the markup is silently ignored by every crawler. See the class. --}}
+    @foreach($jsonLd as $block)
+        <script type="application/ld+json">{!! $block !!}</script>
+    @endforeach
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>

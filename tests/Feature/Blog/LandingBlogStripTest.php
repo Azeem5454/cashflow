@@ -53,6 +53,19 @@ class LandingBlogStripTest extends BlogTestCase
             'Every JSON-LD block on the landing page must be valid JSON'
         );
 
+        // Valid JSON is not enough. Laravel 11's "@ context" Blade directive
+        // rewrote this key into compiled PHP on two of the three blocks for
+        // months: the JSON still parsed, the page still rendered, and every
+        // crawler ignored the markup. Assert the key itself survived.
+        $this->assertGreaterThanOrEqual(3, $blocks->count());
+        foreach ($blocks as $block) {
+            $this->assertSame(
+                'https://schema.org',
+                $block['@context'] ?? null,
+                'A JSON-LD block lost its context key: ' . json_encode(array_slice(array_keys($block), 0, 2))
+            );
+        }
+
         $org = $blocks->firstWhere('@type', 'Organization');
         $this->assertNotNull($org);
 

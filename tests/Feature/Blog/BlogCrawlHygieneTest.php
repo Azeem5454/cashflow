@@ -64,8 +64,26 @@ class BlogCrawlHygieneTest extends BlogTestCase
         $this->assertStringEndsWith('/blog?page=2', $m[1]);
     }
 
-    public function test_the_front_controller_path_redirects_to_the_homepage(): void
+    /**
+     * In production the homepage also answers on /index.php, because the web
+     * server hands that path to the front controller and Laravel strips the
+     * script name before routing. A route for it never matches, so a redirect
+     * is not available. What keeps the duplicate harmless is the canonical
+     * being absolute and pointing at "/" — which is why Search Console files
+     * it as "alternate page with proper canonical", the healthy outcome.
+     *
+     * The test HTTP kernel has no front controller, so /index.php simply 404s
+     * here and the duplicate cannot be reproduced. This guards the canonical
+     * instead, which is the part doing the actual work.
+     */
+    public function test_the_homepage_canonical_is_absolute_and_has_no_script_name(): void
     {
-        $this->get('/index.php')->assertRedirect('/')->assertStatus(301);
+        $html = $this->get('/')->assertOk()->getContent();
+
+        preg_match('#<link rel="canonical" href="([^"]+)">#', $html, $m);
+        $this->assertNotEmpty($m, 'The homepage needs a canonical');
+        $this->assertStringStartsWith('http', $m[1]);
+        $this->assertStringEndsWith('/', $m[1]);
+        $this->assertStringNotContainsString('index.php', $m[1]);
     }
 }
