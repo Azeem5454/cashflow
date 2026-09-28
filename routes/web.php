@@ -35,6 +35,10 @@ Route::view('/delete-account', 'legal.delete-account')->name('delete-account');
 // Dynamic sitemap — public pages, /blog, every published post + category.
 Route::get('/sitemap.xml', \App\Http\Controllers\SitemapController::class)->name('sitemap');
 
+// Web app manifest. Generated, not a static file: the name and icon are both
+// editable from /admin/appearance and the icon is stored in the database.
+Route::get('/site.webmanifest', \App\Http\Controllers\WebManifestController::class)->name('webmanifest');
+
 // Admin-authored colours + fonts, served from the DB for the same reason as
 // the brand assets below: Railway wipes the filesystem on every redeploy.
 Route::get('/brand-theme.css', \App\Http\Controllers\ThemeCssController::class)->name('brand-theme');

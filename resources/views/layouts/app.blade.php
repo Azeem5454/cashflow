@@ -29,6 +29,7 @@
     <meta name="theme-color" content="#0a0f1e">
     @php $appFaviconSrc = \App\Models\UploadedAsset::has('favicon') ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon') : asset('favicon.png'); @endphp
     <link rel="icon" type="image/png" href="{{ $appFaviconSrc }}">
+    <link rel="manifest" href="{{ route('webmanifest') }}">
     <link rel="apple-touch-icon" href="{{ $appFaviconSrc }}">
 
     <!-- Google Fonts -->
@@ -38,20 +39,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-    {{-- Google Analytics 4 — only loaded when configured. --}}
-    @if(config('services.analytics.ga4_id'))
-        <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('services.analytics.ga4_id') }}"></script>
-        <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', @json(config('services.analytics.ga4_id')), {send_page_view: true});
-            // Track subsequent wire:navigate page swaps as virtual pageviews
-            document.addEventListener('livewire:navigated', function () {
-                gtag('event', 'page_view', {page_path: window.location.pathname + window.location.search});
-            });
-        </script>
-    @endif
+    <x-analytics :spa="true" />
 
     @if(\App\Helpers\Setting::get('theme.css'))
         <link rel="stylesheet" href="{{ route('brand-theme') }}?v={{ \App\Helpers\Setting::get('theme.version', '0') }}">
@@ -573,5 +561,6 @@
 @endauth
 
 @livewireScripts
+    <x-cookie-consent />
 </body>
 </html>

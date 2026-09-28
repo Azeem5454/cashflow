@@ -55,6 +55,7 @@
     <link rel="canonical" href="{{ $appUrl }}/">
     @php $landingFaviconSrc = \App\Models\UploadedAsset::has('favicon') ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon') : asset('favicon.png'); @endphp
     <link rel="icon" type="image/png" href="{{ $landingFaviconSrc }}">
+    <link rel="manifest" href="{{ route('webmanifest') }}">
     <link rel="apple-touch-icon" href="{{ $landingFaviconSrc }}">
 
     {{-- Open Graph (Facebook, LinkedIn, WhatsApp, iMessage) --}}
@@ -88,16 +89,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
-    {{-- Google Analytics 4 — only loaded when configured. --}}
-    @if(config('services.analytics.ga4_id'))
-        <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('services.analytics.ga4_id') }}"></script>
-        <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', @json(config('services.analytics.ga4_id')));
-        </script>
-    @endif
+    <x-analytics />
 
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800;12..96,900&family=Outfit:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -975,5 +967,6 @@
     });
 })();
 </script>
+    <x-cookie-consent />
 </body>
 </html>

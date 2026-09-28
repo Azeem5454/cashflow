@@ -70,6 +70,7 @@
 
     @php $faviconSrc = \App\Models\UploadedAsset::has('favicon') ? route('brand-asset', 'favicon') . '?v=' . \App\Models\UploadedAsset::cacheBuster('favicon') : asset('favicon.png'); @endphp
     <link rel="icon" type="image/png" href="{{ $faviconSrc }}">
+    <link rel="manifest" href="{{ route('webmanifest') }}">
     <link rel="apple-touch-icon" href="{{ $faviconSrc }}">
 
     <!-- Brand Fonts — loaded from admin appearance settings -->
@@ -90,16 +91,7 @@
         <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     @endif
 
-    {{-- Google Analytics 4 — only loaded when configured. --}}
-    @if(config('services.analytics.ga4_id'))
-        <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('services.analytics.ga4_id') }}"></script>
-        <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', @json(config('services.analytics.ga4_id')));
-        </script>
-    @endif
+    <x-analytics />
 
     {{-- Auth pages are always dark to match the landing page. Dashboard theme toggle does not apply here. --}}
     <script>document.documentElement.classList.add('dark');</script>
@@ -448,5 +440,6 @@
 
 </div>
 
+    <x-cookie-consent />
 </body>
 </html>

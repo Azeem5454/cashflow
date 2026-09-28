@@ -167,6 +167,7 @@
     <link rel="alternate" type="application/rss+xml" title="{{ $appName }} Blog" href="{{ route('blog.feed') }}">
 
     <link rel="icon" type="image/png" href="{{ $faviconSrc }}">
+    <link rel="manifest" href="{{ route('webmanifest') }}">
     <link rel="apple-touch-icon" href="{{ $faviconSrc }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -175,16 +176,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-    {{-- Google Analytics 4 --}}
-    @if(config('services.analytics.ga4_id'))
-        <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('services.analytics.ga4_id') }}"></script>
-        <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', @json(config('services.analytics.ga4_id')));
-        </script>
-    @endif
+    <x-analytics />
 
     <script>document.documentElement.classList.add('dark');</script>
 
@@ -263,5 +255,6 @@
 </footer>
 
 @livewireScripts
+    <x-cookie-consent />
 </body>
 </html>
