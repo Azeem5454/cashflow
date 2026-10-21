@@ -14,6 +14,7 @@ use Illuminate\Console\Command;
  *
  * Usage:
  *   php artisan blog:regenerate-image --all-missing
+ *   php artisan blog:regenerate-image --missing-photo
  *   php artisan blog:regenerate-image --slug=my-post-slug
  *   php artisan blog:regenerate-image --latest
  */
@@ -23,6 +24,7 @@ class BlogRegenerateImage extends Command
         {--slug= : Regenerate for this slug}
         {--latest : Regenerate for the most recent post}
         {--all-missing : Regenerate for every published post missing an image}
+        {--missing-photo : Regenerate every published post without a stock photo (gradient fallback)}
         {--all : Regenerate every published post, overwriting existing images}';
 
     protected $description = 'Render the featured image for blog post(s)';
@@ -32,10 +34,11 @@ class BlogRegenerateImage extends Command
         $slug = $this->option('slug');
         $latest = (bool) $this->option('latest');
         $allMissing = (bool) $this->option('all-missing');
+        $missingPhoto = (bool) $this->option('missing-photo');
         $all = (bool) $this->option('all');
 
-        if (! $slug && ! $latest && ! $allMissing && ! $all) {
-            $this->error('Pass --slug=..., --latest, --all-missing, or --all.');
+        if (! $slug && ! $latest && ! $allMissing && ! $missingPhoto && ! $all) {
+            $this->error('Pass --slug=..., --latest, --all-missing, --missing-photo, or --all.');
             return self::FAILURE;
         }
 
@@ -46,6 +49,8 @@ class BlogRegenerateImage extends Command
             $query->latest('created_at')->limit(1);
         } elseif ($all) {
             $query->where('status', 'published');
+        } elseif ($missingPhoto) {
+            $query->whereNull('featured_image_credit')->where('status', 'published');
         } else { // all-missing
             $query->whereNull('featured_image_key')->where('status', 'published');
         }

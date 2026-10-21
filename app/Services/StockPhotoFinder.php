@@ -37,6 +37,10 @@ class StockPhotoFinder
     {
         $key = trim((string) config('services.pexels.key'));
         if ($key === '') {
+            // Loud on purpose: the scheduler runs on the worker service, which
+            // has its own env vars, so a key missing there only shows up as
+            // autopilot posts quietly getting the gradient design.
+            Log::warning('StockPhotoFinder: PEXELS_API_KEY is not set, using the typographic image');
             return null;
         }
 
